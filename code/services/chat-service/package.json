@@ -7,6 +7,9 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "clean": "rm -rf dist",
     "dev": "tsx watch src/app.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "generate": "drizzle-kit generate",
     "migrate": "tsx src/db/migrate.ts",
     "seed": "tsx src/db/seed.ts",
@@ -38,11 +41,16 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^25.9.1",
     "@types/pg": "^8.20.0",
+    "@types/supertest": "^7.2.0",
+    "@vitest/coverage-v8": "^4.1.7",
     "drizzle-kit": "^0.31.10",
     "nodemon": "^3.1.14",
+    "socket.io-client": "^4.8.3",
+    "supertest": "^7.2.2",
     "ts-node": "^10.9.2",
     "tsx": "^4.22.3",
-    "typescript": "^6.0.3"
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.7"
   },
   "type": "module"
 }
