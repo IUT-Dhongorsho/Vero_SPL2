@@ -25,8 +25,8 @@ describe('User Event Propagation NFR', () => {
       data: { id: 'u-123', name: 'John Doe', avatarUrl: 'http://avatar.com' },
     };
 
-    // Access private handleUserEvent via type casting
-    await (subscriberService as any).handleUserEvent(event);
+    // Access private handleAuthEvent via type casting
+    await (subscriberService as any).handleAuthEvent(event);
 
     expect(db.insert).toHaveBeenCalledWith(users);
     expect(db.values).toHaveBeenCalledWith({

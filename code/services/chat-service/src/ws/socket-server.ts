@@ -8,8 +8,9 @@ import { handleConnection } from './handlers/connection.handler.js';
 export const initSocketServer = (server: any) => {
   const io = new Server(server, {
     cors: {
-      origin: '*',
+      origin: 'http://localhost:3000',
       methods: ['GET', 'POST'],
+      credentials: true
     },
   });
 
@@ -21,6 +22,7 @@ export const initSocketServer = (server: any) => {
   io.use(authMiddleware as any);
 
   io.on('connection', (socket: AuthSocket) => {
+    console.log(`🔌 [WS:Server] New socket connection attempt: ${socket.id}`);
     handleConnection(io, socket);
   });
 

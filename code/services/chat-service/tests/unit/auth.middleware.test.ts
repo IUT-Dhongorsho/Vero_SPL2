@@ -1,52 +1,71 @@
-import { describe, it, expect, vi } from 'vitest';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { authMiddleware } from '../../src/ws/middlewares/auth.middleware.js';
-import jwt from 'jsonwebtoken';
-import { env } from '../../config/env.js';
+import { db } from '../../src/db/client.js';
 
-describe('Auth Middleware', () => {
-  it('should call next() if a valid token is provided', () => {
+// Mock DB
+vi.mock('../../src/db/client.js', () => ({
+  db: {
+    query: {
+      sessions: {
+        findFirst: vi.fn()
+      }
+    }
+  }
+}));
+
+describe('WS Auth Middleware', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('should call next() if a valid session is found in DB', async () => {
     const mockSocket = {
       handshake: {
-        auth: { token: 'Bearer valid-token' },
+        auth: { token: 'Bearer valid-jwt' },
         headers: {},
       },
       user: undefined,
     } as any;
     const next = vi.fn();
 
-    vi.spyOn(jwt, 'verify').mockReturnValue({ id: 'user-123' } as any);
+    const mockSession = {
+        authToken: 'valid-jwt',
+        expiresAt: new Date(Date.now() + 10000),
+        user: { id: 'user-123', name: 'Nafis' }
+    };
 
-    authMiddleware(mockSocket, next);
+    (db.query.sessions.findFirst as any).mockResolvedValue(mockSession);
+
+    await authMiddleware(mockSocket, next);
 
     expect(next).toHaveBeenCalledWith();
-    expect(mockSocket.user).toEqual({ id: 'user-123' });
+    expect(mockSocket.user).toEqual(mockSession.user);
   });
 
-  it('should call next with error if no token is provided', () => {
+  it('should call next with error if no token is provided', async () => {
     const mockSocket = {
       handshake: { auth: {}, headers: {} },
     } as any;
     const next = vi.fn();
 
-    authMiddleware(mockSocket, next);
+    await authMiddleware(mockSocket, next);
 
     expect(next).toHaveBeenCalledWith(expect.any(Error));
     expect(next.mock.calls[0][0].message).toContain('Token not provided');
   });
 
-  it('should call next with error if token is invalid', () => {
+  it('should call next with error if session is not found or expired', async () => {
     const mockSocket = {
       handshake: { auth: { token: 'invalid-token' }, headers: {} },
     } as any;
     const next = vi.fn();
 
-    vi.spyOn(jwt, 'verify').mockImplementation(() => {
-      throw new Error('invalid');
-    });
+    // Mock finding nothing in DB
+    (db.query.sessions.findFirst as any).mockResolvedValue(null);
 
-    authMiddleware(mockSocket, next);
+    await authMiddleware(mockSocket, next);
 
     expect(next).toHaveBeenCalledWith(expect.any(Error));
-    expect(next.mock.calls[0][0].message).toContain('Invalid token');
+    expect(next.mock.calls[0][0].message).toContain('Invalid or expired session');
   });
 });

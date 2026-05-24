@@ -3,8 +3,7 @@ import * as protoLoader from '@grpc/proto-loader';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { env } from '../config/env.js';
-import { db } from '../db/client.js';
-import { channels, channelMembers } from '../models/channel.model.js';
+import { channelService } from '../services/channel.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,12 +24,14 @@ const createChannel = async (call: any, callback: any) => {
   try {
     const { name, type, externalId, workspaceId } = call.request;
 
-    const [newChannel] = await db.insert(channels).values({
-      name,
-      type: type || 'group',
-      externalId,
-      workspaceId,
-    }).returning();
+    // Use centralized service
+    const newChannel = await channelService.createChannel({
+        name,
+        type,
+        creatorId: 'system', // Project service acts as system
+        externalId,
+        workspaceId
+    });
 
     callback(null, {
       id: newChannel.id,
@@ -53,15 +54,7 @@ const addMembers = async (call: any, callback: any) => {
   try {
     const { channelId, userIds } = call.request;
 
-    const memberData = userIds.map((userId: string) => ({
-      channelId,
-      userId,
-      role: 'member',
-    }));
-
-    if (memberData.length > 0) {
-      await db.insert(channelMembers).values(memberData);
-    }
+    await channelService.addMembers(channelId, userIds);
 
     callback(null, {
       id: channelId,

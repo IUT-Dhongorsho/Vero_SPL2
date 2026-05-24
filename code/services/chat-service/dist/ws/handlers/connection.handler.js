@@ -20,16 +20,18 @@ export const handleConnection = async (io, socket) => {
     registerTypingHandlers(io, socket);
     registerReceiptHandlers(io, socket);
     socket.on(SocketEvents.DISCONNECT, async () => {
-        console.log(`User disconnected: ${userId}`);
+        console.log(`🔌 [WS:Connection] User disconnected: ${userId} (${socket.id})`);
         await presenceStore.setUserOffline(userId);
         socket.broadcast.emit('user_presence', { userId, status: 'offline' });
     });
     socket.on(SocketEvents.JOIN_ROOM, (channelId) => {
+        console.log(`🏠 [WS:Room] User ${userId} attempting to join room: ${channelId}`);
         socket.join(channelId);
-        console.log(`User ${userId} joined room ${channelId}`);
+        console.log(`✅ [WS:Room] User ${userId} joined room: ${channelId}`);
     });
     socket.on(SocketEvents.LEAVE_ROOM, (channelId) => {
+        console.log(`🏃 [WS:Room] User ${userId} leaving room: ${channelId}`);
         socket.leave(channelId);
-        console.log(`User ${userId} left room ${channelId}`);
+        console.log(`✅ [WS:Room] User ${userId} left room: ${channelId}`);
     });
 };
