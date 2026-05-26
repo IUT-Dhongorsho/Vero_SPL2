@@ -174,3 +174,18 @@ export const mockMembers: Member[] = [
     joinedAt: 'Mar 10, 2026',
   },
 ];
+
+export interface Workspace {
+  id: string;
+  name: string;
+  description: string;
+  cardCount: number;
+  members: number;
+  projectId: string;
+}
+
+export const mockWorkspaces: Workspace[] = [
+  { id: '1', name: 'Design System', description: 'Reusable UI components', cardCount: 12, members: 3, projectId: '3' },
+  { id: '2', name: 'Backend API', description: 'RESTful APIs', cardCount: 8, members: 2, projectId: '3' },
+  { id: '3', name: 'Frontend Development', description: 'React components', cardCount: 15, members: 4, projectId: '3' },
+];
