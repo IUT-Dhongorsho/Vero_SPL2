@@ -14,6 +14,7 @@ import { CalendarPage } from './pages/CalendarPage';
 import { FilesPage } from './pages/FilesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { NotesPage } from './pages/notes/NotesPage';
+import { MeetPage } from './pages/meet/MeetPage';
 import { authService } from './services/authService';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -34,6 +35,7 @@ function AppContent() {
         <Route path="/project/:projectId" element={<ProtectedRoute><PageTransition><ProjectPage /></PageTransition></ProtectedRoute>} />
         <Route path="/project/:projectId/notes" element={<ProtectedRoute><PageTransition><NotesPage /></PageTransition></ProtectedRoute>} />
         <Route path="/project/:projectId/workspace/:workspaceId" element={<ProtectedRoute><PageTransition><WorkspacePage /></PageTransition></ProtectedRoute>} />
+        <Route path="/project/:projectId/workspace/:workspaceId/meet" element={<ProtectedRoute><PageTransition><MeetPage /></PageTransition></ProtectedRoute>} />
         <Route path="/tasks" element={<ProtectedRoute><PageTransition><TasksPage /></PageTransition></ProtectedRoute>} />
         <Route path="/calendar" element={<ProtectedRoute><PageTransition><CalendarPage /></PageTransition></ProtectedRoute>} />
         <Route path="/files" element={<ProtectedRoute><PageTransition><FilesPage /></PageTransition></ProtectedRoute>} />

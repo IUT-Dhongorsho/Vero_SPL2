@@ -71,7 +71,7 @@ export const WorkspacePage: React.FC = () => {
             <ArrowLeft className="w-4 h-4 mr-1" />
             Back
           </AnimatedButton>
-          <AnimatedButton variant="outline" size="sm">
+          <AnimatedButton variant="primary" size="sm" onClick={() => navigate(`/project/${projectId}/workspace/${workspaceId}/meet`)}>
             <Video className="w-4 h-4 mr-1" />
             Start Meet
           </AnimatedButton>
@@ -79,7 +79,7 @@ export const WorkspacePage: React.FC = () => {
             <Users className="w-4 h-4 mr-1" />
             Invite
           </AnimatedButton>
-          <AnimatedButton variant="primary" size="sm">
+          <AnimatedButton variant="outline" size="sm">
             <Plus className="w-4 h-4 mr-1" />
             Add Card
           </AnimatedButton>
@@ -98,7 +98,9 @@ export const WorkspacePage: React.FC = () => {
             <p className="text-gray-600 dark:text-gray-400">Build React components and pages for Vero platform</p>
           </div>
           <div className="flex gap-2">
-            <AnimatedButton variant="outline" size="sm"><Video className="w-4 h-4 mr-1" /> Start Meet</AnimatedButton>
+            <AnimatedButton variant="primary" size="sm" onClick={() => navigate(`/project/${projectId}/workspace/${workspaceId}/meet`)}>
+              <Video className="w-4 h-4 mr-1" /> Start Meet
+            </AnimatedButton>
             <AnimatedButton variant="outline" size="sm"><Users className="w-4 h-4 mr-1" /> Invite</AnimatedButton>
           </div>
         </div>
