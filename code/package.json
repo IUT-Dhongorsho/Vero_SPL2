@@ -5,19 +5,12 @@
   "packageManager": "pnpm@8.15.0",
   "scripts": {
     "dev": "turbo dev",
-    "build": "turbo build",
-    "lint": "turbo lint",
-    "clean": "turbo clean && rm -rf node_modules",
-    "dev:ui": "pnpm run --filter @repo/ui storybook",
-    "build:ui": "pnpm run --filter @repo/ui build-storybook",
+    "dev:ui": "pnpm run --filter @repo/ui dev",
     "dev:web": "pnpm run --filter web dev",
-    "dev:desktop": "pnpm run --filter desktop dev"
+    "build": "turbo build",
+    "clean": "turbo clean && rm -rf node_modules"
   },
   "devDependencies": {
     "turbo": "^1.13.0"
-  },
-  "engines": {
-    "node": ">=18.0.0",
-    "pnpm": ">=8.0.0"
   }
 }
