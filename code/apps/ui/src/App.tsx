@@ -8,9 +8,13 @@ import { SignupPage } from './pages/SignupPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProjectPage } from './pages/ProjectPage';
 import { WorkspacePage } from './pages/WorkspacePage';
+import { TasksPage } from './pages/TasksPage';
+import { CalendarPage } from './pages/CalendarPage';
+import { FilesPage } from './pages/FilesPage';
+import { SettingsPage } from './pages/SettingsPage';
+import { ToastProvider } from './components/ui/Toast';
 import { authService } from './services/authService';
 
-// Protected Route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!authService.isAuthenticated()) {
     return <Navigate to="/login" replace />;
@@ -20,51 +24,86 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
 
 export const App: React.FC = () => {
   return (
-    <AnimatePresence mode="wait">
-      <Routes>
-        {/* Public Routes */}
-        <Route path="/" element={
-          <PageTransition>
-            <LandingPage />
-          </PageTransition>
-        } />
-        <Route path="/login" element={
-          <PageTransition>
-            <LoginPage />
-          </PageTransition>
-        } />
-        <Route path="/signup" element={
-          <PageTransition>
-            <SignupPage />
-          </PageTransition>
-        } />
-        
-        {/* Protected Routes - Real Pages */}
-        <Route path="/dashboard" element={
-          <ProtectedRoute>
+    <ToastProvider>
+      <AnimatePresence mode="wait">
+        <Routes>
+          {/* Public Routes */}
+          <Route path="/" element={
             <PageTransition>
-              <DashboardPage />
+              <LandingPage />
             </PageTransition>
-          </ProtectedRoute>
-        } />
-        <Route path="/project/:projectId" element={
-          <ProtectedRoute>
+          } />
+          <Route path="/login" element={
             <PageTransition>
-              <ProjectPage />
+              <LoginPage />
             </PageTransition>
-          </ProtectedRoute>
-        } />
-        <Route path="/project/:projectId/workspace/:workspaceId" element={
-          <ProtectedRoute>
+          } />
+          <Route path="/signup" element={
             <PageTransition>
-              <WorkspacePage />
+              <SignupPage />
             </PageTransition>
-          </ProtectedRoute>
-        } />
-        
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-    </AnimatePresence>
+          } />
+          
+          {/* Protected Routes */}
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <PageTransition>
+                <DashboardPage />
+              </PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/projects" element={
+            <ProtectedRoute>
+              <Navigate to="/dashboard" replace />
+            </ProtectedRoute>
+          } />
+          <Route path="/project/:projectId" element={
+            <ProtectedRoute>
+              <PageTransition>
+                <ProjectPage />
+              </PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/project/:projectId/workspace/:workspaceId" element={
+            <ProtectedRoute>
+              <PageTransition>
+                <WorkspacePage />
+              </PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/tasks" element={
+            <ProtectedRoute>
+              <PageTransition>
+                <TasksPage />
+              </PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/calendar" element={
+            <ProtectedRoute>
+              <PageTransition>
+                <CalendarPage />
+              </PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/files" element={
+            <ProtectedRoute>
+              <PageTransition>
+                <FilesPage />
+              </PageTransition>
+            </ProtectedRoute>
+          } />
+          <Route path="/settings" element={
+            <ProtectedRoute>
+              <PageTransition>
+                <SettingsPage />
+              </PageTransition>
+            </ProtectedRoute>
+          } />
+          
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+      </AnimatePresence>
+    </ToastProvider>
   );
 };
