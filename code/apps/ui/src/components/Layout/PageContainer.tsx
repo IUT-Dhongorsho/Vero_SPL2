@@ -16,7 +16,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   topBarActions,
 }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
       <Sidebar items={sidebarItems} />
       <TopBar title={title} actions={topBarActions} />
       <main className="ml-64 pt-20 p-8">

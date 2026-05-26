@@ -13,7 +13,7 @@ export interface Task {
   createdAt: string;
 }
 
-export interface File {
+export interface FileItem {
   id: string;
   name: string;
   type: 'image' | 'document' | 'pdf' | 'code' | 'other';
@@ -93,7 +93,7 @@ export const mockTasks: Task[] = [
   },
 ];
 
-export const mockFiles: File[] = [
+export const mockFiles: FileItem[] = [
   {
     id: '1',
     name: 'PRD_v2.pdf',

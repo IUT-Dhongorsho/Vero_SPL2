@@ -12,6 +12,7 @@ export const ThemeToggle: React.FC = () => {
       whileHover={{ scale: 1.05 }}
       onClick={toggleTheme}
       className="p-2 rounded-lg glass transition-all duration-200 cursor-pointer"
+      aria-label="Toggle theme"
     >
       <motion.div
         initial={false}

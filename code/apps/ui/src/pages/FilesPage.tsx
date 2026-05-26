@@ -6,13 +6,13 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { EmptyState } from '../components/ui/EmptyState';
-import { mockFiles, File } from '../data/mockData';
+import { mockFiles, FileItem } from '../data/mockData';
 
 export const FilesPage: React.FC = () => {
-  const [files, setFiles] = useState<File[]>(mockFiles);
+  const [files, setFiles] = useState<FileItem[]>(mockFiles);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
 
   const sidebarItems = [
     { icon: '📊', label: 'Dashboard', href: '/dashboard' },
@@ -39,7 +39,7 @@ export const FilesPage: React.FC = () => {
     alert('File upload would open here');
   };
 
-  const handleDownload = (file: File) => {
+  const handleDownload = (file: FileItem) => {
     alert(`Downloading ${file.name}`);
   };
 

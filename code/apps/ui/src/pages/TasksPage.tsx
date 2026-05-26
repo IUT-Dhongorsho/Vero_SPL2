@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Circle, Filter, Calendar as CalendarIcon, Flag } from 'lucide-react';
+import { CheckCircle2, Circle, Filter, Calendar as CalendarIcon, Flag, LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, Files } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { GlassCard } from '../components/ui/GlassCard';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -15,11 +15,11 @@ export const TasksPage: React.FC = () => {
   const [showFilter, setShowFilter] = useState(false);
 
   const sidebarItems = [
-    { icon: '📊', label: 'Dashboard', href: '/dashboard' },
-    { icon: '📁', label: 'Projects', href: '/projects' },
-    { icon: '✅', label: 'My Tasks', href: '/tasks', active: true },
-    { icon: '📅', label: 'Calendar', href: '/calendar' },
-    { icon: '📄', label: 'Files', href: '/files' },
+    { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard' },
+    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
+    { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks', active: true },
+    { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
+    { icon: <Files className="w-4 h-4" />, label: 'Files', href: '/files' },
   ];
 
   const filteredTasks = tasks.filter(task => {
@@ -32,18 +32,10 @@ export const TasksPage: React.FC = () => {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'text-red-600 bg-red-100 dark:bg-red-900/30';
-      case 'medium': return 'text-yellow-600 bg-yellow-100 dark:bg-yellow-900/30';
-      case 'low': return 'text-green-600 bg-green-100 dark:bg-green-900/30';
-      default: return 'text-gray-600 bg-gray-100';
-    }
-  };
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case 'high': return <Flag className="w-3 h-3" />;
-      case 'medium': return <Flag className="w-3 h-3" />;
-      default: return <Flag className="w-3 h-3" />;
+      case 'high': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
+      case 'medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
+      case 'low': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
+      default: return 'bg-gray-100 text-gray-700';
     }
   };
 
@@ -77,16 +69,15 @@ export const TasksPage: React.FC = () => {
           </button>
           <div className="flex-1">
             <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h4 className={`font-semibold ${task.status === 'done' ? 'line-through text-gray-400' : ''}`}>
+              <h4 className={`font-semibold text-gray-900 dark:text-white ${task.status === 'done' ? 'line-through text-gray-400 dark:text-gray-500' : ''}`}>
                 {task.title}
               </h4>
-              <span className={`text-xs px-2 py-0.5 rounded-full flex items-center gap-1 ${getPriorityColor(task.priority)}`}>
-                {getPriorityIcon(task.priority)}
+              <span className={`text-xs px-2 py-0.5 rounded-full ${getPriorityColor(task.priority)}`}>
                 {task.priority.toUpperCase()}
               </span>
             </div>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mb-2">{task.description}</p>
-            <div className="flex items-center gap-4 text-xs text-gray-500">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{task.description}</p>
+            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
               <span className="flex items-center gap-1">
                 📁 {task.projectName}
               </span>
@@ -132,7 +123,7 @@ export const TasksPage: React.FC = () => {
                         setFilter(priority as any);
                         setShowFilter(false);
                       }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-white/20 transition-colors ${filter === priority ? 'text-blue-500' : ''}`}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-white/20 transition-colors ${filter === priority ? 'text-blue-500' : 'text-gray-700 dark:text-gray-300'}`}
                     >
                       {priority === 'all' ? 'All Tasks' : `${priority.toUpperCase()} Priority`}
                     </button>
@@ -147,8 +138,8 @@ export const TasksPage: React.FC = () => {
     >
       <div className="max-w-3xl mx-auto">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-2">Your Tasks</h2>
-          <p className="text-gray-500 dark:text-gray-400">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Your Tasks</h2>
+          <p className="text-gray-600 dark:text-gray-400">
             {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} assigned to you
           </p>
         </div>
@@ -159,7 +150,7 @@ export const TasksPage: React.FC = () => {
           <>
             {groups.today.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <span className="text-red-500">📅</span> Due Today ({groups.today.length})
                 </h3>
                 {groups.today.map((task: Task) => (
@@ -170,7 +161,7 @@ export const TasksPage: React.FC = () => {
 
             {groups.tomorrow.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <span className="text-yellow-500">📅</span> Due Tomorrow ({groups.tomorrow.length})
                 </h3>
                 {groups.tomorrow.map((task: Task) => (
@@ -181,7 +172,7 @@ export const TasksPage: React.FC = () => {
 
             {groups.thisWeek.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <span className="text-blue-500">📅</span> This Week ({groups.thisWeek.length})
                 </h3>
                 {groups.thisWeek.map((task: Task) => (
@@ -192,7 +183,7 @@ export const TasksPage: React.FC = () => {
 
             {groups.later.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-3 flex items-center gap-2">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <span className="text-gray-500">📅</span> Later ({groups.later.length})
                 </h3>
                 {groups.later.map((task: Task) => (
