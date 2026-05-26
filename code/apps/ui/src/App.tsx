@@ -1,15 +1,16 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
+import { PageTransition } from './components/ui/PageTransition';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProjectPage } from './pages/ProjectPage';
 import { WorkspacePage } from './pages/WorkspacePage';
-import { PageTransition } from './components/Layout/PageTransition';
 import { authService } from './services/authService';
 
+// Protected Route wrapper
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!authService.isAuthenticated()) {
     return <Navigate to="/login" replace />;
@@ -21,6 +22,7 @@ export const App: React.FC = () => {
   return (
     <AnimatePresence mode="wait">
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={
           <PageTransition>
             <LandingPage />
@@ -36,6 +38,8 @@ export const App: React.FC = () => {
             <SignupPage />
           </PageTransition>
         } />
+        
+        {/* Protected Routes - Real Pages */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <PageTransition>
@@ -57,6 +61,8 @@ export const App: React.FC = () => {
             </PageTransition>
           </ProtectedRoute>
         } />
+        
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
