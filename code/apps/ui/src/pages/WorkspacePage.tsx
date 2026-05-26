@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, Video, Users, MoreVertical, CheckCircle, Circle } from 'lucide-react';
+import { ArrowLeft, Plus, Video, Users, MoreVertical, CheckCircle, Circle, LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, Files } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -28,11 +28,11 @@ export const WorkspacePage: React.FC = () => {
   ]);
 
   const sidebarItems = [
-    { icon: '📊', label: 'Dashboard', href: '/dashboard' },
-    { icon: '📁', label: 'Projects', href: '/projects' },
-    { icon: '✅', label: 'My Tasks', href: '/tasks' },
-    { icon: '📅', label: 'Calendar', href: '/calendar' },
-    { icon: '📄', label: 'Files', href: '/files' },
+    { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard' },
+    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
+    { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks' },
+    { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
+    { icon: <Files className="w-4 h-4" />, label: 'Files', href: '/files' },
   ];
 
   const columns = [
@@ -87,7 +87,6 @@ export const WorkspacePage: React.FC = () => {
         </div>
       }
     >
-      {/* Workspace Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -105,7 +104,6 @@ export const WorkspacePage: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Kanban Columns */}
       <div className="grid md:grid-cols-3 gap-6">
         {columns.map((column, colIndex) => (
           <motion.div

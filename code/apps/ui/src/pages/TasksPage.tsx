@@ -57,10 +57,7 @@ export const TasksPage: React.FC = () => {
     >
       <GlassCard className="p-4 mb-3">
         <div className="flex items-start gap-3">
-          <button
-            onClick={() => toggleTaskStatus(task.id)}
-            className="mt-0.5"
-          >
+          <button onClick={() => toggleTaskStatus(task.id)} className="mt-0.5">
             {task.status === 'done' ? (
               <CheckCircle2 className="w-5 h-5 text-green-500" />
             ) : (
@@ -78,13 +75,8 @@ export const TasksPage: React.FC = () => {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{task.description}</p>
             <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
-              <span className="flex items-center gap-1">
-                📁 {task.projectName}
-              </span>
-              <span className="flex items-center gap-1">
-                <CalendarIcon className="w-3 h-3" />
-                Due: {formatDate(new Date(task.dueDate))}
-              </span>
+              <span className="flex items-center gap-1">📁 {task.projectName}</span>
+              <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> Due: {formatDate(new Date(task.dueDate))}</span>
               <span>👤 {task.assigneeName}</span>
             </div>
           </div>
@@ -100,11 +92,7 @@ export const TasksPage: React.FC = () => {
       topBarActions={
         <div className="flex gap-3 items-center">
           <div className="relative">
-            <AnimatedButton
-              variant="outline"
-              size="sm"
-              onClick={() => setShowFilter(!showFilter)}
-            >
+            <AnimatedButton variant="outline" size="sm" onClick={() => setShowFilter(!showFilter)}>
               <Filter className="w-4 h-4 mr-1" />
               Filter
             </AnimatedButton>
@@ -139,9 +127,7 @@ export const TasksPage: React.FC = () => {
       <div className="max-w-3xl mx-auto">
         <div className="mb-6">
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Your Tasks</h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            {filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} assigned to you
-          </p>
+          <p className="text-gray-600 dark:text-gray-400">{filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} assigned to you</p>
         </div>
 
         {!hasTasks ? (
@@ -153,9 +139,7 @@ export const TasksPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <span className="text-red-500">📅</span> Due Today ({groups.today.length})
                 </h3>
-                {groups.today.map((task: Task) => (
-                  <TaskItem key={task.id} task={task} />
-                ))}
+                {groups.today.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
             )}
 
@@ -164,9 +148,7 @@ export const TasksPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <span className="text-yellow-500">📅</span> Due Tomorrow ({groups.tomorrow.length})
                 </h3>
-                {groups.tomorrow.map((task: Task) => (
-                  <TaskItem key={task.id} task={task} />
-                ))}
+                {groups.tomorrow.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
             )}
 
@@ -175,9 +157,7 @@ export const TasksPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <span className="text-blue-500">📅</span> This Week ({groups.thisWeek.length})
                 </h3>
-                {groups.thisWeek.map((task: Task) => (
-                  <TaskItem key={task.id} task={task} />
-                ))}
+                {groups.thisWeek.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
             )}
 
@@ -186,9 +166,7 @@ export const TasksPage: React.FC = () => {
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
                   <span className="text-gray-500">📅</span> Later ({groups.later.length})
                 </h3>
-                {groups.later.map((task: Task) => (
-                  <TaskItem key={task.id} task={task} />
-                ))}
+                {groups.later.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
             )}
           </>

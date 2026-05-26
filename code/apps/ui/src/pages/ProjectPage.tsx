@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, Users, FolderKanban, Video, Edit3, ClipboardList } from 'lucide-react';
+import { ArrowLeft, Plus, Users, FolderKanban, Video, ClipboardList, Edit3, LayoutDashboard, CheckSquare, CalendarDays, Files } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { GlassCard } from '../components/ui/GlassCard';
@@ -26,11 +26,11 @@ export const ProjectPage: React.FC = () => {
   ]);
 
   const sidebarItems = [
-    { icon: '📊', label: 'Dashboard', href: '/dashboard' },
-    { icon: '📁', label: 'Projects', href: '/projects' },
-    { icon: '✅', label: 'My Tasks', href: '/tasks' },
-    { icon: '📅', label: 'Calendar', href: '/calendar' },
-    { icon: '📄', label: 'Files', href: '/files' },
+    { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard' },
+    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
+    { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks' },
+    { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
+    { icon: <Files className="w-4 h-4" />, label: 'Files', href: '/files' },
   ];
 
   const projectNames: Record<string, string> = {
@@ -62,7 +62,6 @@ export const ProjectPage: React.FC = () => {
         </div>
       }
     >
-      {/* Project Header */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -85,7 +84,6 @@ export const ProjectPage: React.FC = () => {
         </div>
       </motion.div>
 
-      {/* Quick Actions */}
       <div className="flex gap-4 mb-8">
         <AnimatedButton variant="primary" onClick={() => navigate(`/project/${projectId}/notes`)}>
           <Edit3 className="w-4 h-4 mr-2" />
@@ -101,7 +99,6 @@ export const ProjectPage: React.FC = () => {
         </AnimatedButton>
       </div>
 
-      {/* Workspaces Grid */}
       <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Workspaces</h3>
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
         {workspaces.map((workspace, index) => (

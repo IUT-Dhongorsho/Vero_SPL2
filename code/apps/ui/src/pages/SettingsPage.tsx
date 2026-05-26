@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Building2, Users, CreditCard, AlertTriangle } from 'lucide-react';
+import { User, Building2, Users, CreditCard, AlertTriangle, LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, Files } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { ProfileTab } from './settings/ProfileTab';
@@ -33,50 +33,26 @@ export const SettingsPage: React.FC = () => {
   const ActiveComponent = tabComponents[activeTab];
 
   const sidebarItems = [
-    { icon: '📊', label: 'Dashboard', href: '/dashboard' },
-    { icon: '📁', label: 'Projects', href: '/projects' },
-    { icon: '✅', label: 'My Tasks', href: '/tasks' },
-    { icon: '📅', label: 'Calendar', href: '/calendar' },
-    { icon: '📄', label: 'Files', href: '/files' },
+    { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard' },
+    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
+    { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks' },
+    { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
+    { icon: <Files className="w-4 h-4" />, label: 'Files', href: '/files' },
   ];
 
   return (
-    <PageContainer
-      title="Settings"
-      sidebarItems={sidebarItems}
-      topBarActions={<ThemeToggle />}
-    >
+    <PageContainer title="Settings" sidebarItems={sidebarItems} topBarActions={<ThemeToggle />}>
       <ToastProvider />
       <div className="max-w-4xl mx-auto">
-        {/* Tabs */}
         <div className="flex gap-1 glass rounded-lg p-1 mb-8">
           {tabs.map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              className={`
-                flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
-                ${activeTab === tab.id
-                  ? 'bg-blue-600 text-white'
-                  : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'
-                }
-              `}
-            >
-              {tab.icon}
-              {tab.label}
+            <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${activeTab === tab.id ? 'bg-blue-600 text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}>
+              {tab.icon} {tab.label}
             </button>
           ))}
         </div>
-
-        {/* Tab Content */}
         <AnimatePresence mode="wait">
-          <motion.div
-            key={activeTab}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -20 }}
-            transition={{ duration: 0.2 }}
-          >
+          <motion.div key={activeTab} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }} transition={{ duration: 0.2 }}>
             <ActiveComponent />
           </motion.div>
         </AnimatePresence>
