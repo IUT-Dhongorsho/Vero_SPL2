@@ -2,9 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  ArrowLeft, Plus, Video, Users, MoreVertical, CheckCircle, Circle, 
-  LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, Files, 
-  GripVertical, Trash2, Edit2, X 
+  ArrowLeft, Plus, Video, Users, LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, Files, 
+  GripVertical, Trash2, Edit2, X, Circle, CheckCircle 
 } from 'lucide-react';
 import {
   DndContext,
@@ -30,19 +29,8 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { GlassCard } from '../components/ui/GlassCard';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { InviteMemberModal } from '../components/modals/InviteMemberModal';
-import { taskService } from '../services/taskService';
+import { taskService, Task } from '../services/taskService';
 import { toast } from '../components/ui/Toast';
-
-interface Task {
-  id: string;
-  title: string;
-  description: string;
-  status: 'todo' | 'progress' | 'done';
-  priority: 'high' | 'medium' | 'low';
-  assignee: string;
-  assigneeId: string;
-  workspaceId: string;
-}
 
 const SortableTaskCard: React.FC<{ 
   task: Task; 
@@ -116,28 +104,11 @@ const TaskEditModal: React.FC<{
           <button onClick={onClose}><X className="w-5 h-5 text-gray-400" /></button>
         </div>
         <div className="space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Title</label>
-            <input type="text" value={editedTask.title} onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })} className="w-full px-4 py-2 glass rounded-lg" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Description</label>
-            <textarea value={editedTask.description} onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })} rows={3} className="w-full px-4 py-2 glass rounded-lg" />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Priority</label>
-            <select value={editedTask.priority} onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value as any })} className="w-full px-4 py-2 glass rounded-lg">
-              <option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option>
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1">Assignee</label>
-            <input type="text" value={editedTask.assignee} onChange={(e) => setEditedTask({ ...editedTask, assignee: e.target.value })} className="w-full px-4 py-2 glass rounded-lg" />
-          </div>
-          <div className="flex gap-3 pt-4">
-            <AnimatedButton variant="outline" fullWidth onClick={onClose}>Cancel</AnimatedButton>
-            <AnimatedButton variant="primary" fullWidth onClick={() => onSave(editedTask)}>Save</AnimatedButton>
-          </div>
+          <div><label className="block text-sm font-medium mb-1">Title</label><input type="text" value={editedTask.title} onChange={(e) => setEditedTask({ ...editedTask, title: e.target.value })} className="w-full px-4 py-2 glass rounded-lg" /></div>
+          <div><label className="block text-sm font-medium mb-1">Description</label><textarea value={editedTask.description} onChange={(e) => setEditedTask({ ...editedTask, description: e.target.value })} rows={3} className="w-full px-4 py-2 glass rounded-lg" /></div>
+          <div><label className="block text-sm font-medium mb-1">Priority</label><select value={editedTask.priority} onChange={(e) => setEditedTask({ ...editedTask, priority: e.target.value as any })} className="w-full px-4 py-2 glass rounded-lg"><option value="high">High</option><option value="medium">Medium</option><option value="low">Low</option></select></div>
+          <div><label className="block text-sm font-medium mb-1">Assignee</label><input type="text" value={editedTask.assignee} onChange={(e) => setEditedTask({ ...editedTask, assignee: e.target.value })} className="w-full px-4 py-2 glass rounded-lg" /></div>
+          <div className="flex gap-3 pt-4"><AnimatedButton variant="outline" fullWidth onClick={onClose}>Cancel</AnimatedButton><AnimatedButton variant="primary" fullWidth onClick={() => onSave(editedTask)}>Save</AnimatedButton></div>
         </div>
       </motion.div>
     </div>

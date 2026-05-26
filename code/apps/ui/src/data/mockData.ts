@@ -34,6 +34,24 @@ export interface Member {
   joinedAt: string;
 }
 
+export interface Project {
+  id: string;
+  name: string;
+  description: string;
+  members: number;
+  lastActive: string;
+  status: 'active' | 'review' | 'completed';
+}
+
+export interface Workspace {
+  id: string;
+  name: string;
+  description: string;
+  cardCount: number;
+  members: number;
+  projectId: string;
+}
+
 export const mockTasks: Task[] = [
   {
     id: '1',
@@ -175,14 +193,40 @@ export const mockMembers: Member[] = [
   },
 ];
 
-export interface Workspace {
-  id: string;
-  name: string;
-  description: string;
-  cardCount: number;
-  members: number;
-  projectId: string;
-}
+export const mockProjects: Project[] = [
+  {
+    id: '1',
+    name: 'Global Rebrand',
+    description: 'Marketing site overhaul and new brand identity',
+    members: 4,
+    lastActive: '2 hours ago',
+    status: 'active',
+  },
+  {
+    id: '2',
+    name: 'Q3 Product Launch',
+    description: 'Feature planning and go-to-market strategy',
+    members: 6,
+    lastActive: 'Yesterday',
+    status: 'active',
+  },
+  {
+    id: '3',
+    name: 'SPL-II Development',
+    description: 'Building Vero - Unified productivity platform',
+    members: 3,
+    lastActive: 'Just now',
+    status: 'active',
+  },
+  {
+    id: '4',
+    name: 'User Research Q4',
+    description: 'Customer interviews and data analysis',
+    members: 3,
+    lastActive: '3 days ago',
+    status: 'review',
+  },
+];
 
 export const mockWorkspaces: Workspace[] = [
   { id: '1', name: 'Design System', description: 'Reusable UI components', cardCount: 12, members: 3, projectId: '3' },

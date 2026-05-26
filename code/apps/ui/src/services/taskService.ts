@@ -1,4 +1,4 @@
-import { mockTasks, Task } from '../data/mockData';
+import { mockTasks } from '../data/mockData';
 
 const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
@@ -11,10 +11,38 @@ export interface CreateTaskData {
   workspaceId: string;
 }
 
+export interface Task {
+  id: string;
+  title: string;
+  description: string;
+  status: 'todo' | 'progress' | 'done';
+  priority: 'high' | 'medium' | 'low';
+  assignee: string;
+  assigneeId: string;
+  workspaceId: string;
+  projectId: string;
+  projectName: string;
+  dueDate: string;
+  createdAt: string;
+}
+
 export const taskService = {
   async getTasks(workspaceId: string): Promise<Task[]> {
     await delay(500);
-    return mockTasks.filter(t => t.workspaceId === workspaceId);
+    return mockTasks.filter(t => t.workspaceId === workspaceId).map(t => ({
+      id: t.id,
+      title: t.title,
+      description: t.description,
+      status: t.status === 'in-progress' ? 'progress' : t.status as 'todo' | 'progress' | 'done',
+      priority: t.priority,
+      assignee: t.assigneeName,
+      assigneeId: t.assigneeId,
+      workspaceId: t.workspaceId,
+      projectId: t.projectId,
+      projectName: t.projectName,
+      dueDate: t.dueDate,
+      createdAt: t.createdAt,
+    }));
   },
 
   async createTask(data: CreateTaskData): Promise<Task> {
@@ -25,11 +53,11 @@ export const taskService = {
       description: data.description,
       priority: data.priority,
       status: data.status,
+      assignee: data.assignee,
       assigneeId: 'user1',
-      assigneeName: data.assignee,
+      workspaceId: data.workspaceId,
       projectId: '3',
       projectName: 'SPL-II Development',
-      workspaceId: data.workspaceId,
       dueDate: new Date().toISOString().split('T')[0],
       createdAt: new Date().toISOString(),
     };
@@ -40,7 +68,7 @@ export const taskService = {
   async updateTask(id: string, updates: Partial<Task>): Promise<Task> {
     await delay(500);
     console.log('Updated task:', id, updates);
-    return { ...mockTasks[0], ...updates, id };
+    return { ...mockTasks[0] as any, ...updates, id };
   },
 
   async deleteTask(id: string): Promise<void> {
