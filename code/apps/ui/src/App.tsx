@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { PageTransition } from './components/ui/PageTransition';
 import { ToastProvider } from './components/ui/Toast';
-import { ThemeDebug } from './components/ThemeDebug';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -14,6 +13,7 @@ import { TasksPage } from './pages/TasksPage';
 import { CalendarPage } from './pages/CalendarPage';
 import { FilesPage } from './pages/FilesPage';
 import { SettingsPage } from './pages/SettingsPage';
+import { NotesPage } from './pages/notes/NotesPage';
 import { authService } from './services/authService';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
@@ -27,6 +27,7 @@ function AppContent() {
   return (
     <AnimatePresence mode="wait">
       <Routes>
+        {/* Public Routes */}
         <Route path="/" element={
           <PageTransition>
             <LandingPage />
@@ -42,6 +43,8 @@ function AppContent() {
             <SignupPage />
           </PageTransition>
         } />
+        
+        {/* Protected Routes */}
         <Route path="/dashboard" element={
           <ProtectedRoute>
             <PageTransition>
@@ -53,6 +56,13 @@ function AppContent() {
           <ProtectedRoute>
             <PageTransition>
               <ProjectPage />
+            </PageTransition>
+          </ProtectedRoute>
+        } />
+        <Route path="/project/:projectId/notes" element={
+          <ProtectedRoute>
+            <PageTransition>
+              <NotesPage />
             </PageTransition>
           </ProtectedRoute>
         } />
@@ -91,6 +101,8 @@ function AppContent() {
             </PageTransition>
           </ProtectedRoute>
         } />
+        
+        {/* Fallback */}
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </AnimatePresence>
@@ -101,7 +113,6 @@ function App() {
   return (
     <ToastProvider>
       <AppContent />
-      <ThemeDebug />
     </ToastProvider>
   );
 }

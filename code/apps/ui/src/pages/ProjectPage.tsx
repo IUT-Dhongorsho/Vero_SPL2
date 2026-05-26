@@ -87,7 +87,7 @@ export const ProjectPage: React.FC = () => {
 
       {/* Quick Actions */}
       <div className="flex gap-4 mb-8">
-        <AnimatedButton variant="primary">
+        <AnimatedButton variant="primary" onClick={() => navigate(`/project/${projectId}/notes`)}>
           <Edit3 className="w-4 h-4 mr-2" />
           New Note
         </AnimatedButton>
