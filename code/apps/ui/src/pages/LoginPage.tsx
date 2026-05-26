@@ -1,45 +1,36 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Common/Button';
 import { Input } from '../components/Common/Input';
 
-interface LoginPageProps {
-  onLogin: (email: string, password: string) => void;
-  onSwitchToSignup: () => void;
-}
-
-export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup }) => {
+export const LoginPage: React.FC = () => {
+  const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    onLogin(email, password);
+    setError('');
+    
+    // Simple validation (replace with real API call)
+    if (!email || !password) {
+      setError('Please fill in all fields');
+      return;
+    }
+    
+    // Simulate login - store fake token
+    localStorage.setItem('auth_token', 'fake_token');
+    navigate('/dashboard');
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-    >
-      <div
-        className="glass"
-        style={{
-          maxWidth: '480px',
-          width: '100%',
-          padding: '48px',
-          borderRadius: 'var(--radius-2xl)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>Welcome back</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Sign in to your SPL Workspace</p>
+    <div className="min-h-screen bg-blue-600 flex items-center justify-center p-4">
+      <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-xl">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Welcome back</h1>
+          <p className="text-gray-500">Sign in to your Vero workspace</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -59,53 +50,37 @@ export const LoginPage: React.FC<LoginPageProps> = ({ onLogin, onSwitchToSignup 
             onChange={(e) => setPassword(e.target.value)}
             required
           />
-          <div
-            style={{
-              display: 'flex',
-              justifyContent: 'space-between',
-              alignItems: 'center',
-              marginBottom: '24px',
-            }}
-          >
-            <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          
+          {error && (
+            <p className="text-sm text-red-600 mb-4">{error}</p>
+          )}
+
+          <div className="flex justify-between items-center mb-6">
+            <label className="flex items-center gap-2 cursor-pointer">
               <input
                 type="checkbox"
                 checked={rememberMe}
                 onChange={(e) => setRememberMe(e.target.checked)}
+                className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
               />
-              <span style={{ fontSize: '14px' }}>Remember me</span>
+              <span className="text-sm text-gray-600">Remember me</span>
             </label>
-            <a href="#" style={{ fontSize: '14px', color: 'var(--primary)', textDecoration: 'none' }}>
+            <Link to="/forgot-password" className="text-sm text-blue-600 hover:underline">
               Forgot password?
-            </a>
+            </Link>
           </div>
+
           <Button type="submit" variant="primary" fullWidth>
             Sign In
           </Button>
         </form>
 
-        <div
-          style={{
-            marginTop: '24px',
-            textAlign: 'center',
-            paddingTop: '24px',
-            borderTop: '1px solid var(--border)',
-          }}
-        >
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+        <div className="mt-6 pt-6 text-center border-t border-gray-200">
+          <p className="text-sm text-gray-500">
             Don't have an account?{' '}
-            <button
-              onClick={onSwitchToSignup}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--primary)',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-              }}
-            >
+            <Link to="/signup" className="text-blue-600 font-medium hover:underline">
               Sign up
-            </button>
+            </Link>
           </p>
         </div>
       </div>

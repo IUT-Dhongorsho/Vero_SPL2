@@ -6,35 +6,20 @@ export interface PageContainerProps {
   children: React.ReactNode;
   title: string;
   sidebarItems: SidebarItem[];
-  activeSidebarItem?: string;
   topBarActions?: React.ReactNode;
-  onSidebarItemClick?: (href: string) => void;
 }
 
 export const PageContainer: React.FC<PageContainerProps> = ({
   children,
   title,
   sidebarItems,
-  activeSidebarItem,
   topBarActions,
-  onSidebarItemClick,
 }) => {
   return (
-    <div>
-      <Sidebar
-        items={sidebarItems}
-        activeItem={activeSidebarItem}
-        onItemClick={onSidebarItemClick}
-      />
+    <div className="min-h-screen bg-gray-50">
+      <Sidebar items={sidebarItems} />
       <TopBar title={title} actions={topBarActions} />
-      <main
-        style={{
-          marginLeft: '260px',
-          marginTop: '73px',
-          padding: '32px',
-          minHeight: 'calc(100vh - 73px)',
-        }}
-      >
+      <main className="ml-64 pt-20 p-8">
         {children}
       </main>
     </div>

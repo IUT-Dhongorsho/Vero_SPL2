@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { Card } from '../components/Common/Card';
 import { Button } from '../components/Common/Button';
@@ -14,6 +15,9 @@ interface CardItem {
 }
 
 export const WorkspacePage: React.FC = () => {
+  const { projectId, workspaceId } = useParams<{ projectId: string; workspaceId: string }>();
+  const navigate = useNavigate();
+  
   const [cards] = useState<CardItem[]>([
     {
       id: '1',
@@ -55,7 +59,7 @@ export const WorkspacePage: React.FC = () => {
 
   const sidebarItems = [
     { icon: '📊', label: 'Dashboard', href: '/dashboard' },
-    { icon: '📁', label: 'Projects', href: '/projects', active: true },
+    { icon: '📁', label: 'Projects', href: '/projects' },
     { icon: '✅', label: 'My Tasks', href: '/tasks' },
     { icon: '📅', label: 'Calendar', href: '/calendar' },
     { icon: '📄', label: 'Files', href: '/files' },
@@ -63,19 +67,10 @@ export const WorkspacePage: React.FC = () => {
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'high': return 'var(--danger)';
-      case 'medium': return 'var(--warning)';
-      case 'low': return 'var(--secondary)';
-      default: return 'var(--text-secondary)';
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'todo': return 'var(--info)';
-      case 'in-progress': return 'var(--warning)';
-      case 'done': return 'var(--secondary)';
-      default: return 'var(--text-secondary)';
+      case 'high': return 'bg-red-500';
+      case 'medium': return 'bg-yellow-500';
+      case 'low': return 'bg-green-500';
+      default: return 'bg-gray-500';
     }
   };
 
@@ -83,34 +78,41 @@ export const WorkspacePage: React.FC = () => {
     alert('Create new card modal would open here');
   };
 
+  const workspaceNames: Record<string, string> = {
+    '1': 'Design System',
+    '2': 'Backend API',
+    '3': 'Frontend Development',
+  };
+  
+  const workspaceName = workspaceNames[workspaceId || '3'] || 'Selected Workspace';
+
   return (
     <PageContainer
-      title="Frontend Development"
+      title={workspaceName}
       sidebarItems={sidebarItems}
-      activeSidebarItem="/projects"
       topBarActions={
-        <Button variant="primary" size="sm" onClick={handleNewCard}>
-          + Add Card
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="outline" size="sm" onClick={() => navigate(`/project/${projectId}`)}>
+            ← Back to Project
+          </Button>
+          <Button variant="outline" size="sm">🎥 Start Meet</Button>
+          <Button variant="outline" size="sm">👥 Invite</Button>
+          <Button variant="primary" size="sm" onClick={handleNewCard}>
+            + Add Card
+          </Button>
+        </div>
       }
     >
       {/* Workspace Header */}
-      <div
-        className="glass"
-        style={{
-          padding: '24px',
-          borderRadius: 'var(--radius-xl)',
-          marginBottom: '32px',
-        }}
-      >
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="bg-blue-50 rounded-xl p-6 mb-8 border border-gray-200">
+        <div className="flex justify-between items-center flex-wrap gap-4">
           <div>
-            <h1 style={{ fontSize: '28px', marginBottom: '8px' }}>Frontend Development</h1>
-            <p style={{ color: 'var(--text-secondary)' }}>
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">{workspaceName}</h1>
+            <p className="text-gray-500">
               Build React components and pages for Vero platform
             </p>
           </div>
-          <div style={{ display: 'flex', gap: '12px' }}>
+          <div className="flex gap-3">
             <Button variant="outline" size="sm">🎥 Start Meet</Button>
             <Button variant="outline" size="sm">👥 Invite</Button>
           </div>
@@ -118,66 +120,29 @@ export const WorkspacePage: React.FC = () => {
       </div>
 
       {/* Kanban Board Columns */}
-      <div
-        style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(3, 1fr)',
-          gap: '24px',
-        }}
-      >
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {/* To Do Column */}
         <div>
-          <div
-            style={{
-              padding: '16px',
-              backgroundColor: 'var(--bg-secondary)',
-              borderRadius: 'var(--radius-lg)',
-              marginBottom: '16px',
-            }}
-          >
-            <h3 style={{ fontSize: '16px', fontWeight: 600 }}>
+          <div className="bg-gray-100 rounded-lg p-4 mb-4 border border-gray-200">
+            <h3 className="font-semibold text-gray-900">
               📥 To Do ({cards.filter(c => c.status === 'todo').length})
             </h3>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="space-y-3">
             {cards.filter(c => c.status === 'todo').map((card) => (
-              <Card key={card.id} variant="glass" padding="md">
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span
-                      style={{
-                        fontSize: '12px',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        backgroundColor: getPriorityColor(card.priority),
-                        color: 'white',
-                      }}
-                    >
+              <Card key={card.id} variant="default" padding="md">
+                <div className="mb-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className={`text-xs px-2 py-1 rounded-full text-white ${getPriorityColor(card.priority)}`}>
                       {card.priority.toUpperCase()}
                     </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      ⏱️ {card.dueDate}
-                    </span>
+                    <span className="text-xs text-gray-500">⏱️ {card.dueDate}</span>
                   </div>
-                  <h4 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>
-                    {card.title}
-                  </h4>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                    {card.description}
-                  </p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px' }}>👤 {card.assignee}</span>
-                    <button
-                      style={{
-                        padding: '4px 12px',
-                        backgroundColor: 'var(--primary)',
-                        color: 'white',
-                        border: 'none',
-                        borderRadius: 'var(--radius-sm)',
-                        cursor: 'pointer',
-                        fontSize: '12px',
-                      }}
-                    >
+                  <h4 className="font-semibold text-gray-900 mb-2">{card.title}</h4>
+                  <p className="text-xs text-gray-500 mb-3">{card.description}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">👤 {card.assignee}</span>
+                    <button className="px-3 py-1 bg-blue-600 text-white text-xs rounded-md hover:bg-blue-700 transition-colors">
                       Start
                     </button>
                   </div>
@@ -185,15 +150,8 @@ export const WorkspacePage: React.FC = () => {
               </Card>
             ))}
             <button
-              style={{
-                padding: '12px',
-                backgroundColor: 'var(--bg-tertiary)',
-                border: '1px dashed var(--border)',
-                borderRadius: 'var(--radius-lg)',
-                cursor: 'pointer',
-                color: 'var(--text-secondary)',
-              }}
               onClick={handleNewCard}
+              className="w-full py-3 bg-gray-50 border border-dashed border-gray-300 rounded-lg text-gray-500 text-sm hover:bg-gray-100 transition-colors"
             >
               + Add Task
             </button>
@@ -202,61 +160,28 @@ export const WorkspacePage: React.FC = () => {
 
         {/* In Progress Column */}
         <div>
-          <div
-            style={{
-              padding: '16px',
-              backgroundColor: 'var(--bg-secondary)',
-              borderRadius: 'var(--radius-lg)',
-              marginBottom: '16px',
-            }}
-          >
-            <h3 style={{ fontSize: '16px', fontWeight: 600 }}>
+          <div className="bg-gray-100 rounded-lg p-4 mb-4 border border-gray-200">
+            <h3 className="font-semibold text-gray-900">
               🔄 In Progress ({cards.filter(c => c.status === 'in-progress').length})
             </h3>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div className="space-y-3">
             {cards.filter(c => c.status === 'in-progress').map((card) => (
-              <Card key={card.id} variant="glass" padding="md">
-                <div style={{ marginBottom: '12px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span
-                      style={{
-                        fontSize: '12px',
-                        padding: '2px 8px',
-                        borderRadius: 'var(--radius-sm)',
-                        backgroundColor: getPriorityColor(card.priority),
-                        color: 'white',
-                      }}
-                    >
+              <Card key={card.id} variant="default" padding="md">
+                <div className="mb-3">
+                  <div className="flex justify-between items-center mb-2">
+                    <span className={`text-xs px-2 py-1 rounded-full text-white ${getPriorityColor(card.priority)}`}>
                       {card.priority.toUpperCase()}
                     </span>
-                    <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                      {card.dueDate}
-                    </span>
+                    <span className="text-xs text-gray-500">{card.dueDate}</span>
                   </div>
-                  <h4 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '8px' }}>
-                    {card.title}
-                  </h4>
-                  <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '12px' }}>
-                    {card.description}
-                  </p>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: '12px' }}>👤 {card.assignee}</span>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button
-                        style={{
-                          padding: '4px 12px',
-                          backgroundColor: 'var(--secondary)',
-                          color: 'white',
-                          border: 'none',
-                          borderRadius: 'var(--radius-sm)',
-                          cursor: 'pointer',
-                          fontSize: '12px',
-                        }}
-                      >
-                        ✓ Done
-                      </button>
-                    </div>
+                  <h4 className="font-semibold text-gray-900 mb-2">{card.title}</h4>
+                  <p className="text-xs text-gray-500 mb-3">{card.description}</p>
+                  <div className="flex justify-between items-center">
+                    <span className="text-xs text-gray-500">👤 {card.assignee}</span>
+                    <button className="px-3 py-1 bg-green-600 text-white text-xs rounded-md hover:bg-green-700 transition-colors">
+                      ✓ Done
+                    </button>
                   </div>
                 </div>
               </Card>
@@ -266,31 +191,14 @@ export const WorkspacePage: React.FC = () => {
 
         {/* Done Column */}
         <div>
-          <div
-            style={{
-              padding: '16px',
-              backgroundColor: 'var(--bg-secondary)',
-              borderRadius: 'var(--radius-lg)',
-              marginBottom: '16px',
-            }}
-          >
-            <h3 style={{ fontSize: '16px', fontWeight: 600 }}>
+          <div className="bg-gray-100 rounded-lg p-4 mb-4 border border-gray-200">
+            <h3 className="font-semibold text-gray-900">
               ✅ Done ({cards.filter(c => c.status === 'done').length})
             </h3>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <div
-              style={{
-                padding: '40px',
-                textAlign: 'center',
-                color: 'var(--text-secondary)',
-                backgroundColor: 'var(--bg-secondary)',
-                borderRadius: 'var(--radius-lg)',
-              }}
-            >
-              <span style={{ fontSize: '48px' }}>🎉</span>
-              <p>No completed tasks yet</p>
-            </div>
+          <div className="bg-gray-50 rounded-lg p-12 text-center border border-gray-200">
+            <span className="text-5xl">🎉</span>
+            <p className="text-gray-500 mt-3">No completed tasks yet</p>
           </div>
         </div>
       </div>

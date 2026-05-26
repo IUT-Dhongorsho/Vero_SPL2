@@ -13,36 +13,24 @@ export const Input: React.FC<InputProps> = ({
   ...props
 }) => {
   return (
-    <div style={{ width: fullWidth ? '100%' : 'auto', marginBottom: '16px' }}>
+    <div className={`${fullWidth ? 'w-full' : 'w-auto'} mb-4`}>
       {label && (
-        <label
-          style={{
-            display: 'block',
-            marginBottom: '8px',
-            fontSize: '14px',
-            fontWeight: 500,
-            color: 'var(--text-primary)',
-          }}
-        >
+        <label className="block mb-2 text-sm font-medium text-gray-700">
           {label}
         </label>
       )}
       <input
-        style={{
-          width: '100%',
-          padding: '10px 14px',
-          fontSize: '14px',
-          border: `1px solid ${error ? 'var(--danger)' : 'var(--border)'}`,
-          borderRadius: 'var(--radius-md)',
-          backgroundColor: 'var(--bg-primary)',
-          color: 'var(--text-primary)',
-          transition: 'all 0.2s ease',
-          outline: 'none',
-        }}
+        className={`
+          w-full px-4 py-2.5 text-sm
+          border rounded-lg
+          transition-all duration-200
+          focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500
+          ${error ? 'border-red-500' : 'border-gray-300'}
+        `}
         {...props}
       />
       {error && (
-        <p style={{ marginTop: '4px', fontSize: '12px', color: 'var(--danger)' }}>
+        <p className="mt-1 text-xs text-red-600">
           {error}
         </p>
       )}

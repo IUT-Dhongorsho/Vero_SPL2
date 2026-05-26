@@ -23,61 +23,36 @@ export const Button: React.FC<ButtonProps> = ({
   type = 'button',
   icon,
 }) => {
-  const variants: Record<string, React.CSSProperties> = {
-    primary: {
-      backgroundColor: 'var(--primary)',
-      color: 'white',
-      border: 'none',
-    },
-    secondary: {
-      backgroundColor: 'var(--secondary)',
-      color: 'white',
-      border: 'none',
-    },
-    outline: {
-      backgroundColor: 'transparent',
-      color: 'var(--primary)',
-      border: '1px solid var(--primary)',
-    },
-    danger: {
-      backgroundColor: 'var(--danger)',
-      color: 'white',
-      border: 'none',
-    },
-    ghost: {
-      backgroundColor: 'transparent',
-      color: 'var(--text-secondary)',
-      border: '1px solid var(--border)',
-    },
+  const variantClasses = {
+    primary: 'bg-blue-600 text-white hover:bg-blue-700 focus:ring-blue-500',
+    secondary: 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500',
+    outline: 'bg-transparent text-blue-600 border border-blue-600 hover:bg-blue-50',
+    danger: 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500',
+    ghost: 'bg-transparent text-gray-500 border border-gray-300 hover:bg-gray-50',
   };
 
-  const sizes: Record<string, React.CSSProperties> = {
-    sm: { padding: '6px 12px', fontSize: '12px' },
-    md: { padding: '10px 20px', fontSize: '14px' },
-    lg: { padding: '14px 28px', fontSize: '16px' },
+  const sizeClasses = {
+    sm: 'px-3 py-1.5 text-xs',
+    md: 'px-5 py-2.5 text-sm',
+    lg: 'px-7 py-3.5 text-base',
   };
 
   return (
     <button
       type={type}
-      style={{
-        ...variants[variant],
-        ...sizes[size],
-        width: fullWidth ? '100%' : 'auto',
-        borderRadius: 'var(--radius-md)',
-        fontWeight: 500,
-        cursor: disabled || loading ? 'not-allowed' : 'pointer',
-        opacity: disabled || loading ? 0.6 : 1,
-        transition: 'all 0.2s ease',
-        display: 'inline-flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '8px',
-      }}
+      className={`
+        ${variantClasses[variant]}
+        ${sizeClasses[size]}
+        ${fullWidth ? 'w-full' : ''}
+        font-medium rounded-lg transition-all duration-200
+        focus:outline-none focus:ring-2 focus:ring-offset-2
+        disabled:opacity-50 disabled:cursor-not-allowed
+        inline-flex items-center justify-center gap-2
+      `}
       disabled={disabled || loading}
       onClick={onClick}
     >
-      {loading && <span>⏳</span>}
+      {loading && <span className="animate-spin">⏳</span>}
       {icon && !loading && <span>{icon}</span>}
       {children}
     </button>

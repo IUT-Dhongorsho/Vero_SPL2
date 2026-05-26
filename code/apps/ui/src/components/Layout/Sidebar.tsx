@@ -1,98 +1,74 @@
 import React from 'react';
+import { Link, useLocation } from 'react-router-dom';
 
 export interface SidebarItem {
   icon: string;
   label: string;
   href: string;
-  active?: boolean;
 }
 
 export interface SidebarProps {
   items: SidebarItem[];
-  activeItem?: string;
-  onItemClick?: (href: string) => void;
 }
 
-export const Sidebar: React.FC<SidebarProps> = ({
-  items,
-  activeItem,
-  onItemClick,
-}) => {
+export const Sidebar: React.FC<SidebarProps> = ({ items }) => {
+  const location = useLocation();
+
+  const isActive = (href: string) => {
+    if (href === '/dashboard') {
+      return location.pathname === '/dashboard';
+    }
+    return location.pathname.startsWith(href);
+  };
+
   return (
-    <aside
-      className="glass"
-      style={{
-        width: '260px',
-        height: '100vh',
-        position: 'fixed',
-        left: 0,
-        top: 0,
-        padding: '24px 16px',
-        display: 'flex',
-        flexDirection: 'column',
-        borderRight: '1px solid var(--glass-border)',
-      }}
-    >
-      <div style={{ marginBottom: '32px', paddingLeft: '12px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: 'bold', background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-          Vero
-        </h1>
-        <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
-          Workspace
-        </p>
+    <aside className="fixed left-0 top-0 h-screen w-64 bg-white border-r border-gray-200 flex flex-col z-50">
+      {/* Logo */}
+      <div className="p-6 border-b border-gray-100">
+        <h1 className="text-2xl font-bold text-blue-600">Vero</h1>
+        <p className="text-xs text-gray-400 mt-1">Workspace</p>
       </div>
 
-      <nav style={{ flex: 1 }}>
+      {/* Navigation */}
+      <nav className="flex-1 p-4 space-y-1">
         {items.map((item) => (
-          <div
+          <Link
             key={item.href}
-            onClick={() => onItemClick?.(item.href)}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '12px',
-              padding: '10px 12px',
-              marginBottom: '4px',
-              borderRadius: 'var(--radius-md)',
-              cursor: 'pointer',
-              backgroundColor: activeItem === item.href ? 'var(--primary-light)' : 'transparent',
-              color: activeItem === item.href ? 'white' : 'var(--text-secondary)',
-              transition: 'all 0.2s ease',
-            }}
+            to={item.href}
+            className={`
+              flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+              transition-all duration-200
+              ${isActive(item.href)
+                ? 'bg-blue-50 text-blue-600'
+                : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
+              }
+            `}
           >
-            <span>{item.icon}</span>
-            <span style={{ fontSize: '14px', fontWeight: 500 }}>{item.label}</span>
-          </div>
+            <span className="text-lg">{item.icon}</span>
+            <span>{item.label}</span>
+          </Link>
         ))}
       </nav>
 
-      <div style={{ marginTop: 'auto', paddingTop: '16px', borderTop: '1px solid var(--border)' }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px 12px',
-            borderRadius: 'var(--radius-md)',
-            cursor: 'pointer',
-          }}
+      {/* Bottom Section */}
+      <div className="p-4 border-t border-gray-100 space-y-1">
+        <Link
+          to="/settings"
+          className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 transition-all duration-200"
         >
-          <span>⚙️</span>
-          <span style={{ fontSize: '14px' }}>Settings</span>
-        </div>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '12px',
-            padding: '10px 12px',
-            borderRadius: 'var(--radius-md)',
-            cursor: 'pointer',
+          <span className="text-lg">⚙️</span>
+          <span>Settings</span>
+        </Link>
+        <button
+          onClick={() => {
+            localStorage.removeItem('auth_token');
+            window.location.href = '/login';
           }}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-red-600 hover:bg-red-50 transition-all duration-200"
         >
-          <span>❓</span>
-          <span style={{ fontSize: '14px' }}>Help</span>
-        </div>
+          <span className="text-lg">🚪</span>
+          <span>Logout</span>
+        </button>
       </div>
     </aside>
   );

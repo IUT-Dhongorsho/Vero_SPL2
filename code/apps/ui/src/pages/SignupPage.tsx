@@ -1,56 +1,48 @@
 import React, { useState } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '../components/Common/Button';
 import { Input } from '../components/Common/Input';
 
-interface SignupPageProps {
-  onSignup: (name: string, email: string, password: string) => void;
-  onSwitchToLogin: () => void;
-}
-
-export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onSwitchToLogin }) => {
+export const SignupPage: React.FC = () => {
+  const navigate = useNavigate();
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [githubHandle, setGithubHandle] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [agreeTerms, setAgreeTerms] = useState(false);
+  const [error, setError] = useState('');
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
+    
+    if (!name || !email || !password) {
+      setError('Please fill in all required fields');
+      return;
+    }
+    
     if (password !== confirmPassword) {
-      alert('Passwords do not match');
+      setError('Passwords do not match');
       return;
     }
+    
     if (!agreeTerms) {
-      alert('Please agree to the Terms of Service');
+      setError('Please agree to the Terms of Service');
       return;
     }
-    onSignup(name, email, password);
+    
+    // Simulate signup - store fake token
+    localStorage.setItem('auth_token', 'fake_token');
+    navigate('/dashboard');
   };
 
   return (
-    <div
-      style={{
-        minHeight: '100vh',
-        background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '20px',
-      }}
-    >
-      <div
-        className="glass"
-        style={{
-          maxWidth: '560px',
-          width: '100%',
-          padding: '48px',
-          borderRadius: 'var(--radius-2xl)',
-        }}
-      >
-        <div style={{ textAlign: 'center', marginBottom: '32px' }}>
-          <h1 style={{ fontSize: '32px', marginBottom: '8px' }}>Create an account</h1>
-          <p style={{ color: 'var(--text-secondary)' }}>Enter your details to set up your workspace profile</p>
+    <div className="min-h-screen bg-blue-600 flex items-center justify-center p-4">
+      <div className="max-w-lg w-full bg-white rounded-2xl p-8 shadow-xl">
+        <div className="text-center mb-8">
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Create an account</h1>
+          <p className="text-gray-500">Enter your details to set up your workspace profile</p>
         </div>
 
         <form onSubmit={handleSubmit}>
@@ -71,7 +63,7 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onSwitchToLogi
             required
           />
           <Input
-            label="GitHub handle"
+            label="GitHub handle (optional)"
             type="text"
             placeholder="janedoe"
             value={githubHandle}
@@ -93,43 +85,34 @@ export const SignupPage: React.FC<SignupPageProps> = ({ onSignup, onSwitchToLogi
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
           />
-          <label style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '24px' }}>
+          
+          {error && (
+            <p className="text-sm text-red-600 mb-4">{error}</p>
+          )}
+
+          <label className="flex items-center gap-2 cursor-pointer mb-6">
             <input
               type="checkbox"
               checked={agreeTerms}
               onChange={(e) => setAgreeTerms(e.target.checked)}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
             />
-            <span style={{ fontSize: '14px' }}>
+            <span className="text-sm text-gray-600">
               I agree to the Terms of Service and Privacy Policy.
             </span>
           </label>
+
           <Button type="submit" variant="primary" fullWidth>
             Sign Up →
           </Button>
         </form>
 
-        <div
-          style={{
-            marginTop: '24px',
-            textAlign: 'center',
-            paddingTop: '24px',
-            borderTop: '1px solid var(--border)',
-          }}
-        >
-          <p style={{ fontSize: '14px', color: 'var(--text-secondary)' }}>
+        <div className="mt-6 pt-6 text-center border-t border-gray-200">
+          <p className="text-sm text-gray-500">
             Already have an account?{' '}
-            <button
-              onClick={onSwitchToLogin}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: 'var(--primary)',
-                cursor: 'pointer',
-                textDecoration: 'underline',
-              }}
-            >
+            <Link to="/login" className="text-blue-600 font-medium hover:underline">
               Log in
-            </button>
+            </Link>
           </p>
         </div>
       </div>
