@@ -226,6 +226,14 @@ export const mockProjects: Project[] = [
     lastActive: '3 days ago',
     status: 'review',
   },
+  {
+    id: '5',
+    name: 'User Research Q5',
+    description: 'Customer interviews',
+    members: 8,
+    lastActive: '4 days ago',
+    status: 'active',
+  },
 ];
 
 export const mockWorkspaces: Workspace[] = [
