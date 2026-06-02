@@ -11,7 +11,7 @@ export const ThemeToggle: React.FC = () => {
       whileTap={{ scale: 0.95 }}
       whileHover={{ scale: 1.05 }}
       onClick={toggleTheme}
-      className="p-2 rounded-lg glass transition-all duration-200 cursor-pointer"
+      className="p-2 rounded-lg bg-gray-100 dark:bg-gray-800 transition-all duration-200 cursor-pointer"
       aria-label="Toggle theme"
     >
       <motion.div

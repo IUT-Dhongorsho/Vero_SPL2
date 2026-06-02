@@ -10,8 +10,8 @@ export const TopBar: React.FC<TopBarProps> = ({ title, actions }) => {
   const navigate = useNavigate();
 
   return (
-    <header className="fixed top-0 right-0 left-64 h-16 glass border-b border-gray-200/20 flex items-center justify-between px-8 z-40">
-      <h2 className="text-lg font-semibold text-gray-800 dark:text-gray-200">{title}</h2>
+    <header className="fixed top-0 right-0 left-64 h-16 bg-white border-b border-gray-200 flex items-center justify-between px-8 z-40">
+      <h2 className="text-lg font-semibold text-gray-800">{title}</h2>
       <div className="flex items-center gap-3">
         {actions}
         <button

@@ -1,157 +1,162 @@
 @import "tailwindcss";
 
-/* Light Mode - DEFAULT */
-:root {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8fafc;
-  --bg-card: #ffffff;
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --border: #e2e8f0;
-  --button-primary: #2563eb;
-  --button-primary-hover: #1d4ed8;
-  --button-outline: #ffffff;
-  --button-outline-border: #2563eb;
-  --button-outline-text: #2563eb;
-}
-
-/* Dark Mode */
-.dark {
-  --bg-primary: #0f172a;
-  --bg-secondary: #1e293b;
-  --bg-card: #1e293b;
-  --text-primary: #f1f5f9;
-  --text-secondary: #cbd5e1;
-  --text-muted: #94a3b8;
-  --border: #334155;
-  --button-primary: #3b82f6;
-  --button-primary-hover: #2563eb;
-  --button-outline: #1e293b;
-  --button-outline-border: #3b82f6;
-  --button-outline-text: #3b82f6;
-}
-
-/* Base body */
-body {
-  background-color: var(--bg-secondary);
-  color: var(--text-primary);
+/* Base styles - LIGHT MODE is default */
+html, body {
+  background-color: #f8fafc;
+  color: #0f172a;
   font-family: 'Inter', system-ui, sans-serif;
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Headings - BLACK in light mode */
-h1, h2, h3, h4, h5, h6 {
-  color: var(--text-primary) !important;
+/* DARK MODE - only when .dark class is present */
+.dark,
+.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
 }
 
-/* All text - DARK in light mode */
-p, span, label, li, div.text-gray-600, div.text-gray-500, .text-gray-600, .text-gray-500 {
-  color: var(--text-secondary) !important;
-}
-
-/* Blue text - keep blue */
-.text-blue-600, .text-blue-500 {
-  color: #2563eb !important;
-}
-
-.dark .text-blue-600, .dark .text-blue-500 {
-  color: #3b82f6 !important;
-}
-
-/* Cards */
+/* Card styles - LIGHT MODE */
 .glass-card {
-  background: var(--bg-card) !important;
-  backdrop-filter: blur(0px) !important;
-  border: 1px solid var(--border) !important;
-  border-radius: 1rem !important;
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
 .glass-card:hover {
-  transform: translateY(-4px) !important;
-  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.02) !important;
-  border-color: #2563eb !important;
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
 }
 
-/* Primary Buttons */
-button.bg-blue-600, button[class*="bg-blue-600"], .bg-blue-600 {
-  background-color: var(--button-primary) !important;
-  color: white !important;
-  transition: all 0.2s ease !important;
+/* Card styles - DARK MODE */
+.dark .glass-card {
+  background-color: #1e293b;
+  border: 1px solid #334155;
 }
 
-button.bg-blue-600:hover, button[class*="bg-blue-600"]:hover {
-  background-color: var(--button-primary-hover) !important;
-  transform: scale(1.02) !important;
+/* Page container backgrounds */
+.bg-gray-50 {
+  background-color: #f8fafc !important;
 }
 
-/* Outline Buttons */
-button.border-blue-600, button[class*="border-blue-600"] {
-  background-color: var(--button-outline) !important;
-  border: 1px solid var(--button-outline-border) !important;
-  color: var(--button-outline-text) !important;
+.dark .bg-gray-50 {
+  background-color: #0f172a !important;
 }
 
-button.border-blue-600:hover, button[class*="border-blue-600"]:hover {
-  background-color: rgba(37, 99, 235, 0.1) !important;
-  transform: scale(1.02) !important;
+/* Text colors - LIGHT MODE */
+.text-gray-900 {
+  color: #0f172a !important;
 }
 
-/* Danger Buttons */
-button.bg-red-600, button[class*="bg-red-600"] {
-  background-color: #dc2626 !important;
-  color: white !important;
+.text-gray-800 {
+  color: #1e293b !important;
 }
 
-button.bg-red-600:hover {
-  background-color: #b91c1c !important;
+.text-gray-700 {
+  color: #334155 !important;
 }
 
-/* Input fields */
-input, textarea, select {
-  background-color: var(--bg-primary) !important;
-  color: var(--text-primary) !important;
-  border: 1px solid var(--border) !important;
-  transition: all 0.2s ease !important;
+.text-gray-600 {
+  color: #475569 !important;
 }
 
-input:focus, textarea:focus, select:focus {
-  border-color: #2563eb !important;
-  outline: none !important;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+.text-gray-500 {
+  color: #64748b !important;
 }
 
-input::placeholder, textarea::placeholder {
-  color: var(--text-muted) !important;
+/* Text colors - DARK MODE */
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 {
+  color: #f1f5f9 !important;
 }
 
-/* Sidebar */
-aside {
-  background: var(--bg-card) !important;
-  border-right: 1px solid var(--border) !important;
+.dark .text-gray-600,
+.dark .text-gray-500 {
+  color: #cbd5e1 !important;
 }
 
-aside span, aside p {
-  color: var(--text-secondary) !important;
-}
-
-/* Welcome Section */
+/* Welcome section - LIGHT MODE */
 .bg-blue-50 {
   background-color: #eff6ff !important;
   border: 1px solid #bfdbfe !important;
 }
 
+.bg-blue-50 h2,
+.bg-blue-50 p {
+  color: #1e3a8a !important;
+}
+
+/* Welcome section - DARK MODE */
 .dark .bg-blue-50 {
   background-color: #1e3a8a !important;
   border: 1px solid #3b82f6 !important;
 }
 
-.bg-blue-50 h2, .bg-blue-50 p {
-  color: #1e3a8a !important;
+.dark .bg-blue-50 h2,
+.dark .bg-blue-50 p {
+  color: #bfdbfe !important;
 }
 
-.dark .bg-blue-50 h2, .dark .bg-blue-50 p {
-  color: #bfdbfe !important;
+/* Sidebar - LIGHT MODE */
+aside {
+  background-color: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+/* Sidebar - DARK MODE */
+.dark aside {
+  background-color: #1e293b !important;
+  border-right: 1px solid #334155 !important;
+}
+
+/* Top bar - LIGHT MODE */
+header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* Top bar - DARK MODE */
+.dark header {
+  background-color: #1e293b !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+/* Input fields - LIGHT MODE */
+input, textarea, select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* Input fields - DARK MODE */
+.dark input, .dark textarea, .dark select {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #334155 !important;
+}
+
+input:focus, textarea:focus {
+  border-color: #2563eb !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Login page card - LIGHT MODE */
+.bg-white {
+  background-color: #ffffff !important;
+}
+
+/* Login page card - DARK MODE */
+.dark .bg-white {
+  background-color: #1e293b !important;
+}
+
+/* Login page blue background - always blue */
+.bg-blue-600 {
+  background-color: #2563eb !important;
+}
+
+.dark .bg-blue-600 {
+  background-color: #2563eb !important;
 }
