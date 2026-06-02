@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Sparkles, Users, MessageSquare, Calendar, Zap } from 'lucide-react';
@@ -9,17 +9,35 @@ import { ThemeToggle } from '../components/ui/ThemeToggle';
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
 
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('animate-fade-in');
+          }
+        });
+      },
+      { threshold: 0.1 }
+    );
+
+    const elements = document.querySelectorAll('.animate-on-scroll');
+    elements.forEach((el) => observer.observe(el));
+
+    return () => observer.disconnect();
+  }, []);
+
   const features = [
-    { icon: Sparkles, title: 'AI-Powered', desc: 'Smart task extraction and meeting summaries' },
-    { icon: Users, title: 'Team Collaboration', desc: 'Real-time editing and video meetings' },
-    { icon: MessageSquare, title: 'Unified Chat', desc: 'Contextual communication in one place' },
-    { icon: Calendar, title: 'Smart Calendar', desc: 'Sync tasks and meetings across teams' },
+    { icon: Sparkles, title: 'AI-Powered', desc: 'Smart task extraction and meeting summaries', color: 'text-purple-500' },
+    { icon: Users, title: 'Team Collaboration', desc: 'Real-time editing and video meetings', color: 'text-blue-500' },
+    { icon: MessageSquare, title: 'Unified Chat', desc: 'Contextual communication in one place', color: 'text-green-500' },
+    { icon: Calendar, title: 'Smart Calendar', desc: 'Sync tasks and meetings across teams', color: 'text-orange-500' },
   ];
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-white">
       {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 glass border-b border-gray-200/20">
+      <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-sm border-b border-gray-200">
         <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
           <motion.h1 
             initial={{ opacity: 0, x: -20 }}
@@ -48,14 +66,14 @@ export const LandingPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
           >
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 bg-gradient-to-r from-gray-900 to-gray-600 dark:from-white dark:to-gray-400 bg-clip-text text-transparent">
+            <h1 className="text-5xl md:text-7xl font-bold mb-6 text-gray-900">
               Secure, High-Density
               <br />
               <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
                 Collaboration Workspace
               </span>
             </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
+            <p className="text-xl text-gray-600 mb-10 max-w-2xl mx-auto">
               Engineered for modern teams. Combine communication, documentation, 
               and task management in one unified platform.
             </p>
@@ -72,7 +90,7 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* Features Grid */}
-      <section className="py-20 px-6">
+      <section className="py-20 px-6 bg-gray-50">
         <div className="max-w-6xl mx-auto">
           <motion.div
             initial={{ opacity: 0 }}
@@ -80,8 +98,8 @@ export const LandingPage: React.FC = () => {
             viewport={{ once: true }}
             className="text-center mb-12"
           >
-            <h2 className="text-3xl md:text-4xl font-bold mb-4">Everything you need</h2>
-            <p className="text-gray-600 dark:text-gray-400">Powerful features to supercharge your team's productivity</p>
+            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">Everything you need</h2>
+            <p className="text-gray-600">Powerful features to supercharge your team's productivity</p>
           </motion.div>
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -94,15 +112,27 @@ export const LandingPage: React.FC = () => {
                 transition={{ delay: index * 0.1 }}
               >
                 <GlassCard className="text-center">
-                  <feature.icon className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">{feature.title}</h3>
-                  <p className="text-gray-600 dark:text-gray-400">{feature.desc}</p>
+                  <feature.icon className={`w-12 h-12 ${feature.color} mx-auto mb-4`} />
+                  <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
+                  <p className="text-gray-600">{feature.desc}</p>
                 </GlassCard>
               </motion.div>
             ))}
           </div>
         </div>
       </section>
+
+      <style>{`
+        .animate-on-scroll {
+          opacity: 0;
+          transform: translateY(20px);
+          transition: opacity 0.6s ease, transform 0.6s ease;
+        }
+        .animate-on-scroll.animate-fade-in {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      `}</style>
     </div>
   );
 };

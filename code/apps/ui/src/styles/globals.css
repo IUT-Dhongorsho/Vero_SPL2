@@ -1,95 +1,157 @@
 @import "tailwindcss";
 
-/* LIGHT MODE (default) */
+/* Light Mode - DEFAULT */
 :root {
-  --bg-body: #f8fafc;
-  --bg-sidebar: rgba(255, 255, 255, 0.95);
-  --bg-card: rgba(255, 255, 255, 0.9);
+  --bg-primary: #ffffff;
+  --bg-secondary: #f8fafc;
+  --bg-card: #ffffff;
   --text-primary: #0f172a;
-  --text-secondary: #475569;
+  --text-secondary: #334155;
   --text-muted: #64748b;
   --border: #e2e8f0;
-  --border-light: #f1f5f9;
+  --button-primary: #2563eb;
+  --button-primary-hover: #1d4ed8;
+  --button-outline: #ffffff;
+  --button-outline-border: #2563eb;
+  --button-outline-text: #2563eb;
 }
 
-/* DARK MODE - applied when .dark class is on HTML */
-:root.dark,
+/* Dark Mode */
 .dark {
-  --bg-body: #0f172a;
-  --bg-sidebar: rgba(15, 23, 42, 0.95);
-  --bg-card: rgba(30, 41, 59, 0.9);
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+  --bg-card: #1e293b;
   --text-primary: #f1f5f9;
   --text-secondary: #cbd5e1;
   --text-muted: #94a3b8;
   --border: #334155;
-  --border-light: #1e293b;
+  --button-primary: #3b82f6;
+  --button-primary-hover: #2563eb;
+  --button-outline: #1e293b;
+  --button-outline-border: #3b82f6;
+  --button-outline-text: #3b82f6;
 }
 
-/* Apply to all elements */
-* {
-  transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease;
-}
-
+/* Base body */
 body {
-  background-color: var(--bg-body);
+  background-color: var(--bg-secondary);
   color: var(--text-primary);
   font-family: 'Inter', system-ui, sans-serif;
-  min-height: 100vh;
+  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
-/* Sidebar */
-aside.fixed {
-  background: var(--bg-sidebar) !important;
-  backdrop-filter: blur(12px);
-  border-right-color: var(--border) !important;
-}
-
-/* Cards */
-.rounded-xl.bg-white,
-.glass-card {
-  background: var(--bg-card) !important;
-  border-color: var(--border) !important;
-}
-
-/* Text colors - Force override */
+/* Headings - BLACK in light mode */
 h1, h2, h3, h4, h5, h6 {
   color: var(--text-primary) !important;
 }
 
-p, span, label, .text-gray-600, .text-gray-500, .text-gray-700 {
+/* All text - DARK in light mode */
+p, span, label, li, div.text-gray-600, div.text-gray-500, .text-gray-600, .text-gray-500 {
   color: var(--text-secondary) !important;
 }
 
-.text-gray-400, .text-gray-300 {
-  color: var(--text-muted) !important;
+/* Blue text - keep blue */
+.text-blue-600, .text-blue-500 {
+  color: #2563eb !important;
 }
 
-/* Borders */
-.border-gray-200, .border-gray-100 {
-  border-color: var(--border) !important;
+.dark .text-blue-600, .dark .text-blue-500 {
+  color: #3b82f6 !important;
 }
 
-/* Blue background sections */
-.bg-blue-50 {
-  background-color: #eff6ff !important;
+/* Cards */
+.glass-card {
+  background: var(--bg-card) !important;
+  backdrop-filter: blur(0px) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: 1rem !important;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1) !important;
 }
 
-.dark .bg-blue-50 {
-  background-color: #1e3a8a !important;
+.glass-card:hover {
+  transform: translateY(-4px) !important;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.02) !important;
+  border-color: #2563eb !important;
+}
+
+/* Primary Buttons */
+button.bg-blue-600, button[class*="bg-blue-600"], .bg-blue-600 {
+  background-color: var(--button-primary) !important;
+  color: white !important;
+  transition: all 0.2s ease !important;
+}
+
+button.bg-blue-600:hover, button[class*="bg-blue-600"]:hover {
+  background-color: var(--button-primary-hover) !important;
+  transform: scale(1.02) !important;
+}
+
+/* Outline Buttons */
+button.border-blue-600, button[class*="border-blue-600"] {
+  background-color: var(--button-outline) !important;
+  border: 1px solid var(--button-outline-border) !important;
+  color: var(--button-outline-text) !important;
+}
+
+button.border-blue-600:hover, button[class*="border-blue-600"]:hover {
+  background-color: rgba(37, 99, 235, 0.1) !important;
+  transform: scale(1.02) !important;
+}
+
+/* Danger Buttons */
+button.bg-red-600, button[class*="bg-red-600"] {
+  background-color: #dc2626 !important;
+  color: white !important;
+}
+
+button.bg-red-600:hover {
+  background-color: #b91c1c !important;
 }
 
 /* Input fields */
 input, textarea, select {
-  background-color: var(--bg-card);
-  color: var(--text-primary);
-  border-color: var(--border);
+  background-color: var(--bg-primary) !important;
+  color: var(--text-primary) !important;
+  border: 1px solid var(--border) !important;
+  transition: all 0.2s ease !important;
 }
 
-input::placeholder {
-  color: var(--text-muted);
+input:focus, textarea:focus, select:focus {
+  border-color: #2563eb !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
 }
 
-/* Force background on main content */
-main, .min-h-screen {
-  background-color: var(--bg-body);
+input::placeholder, textarea::placeholder {
+  color: var(--text-muted) !important;
+}
+
+/* Sidebar */
+aside {
+  background: var(--bg-card) !important;
+  border-right: 1px solid var(--border) !important;
+}
+
+aside span, aside p {
+  color: var(--text-secondary) !important;
+}
+
+/* Welcome Section */
+.bg-blue-50 {
+  background-color: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+.dark .bg-blue-50 {
+  background-color: #1e3a8a !important;
+  border: 1px solid #3b82f6 !important;
+}
+
+.bg-blue-50 h2, .bg-blue-50 p {
+  color: #1e3a8a !important;
+}
+
+.dark .bg-blue-50 h2, .dark .bg-blue-50 p {
+  color: #bfdbfe !important;
 }

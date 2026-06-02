@@ -89,17 +89,17 @@ export const DashboardPage: React.FC = () => {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-8 mb-8 border border-blue-200 dark:border-blue-800"
+          className="bg-blue-50 rounded-xl p-8 mb-8"
         >
-          <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">Welcome back, Jane! 🎉</h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <h2 className="text-3xl font-bold text-gray-900 mb-2">Welcome back, Jane! 🎉</h2>
+          <p className="text-gray-700">
             You have {projects.length} active projects. Ready to collaborate?
           </p>
         </motion.div>
 
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-5">Your Projects</h3>
+        <h3 className="text-xl font-semibold text-gray-900 mb-5">Your Projects</h3>
         {projects.length === 0 ? (
-          <div className="text-center py-12">
+          <div className="text-center py-12 bg-white rounded-xl border border-gray-200">
             <FolderOpen className="w-16 h-16 text-gray-400 mx-auto mb-4" />
             <p className="text-gray-500 mb-4">No projects yet. Create your first project!</p>
             <AnimatedButton variant="primary" onClick={() => setIsCreateModalOpen(true)}>
@@ -120,14 +120,14 @@ export const DashboardPage: React.FC = () => {
                   <div className="flex items-start justify-between mb-3">
                     <FolderOpen className="w-10 h-10 text-blue-500" />
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-1">{project.name}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{project.description}</p>
-                  <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex gap-3 text-sm text-gray-500 dark:text-gray-500">
+                  <h3 className="text-xl font-semibold text-gray-900 mb-1">{project.name}</h3>
+                  <p className="text-gray-600 text-sm mb-4">{project.description}</p>
+                  <div className="flex justify-between items-center pt-4 border-t border-gray-200">
+                    <div className="flex gap-3 text-sm text-gray-500">
                       <span className="flex items-center gap-1"><Users className="w-3 h-3" /> {project.members}</span>
                       <span className="flex items-center gap-1"><Clock className="w-3 h-3" /> {project.lastActive}</span>
                     </div>
-                    <span className="text-blue-600 text-sm">Open →</span>
+                    <span className="text-blue-600 text-sm font-medium">Open →</span>
                   </div>
                 </GlassCard>
               </motion.div>
