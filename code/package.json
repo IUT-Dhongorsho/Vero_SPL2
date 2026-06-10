@@ -1,0 +1,16 @@
+{
+  "name": "vero-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "packageManager": "pnpm@8.15.0",
+  "scripts": {
+    "dev": "turbo dev",
+    "dev:ui": "pnpm run --filter @repo/ui dev",
+    "dev:web": "pnpm run --filter web dev",
+    "build": "turbo build",
+    "clean": "turbo clean && rm -rf node_modules"
+  },
+  "devDependencies": {
+    "turbo": "^1.13.0"
+  }
+}

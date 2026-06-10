@@ -1,0 +1,162 @@
+@import "tailwindcss";
+
+/* Base styles - LIGHT MODE is default */
+html, body {
+  background-color: #f8fafc;
+  color: #0f172a;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+/* DARK MODE - only when .dark class is present */
+.dark,
+.dark body {
+  background-color: #0f172a;
+  color: #f1f5f9;
+}
+
+/* Card styles - LIGHT MODE */
+.glass-card {
+  background-color: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 1rem;
+  transition: all 0.3s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.glass-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+}
+
+/* Card styles - DARK MODE */
+.dark .glass-card {
+  background-color: #1e293b;
+  border: 1px solid #334155;
+}
+
+/* Page container backgrounds */
+.bg-gray-50 {
+  background-color: #f8fafc !important;
+}
+
+.dark .bg-gray-50 {
+  background-color: #0f172a !important;
+}
+
+/* Text colors - LIGHT MODE */
+.text-gray-900 {
+  color: #0f172a !important;
+}
+
+.text-gray-800 {
+  color: #1e293b !important;
+}
+
+.text-gray-700 {
+  color: #334155 !important;
+}
+
+.text-gray-600 {
+  color: #475569 !important;
+}
+
+.text-gray-500 {
+  color: #64748b !important;
+}
+
+/* Text colors - DARK MODE */
+.dark .text-gray-900,
+.dark .text-gray-800,
+.dark .text-gray-700 {
+  color: #f1f5f9 !important;
+}
+
+.dark .text-gray-600,
+.dark .text-gray-500 {
+  color: #cbd5e1 !important;
+}
+
+/* Welcome section - LIGHT MODE */
+.bg-blue-50 {
+  background-color: #eff6ff !important;
+  border: 1px solid #bfdbfe !important;
+}
+
+.bg-blue-50 h2,
+.bg-blue-50 p {
+  color: #1e3a8a !important;
+}
+
+/* Welcome section - DARK MODE */
+.dark .bg-blue-50 {
+  background-color: #1e3a8a !important;
+  border: 1px solid #3b82f6 !important;
+}
+
+.dark .bg-blue-50 h2,
+.dark .bg-blue-50 p {
+  color: #bfdbfe !important;
+}
+
+/* Sidebar - LIGHT MODE */
+aside {
+  background-color: #ffffff !important;
+  border-right: 1px solid #e2e8f0 !important;
+}
+
+/* Sidebar - DARK MODE */
+.dark aside {
+  background-color: #1e293b !important;
+  border-right: 1px solid #334155 !important;
+}
+
+/* Top bar - LIGHT MODE */
+header {
+  background-color: #ffffff !important;
+  border-bottom: 1px solid #e2e8f0 !important;
+}
+
+/* Top bar - DARK MODE */
+.dark header {
+  background-color: #1e293b !important;
+  border-bottom: 1px solid #334155 !important;
+}
+
+/* Input fields - LIGHT MODE */
+input, textarea, select {
+  background-color: #ffffff !important;
+  color: #0f172a !important;
+  border: 1px solid #e2e8f0 !important;
+}
+
+/* Input fields - DARK MODE */
+.dark input, .dark textarea, .dark select {
+  background-color: #1e293b !important;
+  color: #f1f5f9 !important;
+  border: 1px solid #334155 !important;
+}
+
+input:focus, textarea:focus {
+  border-color: #2563eb !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1) !important;
+}
+
+/* Login page card - LIGHT MODE */
+.bg-white {
+  background-color: #ffffff !important;
+}
+
+/* Login page card - DARK MODE */
+.dark .bg-white {
+  background-color: #1e293b !important;
+}
+
+/* Login page blue background - always blue */
+.bg-blue-600 {
+  background-color: #2563eb !important;
+}
+
+.dark .bg-blue-600 {
+  background-color: #2563eb !important;
+}
