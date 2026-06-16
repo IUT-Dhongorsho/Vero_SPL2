@@ -8,6 +8,7 @@ import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
+import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import { DashboardPage } from './pages/DashboardPage';
 import { ProjectPage } from './pages/ProjectPage';
 import { WorkspacePage } from './pages/WorkspacePage';
@@ -34,6 +35,7 @@ function AppContent() {
         <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
         <Route path="/signup" element={<PageTransition><SignupPage /></PageTransition>} />
         <Route path="/forgot-password" element={<PageTransition><ForgotPasswordPage /></PageTransition>} />
+        <Route path="/auth/callback" element={<PageTransition><AuthCallbackPage /></PageTransition>} />
         
         <Route path="/dashboard" element={<ProtectedRoute><PageTransition><DashboardPage /></PageTransition></ProtectedRoute>} />
         <Route path="/projects" element={<ProtectedRoute><Navigate to="/dashboard" replace /></ProtectedRoute>} />

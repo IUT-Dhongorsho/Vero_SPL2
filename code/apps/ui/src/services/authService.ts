@@ -1,5 +1,8 @@
-// Mock auth service for frontend-only development
-// Replace with real API calls when backend is ready
+import { authClient } from '../utils/auth';
+import { useAuthStore } from '../stores/auth.store';
+import type { User } from '../stores/auth.store';
+
+export type { User };
 
 export interface LoginData {
   email: string;
@@ -13,103 +16,117 @@ export interface SignupData {
   githubHandle?: string;
 }
 
-export interface User {
-  id: string;
-  name: string;
-  email: string;
-  githubHandle?: string;
-  avatar?: string;
-}
-
-// Mock user for demo
-const MOCK_USER: User = {
-  id: '1',
-  name: 'Jane Doe',
-  email: 'jane@example.com',
-  githubHandle: 'janedoe',
-};
-
 export const authService = {
+  // Credentials login using Better-Auth client
   async login(data: LoginData): Promise<{ user: User; token: string }> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Simple validation for demo
-    if (!data.email || !data.password) {
-      throw new Error('Please fill in all fields');
+    const { data: authData, error } = await authClient.signIn.email({
+      email: data.email,
+      password: data.password,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Credentials authentication failed');
     }
-    
-    if (data.password.length < 3) {
-      throw new Error('Invalid credentials');
+
+    if (!authData) {
+      throw new Error('Authentication returned empty response');
     }
-    
-    // Return mock data
-    return {
-      user: { ...MOCK_USER, email: data.email },
-      token: 'mock_jwt_token_' + Date.now(),
+
+    const token = (authData as any).session?.authToken;
+    if (!token) {
+      throw new Error('Failed to retrieve custom stateless JWT');
+    }
+
+    const user: User = {
+      id: authData.user.id,
+      name: authData.user.name,
+      email: authData.user.email,
+      avatar: authData.user.image || undefined,
     };
+
+    // Update the Zustand store immediately
+    useAuthStore.getState().setAuth(user, token);
+
+    return { user, token };
   },
-  
+
+  // Initiate Social Login redirect using Better-Auth client
+  async loginWithSocial(provider: 'github' | 'google'): Promise<void> {
+    const appUrl = import.meta.env.VITE_APP_URL || 'http://localhost:5173';
+    const { error } = await authClient.signIn.social({
+      provider,
+      callbackURL: `${appUrl}/auth/callback/`,
+    });
+
+    if (error) {
+      throw new Error(error.message || `Failed to initiate login with ${provider}`);
+    }
+  },
+
+  // Credentials signup using Better-Auth client
   async signup(data: SignupData): Promise<{ user: User; token: string }> {
-    // Simulate API call delay
-    await new Promise(resolve => setTimeout(resolve, 800));
-    
-    // Simple validation for demo
-    if (!data.name || !data.email || !data.password) {
-      throw new Error('Please fill in all required fields');
+    const { data: authData, error } = await authClient.signUp.email({
+      email: data.email,
+      password: data.password,
+      name: data.name,
+    });
+
+    if (error) {
+      throw new Error(error.message || 'Signup failed');
     }
-    
-    if (data.password.length < 6) {
-      throw new Error('Password must be at least 6 characters');
+
+    if (!authData) {
+      throw new Error('Signup returned empty response');
     }
-    
-    // Return mock data
-    return {
-      user: {
-        id: '1',
-        name: data.name,
-        email: data.email,
-        githubHandle: data.githubHandle,
-      },
-      token: 'mock_jwt_token_' + Date.now(),
+
+    const token = (authData as any).session?.authToken;
+    if (!token) {
+      throw new Error('Failed to retrieve custom stateless JWT');
+    }
+
+    const user: User = {
+      id: authData.user.id,
+      name: authData.user.name,
+      email: authData.user.email,
+      avatar: authData.user.image || undefined,
     };
+
+    // Update the Zustand store immediately
+    useAuthStore.getState().setAuth(user, token);
+
+    return { user, token };
   },
-  
+
   async logout(): Promise<void> {
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 300));
-    // Clear local storage
-    localStorage.removeItem('auth_token');
-    localStorage.removeItem('user');
-  },
-  
-  getToken(): string | null {
-    return localStorage.getItem('auth_token');
-  },
-  
-  setToken(token: string): void {
-    localStorage.setItem('auth_token', token);
-  },
-  
-  removeToken(): void {
-    localStorage.removeItem('auth_token');
-  },
-  
-  getUser(): User | null {
-    const userStr = localStorage.getItem('user');
-    if (!userStr) return null;
     try {
-      return JSON.parse(userStr);
-    } catch {
-      return null;
+      await authClient.signOut();
+    } catch (err) {
+      console.error('Error during Better-Auth signout:', err);
     }
+    useAuthStore.getState().clearAuth();
   },
-  
+
+  getToken(): string | null {
+    return useAuthStore.getState().token;
+  },
+
+  setToken(token: string): void {
+    useAuthStore.getState().setToken(token);
+  },
+
+  removeToken(): void {
+    useAuthStore.getState().clearAuth();
+  },
+
+  getUser(): User | null {
+    return useAuthStore.getState().user;
+  },
+
   setUser(user: User): void {
-    localStorage.setItem('user', JSON.stringify(user));
+    useAuthStore.getState().setUser(user);
   },
-  
+
   isAuthenticated(): boolean {
-    return !!this.getToken();
+    return useAuthStore.getState().isAuthenticated;
   },
 };

@@ -59,12 +59,26 @@ export const SignupPage: React.FC = () => {
     }
   };
 
-  const handleGoogleSignup = () => {
-    showToast('Google signup will be implemented by backend team');
+  const handleGoogleSignup = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await authService.loginWithSocial('google');
+    } catch (err: any) {
+      setError(err.message || 'Failed to initiate Google signup');
+      setLoading(false);
+    }
   };
 
-  const handleGithubSignup = () => {
-    showToast('GitHub signup will be implemented by backend team');
+  const handleGithubSignup = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await authService.loginWithSocial('github');
+    } catch (err: any) {
+      setError(err.message || 'Failed to initiate GitHub signup');
+      setLoading(false);
+    }
   };
 
   return (

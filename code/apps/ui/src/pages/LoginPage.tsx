@@ -37,12 +37,26 @@ export const LoginPage: React.FC = () => {
     }
   };
 
-  const handleGoogleLogin = () => {
-    showToast('Google login will be implemented by backend team');
+  const handleGoogleLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await authService.loginWithSocial('google');
+    } catch (err: any) {
+      setError(err.message || 'Failed to initiate Google login');
+      setLoading(false);
+    }
   };
 
-  const handleGithubLogin = () => {
-    showToast('GitHub login will be implemented by backend team');
+  const handleGithubLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      await authService.loginWithSocial('github');
+    } catch (err: any) {
+      setError(err.message || 'Failed to initiate GitHub login');
+      setLoading(false);
+    }
   };
 
   return (

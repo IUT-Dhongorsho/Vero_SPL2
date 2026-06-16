@@ -14,7 +14,7 @@ import { publisherService } from "./publisher.service.js";
 export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: ["http://localhost:3000"],
+    trustedOrigins: [process.env.CLIENT_URL || "http://localhost:5173"],
     database: drizzleAdapter(db, {
         provider: "pg",
         schema: {
@@ -47,7 +47,7 @@ export const auth = betterAuth({
             create: {
                 after: async (session) => {
                     console.log(`🛠️ [AuthService:Hook] session.create.after for user: ${session.userId}`);
-                    
+
                     // Fetch user details to include in JWT
                     const user = await db.query.user.findFirst({
                         where: eq(schema.user.id, session.userId)

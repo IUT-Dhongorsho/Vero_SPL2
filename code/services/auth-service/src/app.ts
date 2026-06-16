@@ -16,7 +16,7 @@ const app = express();
 app.use(loggerMiddleware);
 app.use(metricsMiddleware);
 app.use(cors({
-    origin: 'http://localhost:3000', // Or your specific frontend URL
+    origin: [process.env.CLIENT_URL!, 'http://localhost:5173'], // Or your specific frontend URL
     credentials: true,               // Essential for BetterAuth cookies
     methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control']
