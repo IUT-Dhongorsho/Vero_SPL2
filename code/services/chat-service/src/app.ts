@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import http from 'http';
 import { env } from './config/env.js';
 import { initSocketServer } from './ws/socket-server.js';
@@ -26,19 +25,13 @@ subscriberService.init().catch(console.error);
 
 // Middleware
 app.use(loggerMiddleware);
-app.use(cors({
-    origin: 'http://localhost:3000',
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization', 'Cache-Control'],
-    credentials: true
-}));
 app.use(express.json());
 app.use(metricsMiddleware);
 
 // Routes
-app.use('/api/channels', channelRoutes);
-app.use('/api/messages', messageRoutes);
-app.use('/api/users', userRoutes);
+app.use('/channels', channelRoutes);
+app.use('/messages', messageRoutes);
+app.use('/users', userRoutes);
 app.use('/', monitoringRoutes);
 
 server.listen(env.PORT, () => {

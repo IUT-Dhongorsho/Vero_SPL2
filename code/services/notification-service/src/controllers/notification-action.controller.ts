@@ -4,8 +4,8 @@ import { notifications } from '../models/notification.model.js';
 import { eq, and } from 'drizzle-orm';
 
 export const markAsRead = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const userId = req.body.userId; // Ideally from auth middleware
+  const id = req.params.id as string;
+  const userId = req.body.userId as string; // Ideally from auth middleware
 
   try {
     await db.update(notifications)
@@ -19,7 +19,7 @@ export const markAsRead = async (req: Request, res: Response) => {
 };
 
 export const markAllAsRead = async (req: Request, res: Response) => {
-  const { userId } = req.body;
+  const userId = req.body.userId as string;
 
   try {
     await db.update(notifications)
@@ -33,8 +33,8 @@ export const markAllAsRead = async (req: Request, res: Response) => {
 };
 
 export const deleteNotification = async (req: Request, res: Response) => {
-  const { id } = req.params;
-  const { userId } = req.body;
+  const id = req.params.id as string;
+  const userId = req.body.userId as string;
 
   try {
     await db.delete(notifications)

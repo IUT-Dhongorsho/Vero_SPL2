@@ -4,6 +4,7 @@ import { socketDelivery } from '../services/delivery/socket.delivery.js';
 
 export const initSocketServer = (httpServer: any) => {
   const io = new Server(httpServer, {
+    path: '/notifications/socket.io/',
     cors: {
       origin: '*', // Adjust for production
       methods: ['GET', 'POST'],

@@ -28,7 +28,7 @@ interface NotificationState {
 }
 
 // Create dedicated Axios instance for the Notification microservice
-const notificationBaseURL = import.meta.env.VITE_NOTIFICATION_SERVICE_URL || 'http://localhost:8006';
+const notificationBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 const notificationClient = axios.create({
   baseURL: notificationBaseURL,

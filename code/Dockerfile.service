@@ -1,0 +1,32 @@
+# Build Stage
+FROM node:22-alpine AS builder
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copy the entire monorepo
+COPY . .
+
+# Install workspace dependencies
+RUN pnpm install --frozen-lockfile --ignore-scripts
+
+# Build the specific service
+ARG SERVICE_NAME
+RUN pnpm --filter ${SERVICE_NAME} run build
+
+# Deploy the service and its dependencies to /out
+RUN pnpm --filter ${SERVICE_NAME} --prod deploy /out
+
+# Production Stage
+FROM node:22-alpine AS runner
+
+RUN corepack enable && corepack prepare pnpm@latest --activate
+
+WORKDIR /app
+
+# Copy the isolated service from the deploy command
+COPY --from=builder /out ./
+
+# Use pnpm to run the start script
+CMD ["pnpm", "run", "start"]

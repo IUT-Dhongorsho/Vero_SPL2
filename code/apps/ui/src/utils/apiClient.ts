@@ -2,7 +2,7 @@ import axios from 'axios';
 import { useAuthStore } from '../stores/auth.store';
 
 // Get the API base URL from env variables, fallback to local development port
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8004';
+const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
 /**
  * Singleton Axios instance for making authenticated API requests.

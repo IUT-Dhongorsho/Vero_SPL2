@@ -1,13 +1,10 @@
 import * as grpc from '@grpc/grpc-js';
 import * as protoLoader from '@grpc/proto-loader';
-import path from 'path';
-import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
 import { env } from '../config/env.js';
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
-const PROTO_PATH = path.resolve(__dirname, '../../proto/chat.proto');
+const require = createRequire(import.meta.url);
+const PROTO_PATH = require.resolve('@repo/shared/proto/chat.proto');
 
 const packageDefinition = protoLoader.loadSync(PROTO_PATH, {
   keepCase: true,

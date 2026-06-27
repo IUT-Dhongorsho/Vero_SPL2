@@ -1,0 +1,110 @@
+version: '3.8'
+
+services:
+  nginx:
+    image: nginx:latest
+    ports:
+      - "8080:80"
+    volumes:
+      - ../nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - auth-service
+      - project-service
+      - chat-service
+      - notification-service
+      - board-service
+      - notes-service
+      - redis
+
+  redis:
+    image: redis:alpine
+
+  auth-service:
+    build:
+      context: ../../
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: auth-service
+    ports:
+      - "8001:8001"
+    env_file:
+      - ../../services/auth-service/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  board-service:
+    build:
+      context: ../../
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: board-service
+    ports:
+      - "8002:8002"
+    env_file:
+      - ../../services/board-service/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  notes-service:
+    build:
+      context: ../../
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: notes-service
+    ports:
+      - "8003:8003"
+    env_file:
+      - ../../services/notes-service/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  project-service:
+    build:
+      context: ../../
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: project-service
+    ports:
+      - "8004:8004"
+    env_file:
+      - ../../services/project-service/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  chat-service:
+    build:
+      context: ../../
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: chat-service
+    ports:
+      - "8005:8005"
+    env_file:
+      - ../../services/chat-service/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
+
+  notification-service:
+    build:
+      context: ../../
+      dockerfile: Dockerfile.service
+      args:
+        SERVICE_NAME: notification-service
+    ports:
+      - "8006:8006"
+    env_file:
+      - ../../services/notification-service/.env
+    environment:
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis

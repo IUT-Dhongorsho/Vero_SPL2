@@ -3,6 +3,7 @@ import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { scheduledJobs } from '../models/scheduled-job.model.js';
 import { Redis } from 'ioredis';
+import { eq } from 'drizzle-orm';
 
 const connection = new Redis(env.REDIS_URL, {
   maxRetriesPerRequest: null,
@@ -49,7 +50,7 @@ export class SchedulerService {
 
   async cancel(entityId: string, userId?: string) {
     // Find pending jobs for this entity
-    const query = db.select().from(scheduledJobs).where(scheduledJobs.entityId === entityId);
+    const query = db.select().from(scheduledJobs).where(eq(scheduledJobs.entityId, entityId));
     // ... logic to filter and cancel BullMQ jobs
     // This requires iterating and calling job.remove()
   }

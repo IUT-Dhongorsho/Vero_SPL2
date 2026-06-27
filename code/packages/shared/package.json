@@ -5,6 +5,13 @@
   "type": "module",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    },
+    "./proto/*": "./src/proto/*"
+  },
   "scripts": {
     "build": "tsc",
     "clean": "rm -rf dist .turbo node_modules",

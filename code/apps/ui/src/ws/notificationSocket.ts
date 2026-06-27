@@ -14,11 +14,12 @@ export const connectNotificationSocket = (
     return socket;
   }
 
-  const wsUrl = import.meta.env.VITE_NOTIFICATION_WS_URL || 'http://localhost:8006';
+  const wsUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
 
   console.log(`🔌 [WS] Connecting to Notification Server: ${wsUrl} for user: ${userId}`);
 
   socket = io(wsUrl, {
+    path: '/api/notifications/socket.io/',
     query: { userId },
     transports: ['websocket'], // Use pure WebSocket to prevent CORS fallback pollings
   });

@@ -1,5 +1,4 @@
 import express from 'express';
-import cors from 'cors';
 import { createServer } from 'http';
 import { env } from './config/env.js';
 import { subscriberService } from './services/subscriber.service.js';
@@ -17,10 +16,9 @@ if (process.env.NODE_ENV !== 'test') {
     initSocketServer(httpServer);
 }
 
-app.use(cors());
 app.use(express.json());
 
-app.use('/api/notifications', notificationRoutes);
+app.use('/notifications', notificationRoutes);
 
 // Placeholder for routes
 app.get('/health', (req, res) => {
