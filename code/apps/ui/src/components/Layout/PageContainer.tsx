@@ -18,7 +18,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
     <div className="min-h-screen bg-background">
       <Sidebar />
       <TopBar title={title} actions={topBarActions} />
-      <main className="ml-16 md:ml-64 pt-16 p-4 md:p-8 transition-all duration-300">
+      <main className="ml-16 md:ml-64 pt-24 pb-8 px-4 md:pt-28 md:px-8 transition-all duration-300 min-h-screen">
         {children}
       </main>
     </div>

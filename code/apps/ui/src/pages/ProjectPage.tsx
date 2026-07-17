@@ -1,172 +1,77 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, Users, FolderKanban, Video, ClipboardList, Edit3, LayoutDashboard, CheckSquare, CalendarDays, Files } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
+import { FolderKanban, Plus, Clock, Users, ArrowRight, ArrowLeft, Shield } from 'lucide-react';
+import { useModuleStore } from '../stores/module.store';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { GlassCard } from '../components/ui/GlassCard';
-import { ThemeToggle } from '../components/ui/ThemeToggle';
-import { CreateWorkspaceModal } from '../components/modals/CreateWorkspaceModal';
-import { workspaceService } from '../services/workspaceService';
-
-interface Workspace {
-  id: string;
-  name: string;
-  description: string;
-  cardCount: number;
-  members: number;
-  projectId: string;
-}
+import { motion } from 'framer-motion';
 
 export const ProjectPage: React.FC = () => {
-  const { projectId } = useParams();
+  const { workspaceId, projectId } = useParams();
   const navigate = useNavigate();
-  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
-
-  const fetchWorkspaces = async () => {
-    if (!projectId) return;
-    setLoading(true);
-    try {
-      const data = await workspaceService.getWorkspaces(projectId);
-      setWorkspaces(data);
-    } catch (error) {
-      console.error('Failed to fetch workspaces:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const { modules, fetchModules } = useModuleStore();
 
   useEffect(() => {
-    fetchWorkspaces();
-  }, [projectId]);
-
-  const sidebarItems = [
-    { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard' },
-    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
-    { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks' },
-    { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
-    { icon: <Files className="w-4 h-4" />, label: 'Files', href: '/files' },
-  ];
-
-  const projectNames: Record<string, string> = {
-    '1': 'Global Rebrand',
-    '2': 'Q3 Product Launch',
-    '3': 'SPL-II Development',
-  };
-  const projectName = projectNames[projectId || '3'] || 'Project';
-
-  if (loading) {
-    return (
-      <PageContainer title={projectName} sidebarItems={sidebarItems}>
-        <div className="flex items-center justify-center h-64">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
-        </div>
-      </PageContainer>
-    );
-  }
+    if (projectId) {
+      fetchModules(projectId);
+    }
+  }, [projectId, fetchModules]);
 
   return (
-    <>
-      <PageContainer
-        title={projectName}
-        sidebarItems={sidebarItems}
-        topBarActions={
-          <div className="flex gap-3 items-center">
-            <AnimatedButton variant="outline" size="sm" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-1" />
-              Back
+    <PageContainer title="Project Modules">
+      <div className="max-w-7xl mx-auto">
+        <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
+          <div>
+            <AnimatedButton variant="outline" size="sm" onClick={() => navigate(`/workspace/${workspaceId}`)} className="mb-4 text-muted-foreground border-transparent hover:bg-muted">
+              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Projects
             </AnimatedButton>
-            <AnimatedButton variant="outline" size="sm">
-              <Users className="w-4 h-4 mr-1" />
-              Invite
-            </AnimatedButton>
-            <AnimatedButton variant="primary" size="sm" onClick={() => setIsCreateModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" />
-              New Workspace
-            </AnimatedButton>
-            <ThemeToggle />
+            <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Project Modules</h1>
+            <p className="text-muted-foreground text-lg">Manage the specific sub-projects (modules) within this project.</p>
           </div>
-        }
-      >
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-blue-50 dark:bg-blue-950/30 rounded-xl p-6 mb-8 border border-blue-200 dark:border-blue-800"
-        >
-          <div className="flex justify-between items-center flex-wrap gap-4">
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{projectName}</h1>
-              <p className="text-gray-600 dark:text-gray-400">Building Vero - Unified productivity platform</p>
-            </div>
-            <div className="flex gap-4">
-              <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1"><Users className="w-4 h-4" /> 9 members</span>
-              <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center gap-1"><FolderKanban className="w-4 h-4" /> 35% complete</span>
-            </div>
-          </div>
-          <div className="mt-4 h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div className="w-[35%] h-full bg-blue-600 rounded-full"></div>
-          </div>
-        </motion.div>
-
-        <div className="flex gap-4 mb-8">
-          <AnimatedButton variant="primary" onClick={() => navigate(`/project/${projectId}/notes`)}>
-            <Edit3 className="w-4 h-4 mr-2" />
-            New Note
-          </AnimatedButton>
-          <AnimatedButton variant="outline">
-            <ClipboardList className="w-4 h-4 mr-2" />
-            New Task
-          </AnimatedButton>
-          <AnimatedButton variant="outline">
-            <Video className="w-4 h-4 mr-2" />
-            Start Meet
+          <AnimatedButton variant="primary">
+            <Plus className="w-4 h-4 mr-2" /> New Module
           </AnimatedButton>
         </div>
 
-        <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">Workspaces</h3>
-        {workspaces.length === 0 ? (
-          <div className="text-center py-12 bg-gray-50/50 dark:bg-gray-900/50 rounded-xl">
-            <FolderKanban className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <p className="text-gray-500 mb-4">No workspaces yet. Create your first workspace!</p>
-            <AnimatedButton variant="primary" onClick={() => setIsCreateModalOpen(true)}>
-              <Plus className="w-4 h-4 mr-1" />
-              Create Workspace
-            </AnimatedButton>
-          </div>
-        ) : (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {workspaces.map((workspace, index) => (
-              <motion.div
-                key={workspace.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <GlassCard onClick={() => navigate(`/project/${projectId}/workspace/${workspace.id}`)}>
-                  <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-1">{workspace.name}</h3>
-                  <p className="text-gray-600 dark:text-gray-400 text-sm mb-4">{workspace.description}</p>
-                  <div className="flex justify-between items-center pt-4 border-t border-gray-200 dark:border-gray-700">
-                    <div className="flex gap-3 text-sm text-gray-500 dark:text-gray-500">
-                      <span>📋 {workspace.cardCount} cards</span>
-                      <span>👥 {workspace.members} members</span>
-                    </div>
-                    <span className="text-blue-600">→</span>
-                  </div>
-                </GlassCard>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </PageContainer>
-
-      <CreateWorkspaceModal
-        isOpen={isCreateModalOpen}
-        onClose={() => setIsCreateModalOpen(false)}
-        onSuccess={fetchWorkspaces}
-        projectId={projectId || '3'}
-      />
-    </>
+        <div className="flex flex-col gap-4">
+          {modules.map((mod, i) => (
+            <motion.div
+              key={mod.id}
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: i * 0.05 }}
+              onClick={() => navigate(`/workspace/${workspaceId}/project/${projectId}/module/${mod.id}`)}
+              className="group bg-card hover:bg-muted/30 border border-border rounded-xl p-4 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
+            >
+              <div className="flex items-center gap-4 flex-grow">
+                <div className="p-3 bg-primary/10 rounded-xl text-primary shrink-0">
+                  <FolderKanban className="w-6 h-6" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-bold text-foreground mb-1 group-hover:text-primary transition-colors">{mod.name}</h3>
+                  <p className="text-sm text-muted-foreground">{mod.description}</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-6 shrink-0 w-full md:w-auto justify-between md:justify-end mt-4 md:mt-0 pt-4 md:pt-0 border-t md:border-t-0 border-border">
+                <span className={`text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wide whitespace-nowrap ${
+                  mod.status === 'on-track' ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400' :
+                  mod.status === 'at-risk' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400' :
+                  'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400'
+                }`}>
+                  {mod.status.replace('-', ' ')}
+                </span>
+                
+                <div className="flex items-center gap-2 text-sm text-muted-foreground font-medium">
+                  <Shield className="w-4 h-4" /> {mod.members} Members
+                </div>
+                
+                <ArrowRight className="hidden md:block w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors group-hover:translate-x-1" />
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
+    </PageContainer>
   );
 };
