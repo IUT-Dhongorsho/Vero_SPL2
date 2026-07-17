@@ -17,6 +17,7 @@ import { FilesPage } from './pages/FilesPage';
 import { SettingsPage } from './pages/SettingsPage';
 import { ModuleHubPage } from './pages/ModuleHubPage';
 import { NotesPage } from './pages/notes/NotesPage';
+import { ChatPage } from './pages/chat/ChatPage';
 import { MeetPage } from './pages/meet/MeetPage';
 import { authService } from './services/authService';
 
@@ -49,7 +50,7 @@ function AppContent() {
         <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId" element={<ProtectedRoute><PageTransition><ModuleHubPage /></PageTransition></ProtectedRoute>} />
         <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId/board" element={<ProtectedRoute><PageTransition><TasksPage /></PageTransition></ProtectedRoute>} />
         <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId/notes" element={<ProtectedRoute><PageTransition><NotesPage /></PageTransition></ProtectedRoute>} />
-        <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId/chat" element={<ProtectedRoute><PageTransition><div className="p-8">Chat Component (WIP)</div></PageTransition></ProtectedRoute>} />
+        <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId/chat" element={<ProtectedRoute><PageTransition><ChatPage /></PageTransition></ProtectedRoute>} />
         <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId/meet" element={<ProtectedRoute><PageTransition><MeetPage /></PageTransition></ProtectedRoute>} />
         
         {/* Top-level pages */}
