@@ -19,85 +19,90 @@ export const WorkspaceTab: React.FC = () => {
 
   return (
     <div className="space-y-6">
-      <GlassCard className="p-6">
-        <h3 className="text-lg font-semibold mb-4">General Settings</h3>
+      <div className="bg-card border border-border shadow-sm rounded-2xl p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-6">General Settings</h3>
         <div className="space-y-4">
           <div>
-            <label className="block text-sm font-medium mb-1">Workspace Name</label>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Workspace Name</label>
             <input
               type="text"
               value={workspaceName}
               onChange={(e) => setWorkspaceName(e.target.value)}
-              className="w-full px-4 py-2 glass rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
             />
           </div>
           <div>
-            <label className="block text-sm font-medium mb-1">Workspace URL</label>
+            <label className="block text-sm font-medium text-foreground mb-1.5">Workspace URL</label>
             <div className="flex items-center gap-2">
-              <span className="text-sm text-gray-500">vero.app/</span>
+              <span className="text-sm text-muted-foreground">vero.app/</span>
               <input
                 type="text"
                 value={slug}
                 onChange={(e) => setSlug(e.target.value)}
-                className="flex-1 px-4 py-2 glass rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="flex-1 px-4 py-2 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
               />
             </div>
           </div>
           <div>
-            <label className="block text-sm font-medium mb-2">Default Visibility</label>
-            <div className="flex gap-4">
-              <label className="flex items-center gap-2 cursor-pointer">
+            <label className="block text-sm font-medium text-foreground mb-3">Default Visibility</label>
+            <div className="flex flex-col gap-3">
+              <label className="flex items-center gap-3 cursor-pointer group">
                 <input
                   type="radio"
                   value="team"
                   checked={visibility === 'team'}
                   onChange={() => setVisibility('team')}
+                  className="w-4 h-4 text-primary bg-background border-border focus:ring-primary"
                 />
-                <span>Team (members can see each other's projects)</span>
+                <span className="text-foreground font-medium group-hover:text-primary transition-colors">Team (members can see each other's projects)</span>
               </label>
-              <label className="flex items-center gap-2 cursor-pointer">
+              <label className="flex items-center gap-3 cursor-pointer group">
                 <input
                   type="radio"
                   value="private"
                   checked={visibility === 'private'}
                   onChange={() => setVisibility('private')}
+                  className="w-4 h-4 text-primary bg-background border-border focus:ring-primary"
                 />
-                <span>Private (invite only)</span>
+                <span className="text-foreground font-medium group-hover:text-primary transition-colors">Private (invite only)</span>
               </label>
             </div>
           </div>
         </div>
-      </GlassCard>
+      </div>
 
-      <GlassCard className="p-6">
-        <h3 className="text-lg font-semibold mb-4">Permissions</h3>
-        <div className="space-y-3">
-          <label className="flex items-center gap-3 cursor-pointer">
+      <div className="bg-card border border-border shadow-sm rounded-2xl p-6">
+        <h3 className="text-lg font-semibold text-foreground mb-6">Permissions</h3>
+        <div className="space-y-4">
+          <label className="flex items-center gap-3 cursor-pointer group">
             <input
               type="checkbox"
               checked={permissions.createProjects}
               onChange={(e) => setPermissions({ ...permissions, createProjects: e.target.checked })}
+              className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
             />
-            <span>Allow members to create projects</span>
+            <span className="text-foreground font-medium group-hover:text-primary transition-colors">Allow members to create projects</span>
           </label>
-          <label className="flex items-center gap-3 cursor-pointer">
+          <label className="flex items-center gap-3 cursor-pointer group">
             <input
               type="checkbox"
               checked={permissions.inviteMembers}
               onChange={(e) => setPermissions({ ...permissions, inviteMembers: e.target.checked })}
+              className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
             />
-            <span>Allow members to invite new members</span>
+            <span className="text-foreground font-medium group-hover:text-primary transition-colors">Allow members to invite new members</span>
           </label>
-          <label className="flex items-center gap-3 cursor-pointer">
+          <label className="flex items-center gap-3 cursor-pointer group">
             <input
               type="checkbox"
               checked={permissions.restrictMeetings}
               onChange={(e) => setPermissions({ ...permissions, restrictMeetings: e.target.checked })}
+              className="w-4 h-4 rounded border-border text-primary focus:ring-primary bg-background"
             />
-            <span>Restrict meetings to admins only</span>
+            <span className="text-foreground font-medium group-hover:text-primary transition-colors">Restrict meetings to admins only</span>
           </label>
         </div>
-      </GlassCard>
+      </div>
 
       <div className="flex justify-end">
         <AnimatedButton variant="primary" onClick={handleSave}>

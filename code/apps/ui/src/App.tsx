@@ -3,6 +3,7 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { PageTransition } from './components/ui/PageTransition';
 import { ToastProvider } from './components/Providers/ToastProvider';
+import { GlobalSearch } from './components/ui/GlobalSearch';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -70,6 +71,7 @@ function App() {
   return (
     <>
       <ToastProvider />
+      <GlobalSearch />
       <AppContent />
     </>
   );
