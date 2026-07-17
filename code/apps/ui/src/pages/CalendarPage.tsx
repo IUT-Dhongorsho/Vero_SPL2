@@ -96,9 +96,9 @@ export const CalendarPage: React.FC = () => {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => handleDateClick(date)}
-                className={`h-28 glass rounded-lg p-2 cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-blue-500' : ''} ${isCurrentToday ? 'border-2 border-blue-500' : ''}`}
+                className={`h-28 glass rounded-lg p-2 cursor-pointer transition-all duration-200 ${isSelected ? 'ring-2 ring-foreground' : ''} ${isCurrentToday ? 'border-2 border-foreground' : ''}`}
               >
-                <div className={`text-sm font-semibold mb-1 ${isCurrentToday ? 'text-blue-500' : ''}`}>{day}</div>
+                <div className={`text-sm font-semibold mb-1 ${isCurrentToday ? 'text-foreground' : ''}`}>{day}</div>
                 {tasks.length > 0 && (
                   <div className="flex flex-wrap gap-1">
                     {tasks.slice(0, 2).map(task => (

@@ -33,3 +33,5 @@ out/
 *.njsproj
 *.sln
 *.swp
+
+*._

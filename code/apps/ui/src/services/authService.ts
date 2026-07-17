@@ -1,6 +1,6 @@
-import { authClient } from '../utils/auth';
 import { useAuthStore } from '../stores/auth.store';
 import type { User } from '../stores/auth.store';
+import { v4 as uuidv4 } from 'uuid';
 
 export type { User };
 
@@ -16,33 +16,25 @@ export interface SignupData {
   githubHandle?: string;
 }
 
+// LOCAL ADAPTER — replace body with real HTTP/gRPC/WS call when backend is wired
 export const authService = {
-  // Credentials login using Better-Auth client
   async login(data: LoginData): Promise<{ user: User; token: string }> {
-    const { data: authData, error } = await authClient.signIn.email({
-      email: data.email,
-      password: data.password,
-    });
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    if (error) {
-      throw new Error(error.message || 'Credentials authentication failed');
+    if (!data.email || !data.password) {
+      throw new Error('Email and password are required');
     }
 
-    if (!authData) {
-      throw new Error('Authentication returned empty response');
-    }
-
-    const token = (authData as any).session?.authToken;
-    if (!token) {
-      throw new Error('Failed to retrieve custom stateless JWT');
-    }
-
+    // Fake successful login
     const user: User = {
-      id: authData.user.id,
-      name: authData.user.name,
-      email: authData.user.email,
-      avatar: authData.user.image || undefined,
+      id: uuidv4(),
+      name: data.email.split('@')[0],
+      email: data.email,
+      avatar: undefined, // Let the avatar be generated via initials or empty
     };
+
+    const token = `fake-jwt-token-${uuidv4()}`;
 
     // Update the Zustand store immediately
     useAuthStore.getState().setAuth(user, token);
@@ -50,46 +42,32 @@ export const authService = {
     return { user, token };
   },
 
-  // Initiate Social Login redirect using Better-Auth client
   async loginWithSocial(provider: 'github' | 'google'): Promise<void> {
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    
+    // Simulate redirect for social auth callback
     const appUrl = import.meta.env.VITE_APP_URL || 'http://localhost:5173';
-    const { error } = await authClient.signIn.social({
-      provider,
-      callbackURL: `${appUrl}/auth/callback/`,
-    });
-
-    if (error) {
-      throw new Error(error.message || `Failed to initiate login with ${provider}`);
-    }
+    window.location.href = `${appUrl}/auth/callback?provider=${provider}&token=fake-token-${uuidv4()}`;
   },
 
-  // Credentials signup using Better-Auth client
   async signup(data: SignupData): Promise<{ user: User; token: string }> {
-    const { data: authData, error } = await authClient.signUp.email({
-      email: data.email,
-      password: data.password,
-      name: data.name,
-    });
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
 
-    if (error) {
-      throw new Error(error.message || 'Signup failed');
+    if (!data.email || !data.password || !data.name) {
+      throw new Error('Please fill in all required fields');
     }
 
-    if (!authData) {
-      throw new Error('Signup returned empty response');
-    }
-
-    const token = (authData as any).session?.authToken;
-    if (!token) {
-      throw new Error('Failed to retrieve custom stateless JWT');
-    }
-
+    // Fake successful signup
     const user: User = {
-      id: authData.user.id,
-      name: authData.user.name,
-      email: authData.user.email,
-      avatar: authData.user.image || undefined,
+      id: uuidv4(),
+      name: data.name,
+      email: data.email,
+      avatar: undefined,
     };
+
+    const token = `fake-jwt-token-${uuidv4()}`;
 
     // Update the Zustand store immediately
     useAuthStore.getState().setAuth(user, token);
@@ -98,11 +76,8 @@ export const authService = {
   },
 
   async logout(): Promise<void> {
-    try {
-      await authClient.signOut();
-    } catch (err) {
-      console.error('Error during Better-Auth signout:', err);
-    }
+    // Simulate network delay
+    await new Promise((resolve) => setTimeout(resolve, 500));
     useAuthStore.getState().clearAuth();
   },
 

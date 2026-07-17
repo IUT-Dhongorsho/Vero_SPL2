@@ -11,7 +11,9 @@ import { PageContainer } from '../../components/Layout/PageContainer';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/Providers/ToastProvider';
+import { useChatStore } from '../../stores/chat.store';
+import { useAuthStore } from '../../stores/auth.store';
 
 interface Participant {
   id: string;
@@ -31,8 +33,15 @@ interface ChatMessage {
 }
 
 export const MeetPage: React.FC = () => {
-  const { projectId, workspaceId } = useParams();
+  const { projectId, workspaceId, moduleId } = useParams();
   const navigate = useNavigate();
+  const [meetingMode, setMeetingMode] = useState<'hub' | 'in-call'>('hub');
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
+  const [scheduleTitle, setScheduleTitle] = useState('Weekly Sync');
+  const [scheduleDate, setScheduleDate] = useState('');
+  const { sendMessage: sendChannelMessage, channels } = useChatStore();
+  const user = useAuthStore(state => state.user);
+
   const [isMuted, setIsMuted] = useState(false);
   const [isVideoOff, setIsVideoOff] = useState(false);
   const [isScreenSharing, setIsScreenSharing] = useState(false);
@@ -120,7 +129,7 @@ export const MeetPage: React.FC = () => {
 
   const endCall = () => {
     toast.success('Call ended');
-    navigate(`/project/${projectId}/workspace/${workspaceId}`);
+    setMeetingMode('hub');
   };
 
   const sendMessage = () => {
@@ -146,6 +155,89 @@ export const MeetPage: React.FC = () => {
   const formatMessageTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   };
+
+  const handleStartInstant = () => {
+    const activeChannel = channels.find(c => c.moduleId === moduleId) || channels[0];
+    if (activeChannel) {
+      sendChannelMessage(
+        activeChannel.id,
+        `🎥 I'm starting an instant meeting! Join here: ${window.location.origin}/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/meet`,
+        user?.id || 'u1'
+      );
+      toast.success("Meeting link sent to chat!");
+    }
+    setMeetingMode('in-call');
+  };
+
+  const handleSchedule = () => {
+    if (!scheduleDate) return toast.error("Please select a date & time");
+    const activeChannel = channels.find(c => c.moduleId === moduleId) || channels[0];
+    if (activeChannel) {
+      sendChannelMessage(
+        activeChannel.id,
+        `📅 Scheduled Meeting: **${scheduleTitle}** at ${new Date(scheduleDate).toLocaleString()}. Join here: ${window.location.origin}/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/meet`,
+        user?.id || 'u1'
+      );
+      toast.success("Meeting scheduled and notified in chat!");
+      setShowScheduleModal(false);
+    }
+  };
+
+  if (meetingMode === 'hub') {
+    return (
+      <PageContainer title="Meet" sidebarItems={sidebarItems} topBarActions={<ThemeToggle />}>
+        <div className="flex-1 flex flex-col items-center justify-center h-[calc(100vh-140px)]">
+          <div className="bg-card border border-border shadow-sm rounded-2xl p-8 max-w-lg w-full text-center">
+            <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-6">
+               <Video className="w-8 h-8 text-primary" />
+            </div>
+            <h2 className="text-2xl font-bold text-foreground mb-2">Team Meetings</h2>
+            <p className="text-muted-foreground mb-8">Start an instant meeting or schedule one for later. We'll automatically notify the team in the chat.</p>
+            
+            <div className="flex flex-col gap-4">
+              <AnimatedButton variant="primary" size="lg" onClick={handleStartInstant} className="w-full justify-center">
+                <Video className="w-5 h-5 mr-2" /> Start Instant Meeting
+              </AnimatedButton>
+              <AnimatedButton variant="outline" size="lg" onClick={() => setShowScheduleModal(true)} className="w-full justify-center">
+                <CalendarDays className="w-5 h-5 mr-2" /> Schedule Meeting
+              </AnimatedButton>
+            </div>
+          </div>
+        </div>
+        
+        {/* Simple Schedule Modal */}
+        {showScheduleModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+            <div className="bg-card border border-border shadow-xl rounded-2xl p-6 w-full max-w-md">
+              <h3 className="text-lg font-bold text-foreground mb-4">Schedule Meeting</h3>
+              <div className="space-y-4 mb-6">
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Meeting Title</label>
+                  <input type="text" value={scheduleTitle} onChange={e => setScheduleTitle(e.target.value)} className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:ring-2 focus:ring-primary focus:outline-none" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-foreground mb-1">Date & Time</label>
+                  <div className="relative">
+                    <input 
+                      type="datetime-local" 
+                      value={scheduleDate} 
+                      onChange={e => setScheduleDate(e.target.value)} 
+                      onClick={e => 'showPicker' in HTMLInputElement.prototype && (e.target as HTMLInputElement).showPicker()}
+                      className="w-full bg-background border border-border rounded-lg px-3 py-2 text-foreground focus:ring-2 focus:ring-primary focus:outline-none cursor-pointer [color-scheme:light] dark:[color-scheme:dark]" 
+                    />
+                  </div>
+                </div>
+              </div>
+              <div className="flex gap-3 justify-end">
+                <AnimatedButton variant="outline" onClick={() => setShowScheduleModal(false)}>Cancel</AnimatedButton>
+                <AnimatedButton variant="primary" onClick={handleSchedule}>Schedule</AnimatedButton>
+              </div>
+            </div>
+          </div>
+        )}
+      </PageContainer>
+    );
+  }
 
   return (
     <PageContainer

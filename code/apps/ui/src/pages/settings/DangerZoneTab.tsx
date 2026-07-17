@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/Providers/ToastProvider';
 import { AlertTriangle } from 'lucide-react';
 
 export const DangerZoneTab: React.FC = () => {

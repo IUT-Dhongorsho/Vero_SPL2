@@ -1,25 +1,27 @@
 import React from 'react';
-import { Sidebar, SidebarItem } from './Sidebar';
+import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
+import { useNavigationStore } from '../../stores/navigationStore';
 
 export interface PageContainerProps {
   children: React.ReactNode;
   title: string;
-  sidebarItems: SidebarItem[];
+  sidebarItems?: any; // Ignored, kept for backward compatibility with existing pages
   topBarActions?: React.ReactNode;
 }
 
 export const PageContainer: React.FC<PageContainerProps> = ({
   children,
   title,
-  sidebarItems,
   topBarActions,
 }) => {
+  const { isSidebarCollapsed } = useNavigationStore();
+  
   return (
-    <div className="min-h-screen bg-gray-50">
-      <Sidebar items={sidebarItems} />
+    <div className="min-h-screen bg-background">
+      <Sidebar />
       <TopBar title={title} actions={topBarActions} />
-      <main className="ml-64 pt-20 p-8">
+      <main className={`pt-24 pb-8 px-4 md:pt-28 md:px-8 transition-all duration-300 min-h-screen ${isSidebarCollapsed ? 'ml-16' : 'ml-16 md:ml-64'}`}>
         {children}
       </main>
     </div>
