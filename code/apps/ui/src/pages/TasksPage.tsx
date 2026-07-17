@@ -59,9 +59,9 @@ export const TasksPage: React.FC = () => {
         <div className="flex items-start gap-3">
           <button onClick={() => toggleTaskStatus(task.id)} className="mt-0.5">
             {task.status === 'done' ? (
-              <CheckCircle2 className="w-5 h-5 text-green-500" />
+              <CheckCircle2 className="w-5 h-5 text-foreground" />
             ) : (
-              <Circle className="w-5 h-5 text-gray-400 hover:text-blue-500 transition-colors" />
+              <Circle className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />
             )}
           </button>
           <div className="flex-1">
@@ -111,7 +111,7 @@ export const TasksPage: React.FC = () => {
                         setFilter(priority as any);
                         setShowFilter(false);
                       }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-white/20 transition-colors ${filter === priority ? 'text-blue-500' : 'text-gray-700 dark:text-gray-300'}`}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-white/20 transition-colors ${filter === priority ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
                     >
                       {priority === 'all' ? 'All Tasks' : `${priority.toUpperCase()} Priority`}
                     </button>
@@ -137,7 +137,7 @@ export const TasksPage: React.FC = () => {
             {groups.today.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-red-500">📅</span> Due Today ({groups.today.length})
+                  <span className="text-foreground">📅</span> Due Today ({groups.today.length})
                 </h3>
                 {groups.today.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
@@ -146,7 +146,7 @@ export const TasksPage: React.FC = () => {
             {groups.tomorrow.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-yellow-500">📅</span> Due Tomorrow ({groups.tomorrow.length})
+                  <span className="text-foreground">📅</span> Due Tomorrow ({groups.tomorrow.length})
                 </h3>
                 {groups.tomorrow.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
@@ -155,7 +155,7 @@ export const TasksPage: React.FC = () => {
             {groups.thisWeek.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-blue-500">📅</span> This Week ({groups.thisWeek.length})
+                  <span className="text-foreground">📅</span> This Week ({groups.thisWeek.length})
                 </h3>
                 {groups.thisWeek.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
@@ -164,7 +164,7 @@ export const TasksPage: React.FC = () => {
             {groups.later.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-gray-500">📅</span> Later ({groups.later.length})
+                  <span className="text-muted-foreground">📅</span> Later ({groups.later.length})
                 </h3>
                 {groups.later.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>

@@ -18,8 +18,8 @@ export const ModuleHubPage: React.FC = () => {
       id: 'board', 
       name: 'Kanban Board', 
       icon: FolderKanban, 
-      color: 'text-purple-500', 
-      bg: 'bg-purple-500/10',
+      color: 'text-foreground', 
+      bg: 'bg-muted',
       description: 'Track tasks specific to this module',
       route: `/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/board` 
     },
@@ -27,8 +27,8 @@ export const ModuleHubPage: React.FC = () => {
       id: 'notes', 
       name: 'Notes', 
       icon: FileText, 
-      color: 'text-blue-500', 
-      bg: 'bg-blue-500/10',
+      color: 'text-foreground', 
+      bg: 'bg-muted',
       description: 'Module documentation and specs',
       route: `/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/notes` 
     },
@@ -36,8 +36,8 @@ export const ModuleHubPage: React.FC = () => {
       id: 'chat', 
       name: 'Chat', 
       icon: MessageSquare, 
-      color: 'text-emerald-500', 
-      bg: 'bg-emerald-500/10',
+      color: 'text-foreground', 
+      bg: 'bg-muted',
       description: 'Private channel for module members',
       route: `/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/chat` 
     },
@@ -45,8 +45,8 @@ export const ModuleHubPage: React.FC = () => {
       id: 'meet', 
       name: 'Meet', 
       icon: Video, 
-      color: 'text-pink-500', 
-      bg: 'bg-pink-500/10',
+      color: 'text-foreground', 
+      bg: 'bg-muted',
       description: 'Sync with the module team',
       route: `/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/meet` 
     }

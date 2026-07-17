@@ -24,14 +24,14 @@ export const FilesPage: React.FC = () => {
 
   const filteredFiles = files.filter(file => file.name.toLowerCase().includes(searchQuery.toLowerCase()));
 
-  const getFileIcon = (type: string) => {
-    switch (type) {
-      case 'image': return <Image className="w-8 h-8 text-blue-500" />;
-      case 'pdf': return <FileText className="w-8 h-8 text-red-500" />;
-      case 'code': return <Code className="w-8 h-8 text-purple-500" />;
-      default: return <File className="w-8 h-8 text-gray-500" />;
-    }
-  };
+    const getFileIcon = (type: string) => {
+      switch (type) {
+        case 'image': return <Image className="w-8 h-8 text-foreground" />;
+        case 'pdf': return <FileText className="w-8 h-8 text-foreground" />;
+        case 'code': return <Code className="w-8 h-8 text-foreground" />;
+        default: return <File className="w-8 h-8 text-muted-foreground" />;
+      }
+    };
 
   const handleUpload = () => alert('File upload would open here');
   const handleDownload = (file: FileItem) => alert(`Downloading ${file.name}`);

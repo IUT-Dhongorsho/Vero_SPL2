@@ -28,10 +28,10 @@ export const DashboardPage: React.FC = () => {
 
   // Project Velocity mock data
   const velocityData = [
-    { name: 'Global Rebrand', progress: 85, color: '#8b5cf6' },
-    { name: 'Backend API', progress: 45, color: '#3b82f6' },
-    { name: 'SPL-II Dev', progress: 62, color: '#10b981' },
-    { name: 'User Research', progress: 15, color: '#f59e0b' },
+    { name: 'Global Rebrand', progress: 85, color: 'var(--foreground)' },
+    { name: 'Backend API', progress: 45, color: 'var(--muted-foreground)' },
+    { name: 'SPL-II Dev', progress: 62, color: 'var(--border)' },
+    { name: 'User Research', progress: 15, color: 'var(--ring)' },
   ];
 
   const getGreeting = () => {
@@ -75,9 +75,9 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {[
-              { title: 'Q3 Marketing Roadmap', type: 'Notes', project: 'Global Rebrand', icon: FileText, color: 'text-blue-500' },
-              { title: 'Authentication Module', type: 'Board', project: 'Backend API', icon: LayoutDashboard, color: 'text-purple-500' },
-              { title: 'Weekly Sync', type: 'Meet', project: 'SPL-II Dev', icon: FolderOpen, color: 'text-emerald-500' }
+              { title: 'Q3 Marketing Roadmap', type: 'Notes', project: 'Global Rebrand', icon: FileText, color: 'text-foreground' },
+              { title: 'Authentication Module', type: 'Board', project: 'Backend API', icon: LayoutDashboard, color: 'text-foreground' },
+              { title: 'Weekly Sync', type: 'Meet', project: 'SPL-II Dev', icon: FolderOpen, color: 'text-foreground' }
             ].map((item, i) => (
               <div key={i} className="group bg-card hover:bg-muted/50 border border-border rounded-2xl p-5 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md">
                 <div className="flex justify-between items-start mb-3">
@@ -101,7 +101,7 @@ export const DashboardPage: React.FC = () => {
             <div className="bg-card border border-border rounded-2xl p-6 shadow-sm h-full">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <CheckSquare className="w-5 h-5 text-emerald-500" /> Action Inbox
+                  <CheckSquare className="w-5 h-5 text-foreground" /> Action Inbox
                 </h3>
                 <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">{dueTasks.length} Due</span>
               </div>
@@ -139,7 +139,7 @@ export const DashboardPage: React.FC = () => {
             <div className="bg-card border border-border rounded-2xl p-6 shadow-sm h-full">
                <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-blue-500" /> Project Pulse
+                  <Activity className="w-5 h-5 text-foreground" /> Project Pulse
                 </h3>
               </div>
               <div className="space-y-6">
@@ -169,7 +169,7 @@ export const DashboardPage: React.FC = () => {
             <div className="bg-card border border-border rounded-2xl p-6 shadow-sm h-full flex flex-col">
               <div className="flex items-center justify-between mb-6">
                 <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <LayoutDashboard className="w-5 h-5 text-purple-500" /> Task Overview
+                  <LayoutDashboard className="w-5 h-5 text-foreground" /> Task Overview
                 </h3>
               </div>
               
@@ -187,7 +187,7 @@ export const DashboardPage: React.FC = () => {
                       />
                       <Bar dataKey="count" radius={[6, 6, 0, 0]}>
                         {chartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? '#64748b' : index === 1 ? '#3b82f6' : '#10b981'} />
+                          <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--muted-foreground)' : index === 1 ? 'var(--border)' : 'var(--foreground)'} />
                         ))}
                       </Bar>
                     </BarChart>
