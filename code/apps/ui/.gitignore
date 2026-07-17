@@ -3,7 +3,7 @@
 .env.*.local
 *.pem
 *.key
-
+bun.lock
 # System Files
 .DS_Store
 Thumbs.db
