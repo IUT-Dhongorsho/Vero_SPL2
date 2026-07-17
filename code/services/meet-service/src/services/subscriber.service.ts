@@ -1,14 +1,3 @@
-/**
- * Subscriber Service — keeps shadow tables eventually consistent (Decision 005).
- *
- * Subscriptions:
- *   user.created / user.updated  → upsert into local `users` shadow table
- *   session.created / session.updated → upsert into local `sessions` shadow table
- *   session.deleted              → delete from local `sessions` shadow table
- *
- * This is the ONLY place allowed to write to the shadow tables.
- * See Architecture Decision 005 and Data Sync ADR for rationale.
- */
 import { Redis } from 'ioredis';
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
