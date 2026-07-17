@@ -3,7 +3,6 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { PageTransition } from './components/ui/PageTransition';
 import { ToastProvider } from './components/ui/Toast';
-import { ThemeDebug } from './components/ThemeDebug';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -58,7 +57,6 @@ function App() {
   return (
     <ToastProvider>
       <AppContent />
-      <ThemeDebug />
     </ToastProvider>
   );
 }

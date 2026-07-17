@@ -41,7 +41,6 @@ export const DashboardPage: React.FC = () => {
 
   const sidebarItems = [
     { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard', active: true },
-    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
     { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks' },
     { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
     { icon: <Files className="w-4 h-4" />, label: 'Files', href: '/files' },

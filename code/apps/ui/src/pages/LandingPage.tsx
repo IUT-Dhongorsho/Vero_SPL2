@@ -1,136 +1,86 @@
-import React, { useEffect } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Sparkles, Users, MessageSquare, Calendar } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
+import { VantaBackground } from '../components/Vanta/VantaBackground';
 
 export const LandingPage: React.FC = () => {
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('animate-fade-in');
-          }
-        });
-      },
-      { threshold: 0.1 }
-    );
-
-    const elements = document.querySelectorAll('.animate-on-scroll');
-    elements.forEach((el) => observer.observe(el));
-
-    return () => observer.disconnect();
-  }, []);
-
-  const features = [
-    { icon: Sparkles, title: 'AI-Powered', desc: 'Smart task extraction and meeting summaries', color: 'text-purple-500' },
-    { icon: Users, title: 'Team Collaboration', desc: 'Real-time editing and video meetings', color: 'text-blue-500' },
-    { icon: MessageSquare, title: 'Unified Chat', desc: 'Contextual communication in one place', color: 'text-green-500' },
-    { icon: Calendar, title: 'Smart Calendar', desc: 'Sync tasks and meetings across teams', color: 'text-orange-500' },
-  ];
-
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
-      {/* Navigation */}
-      <nav className="fixed top-0 left-0 right-0 z-50 bg-gray-50 dark:bg-gray-900 backdrop-blur-sm border-bs-2 border-gray-200 dark:border-gray-800">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
-          <motion.h1 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent"
-          >
-            Vero
-          </motion.h1>
-          <div className="flex gap-4 items-center">
+    <div className="min-h-screen relative overflow-hidden">
+      {/* Vanta Background - Change 'effect' prop to try different effects */}
+      <VantaBackground effect="rings">
+        {/* Content */}
+        <div className="relative z-10 min-h-screen flex flex-col items-center justify-center px-6">
+          {/* Theme Toggle - Top Right */}
+          <div className="absolute top-6 right-6">
             <ThemeToggle />
-            <AnimatedButton variant="outline" size="sm" onClick={() => navigate('/login')}>
-              Log In
-            </AnimatedButton>
-            <AnimatedButton variant="primary" size="sm" onClick={() => navigate('/signup')}>
-              Get Started
-            </AnimatedButton>
           </div>
-        </div>
-      </nav>
 
-      {/* Hero Section */}
-      <section className="pt-32 pb-20 px-6 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-6xl mx-auto text-center">
+          {/* Main Content */}
           <motion.div
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="text-center max-w-4xl mx-auto"
           >
-            <h1 className="text-5xl md:text-7xl font-bold mb-6 text-gray-900 dark:text-white">
-              Secure, High-Density
+            <div className="mb-3">
+              <span className="text-sm font-medium text-white dark:text-white bg-blue-500/30 dark:bg-blue-500/40 backdrop-blur-sm px-4 py-1.5 rounded-full border border-white/20">
+                ✦ The Future of Collaboration
+              </span>
+            </div>
+
+            <h1 className="text-6xl md:text-8xl font-bold mb-8 leading-[1.1]">
+              <span className="text-white dark:text-white drop-shadow-lg">
+                Work
+              </span>
+              <span className="bg-gradient-to-r from-blue-400 via-purple-400 to-pink-400 bg-clip-text text-transparent">
+                Together.
+              </span>
               <br />
-              <span className="bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-                Collaboration Workspace
+              <span className="text-white dark:text-white drop-shadow-lg">
+                Anywhere.
               </span>
             </h1>
-            <p className="text-xl text-gray-600 dark:text-gray-400 mb-10 max-w-2xl mx-auto">
-              Engineered for modern teams. Combine communication, documentation, 
-              and task management in one unified platform.
+
+            <p className="text-xl md:text-2xl text-white/90 dark:text-white/90 mb-12 max-w-2xl mx-auto drop-shadow-lg">
+              The unified workspace for modern teams. Communication, documentation, 
+              and task management all in one place.
             </p>
-            <div className="flex gap-4 justify-center">
+
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <AnimatedButton variant="primary" size="lg" onClick={() => navigate('/signup')}>
-                Start Free Trial →
+                Get Started →
               </AnimatedButton>
-              <AnimatedButton variant="outline" size="lg" onClick={() => navigate('/login')}>
-                Watch Demo
+              <AnimatedButton 
+                variant="outline" 
+                size="lg" 
+                onClick={() => navigate('/login')}
+                className="!border-white/50 !text-white hover:!bg-white/10"
+              >
+                Log In
               </AnimatedButton>
+            </div>
+
+            <div className="mt-12 flex flex-wrap justify-center gap-6 text-sm text-white/80 dark:text-white/80">
+              <span className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400" />
+                Used by 20k+ teams
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-blue-400" />
+                Free 14-day trial
+              </span>
+              <span className="flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-purple-400" />
+                No credit card
+              </span>
             </div>
           </motion.div>
         </div>
-      </section>
-
-      {/* Features Grid */}
-      <section className="py-20 px-6 bg-gray-50 dark:bg-gray-900">
-        <div className="max-w-6xl mx-auto">
-          <motion.div
-            initial={{ opacity: 0 }}
-            whileInView={{ opacity: 1 }}
-            viewport={{ once: true }}
-            className="text-center mb-12"
-          >
-            <h2 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-4">Everything you need</h2>
-            <p className="text-gray-600 dark:text-gray-400">Powerful features to supercharge your team's productivity</p>
-          </motion.div>
-          
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
-            {features.map((feature, index) => (
-              <motion.div
-                key={feature.title}
-                initial={{ opacity: 0, y: 30 }}
-                whileInView={{ opacity: 1, y: 0 }}
-                viewport={{ once: true }}
-                transition={{ delay: index * 0.1 }}
-                className="bg-white dark:bg-gray-800 rounded-xl p-6 text-center shadow-md hover:shadow-lg transition-all hover:-translate-y-1 border border-gray-200 dark:border-gray-700"
-              >
-                <feature.icon className={`w-12 h-12 ${feature.color} mx-auto mb-4`} />
-                <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">{feature.title}</h3>
-                <p className="text-gray-600 dark:text-gray-400">{feature.desc}</p>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <style>{`
-        .animate-on-scroll {
-          opacity: 0;
-          transform: translateY(20px);
-          transition: opacity 0.6s ease, transform 0.6s ease;
-        }
-        .animate-on-scroll.animate-fade-in {
-          opacity: 1;
-          transform: translateY(0);
-        }
-      `}</style>
+      </VantaBackground >
     </div>
   );
 };
