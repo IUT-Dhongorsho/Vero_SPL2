@@ -1,21 +1,24 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Paperclip, Smile, Send } from 'lucide-react';
+import { Paperclip, Smile, Send, X, Reply } from 'lucide-react';
 import { useChatStore } from '../../stores/chat.store';
 import { useAuthStore } from '../../stores/auth.store';
 
-export const ChatComposer: React.FC<{ channelId: string; parentId?: string }> = ({ channelId, parentId }) => {
-  const { sendMessage, setTyping } = useChatStore();
+export const ChatComposer: React.FC<{ channelId: string }> = ({ channelId }) => {
+  const { sendMessage, setTyping, activeThreadMessageId, setActiveThread, messages } = useChatStore();
   const user = useAuthStore(state => state.user);
   const [content, setContent] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
+  const replyingToMessage = messages.find(m => m.id === activeThreadMessageId);
+
   const handleSend = () => {
     if (!content.trim()) return;
     
-    sendMessage(channelId, content.trim(), user?.id || 'u1', undefined, parentId);
+    sendMessage(channelId, content.trim(), user?.id || 'u1', undefined, activeThreadMessageId || undefined);
     setContent('');
+    setActiveThread(null); // Clear reply state after sending
     setTyping(channelId, user?.name || 'You', false);
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
   };
@@ -47,6 +50,18 @@ export const ChatComposer: React.FC<{ channelId: string; parentId?: string }> = 
 
   return (
     <div className={`flex flex-col border rounded-xl overflow-hidden transition-colors bg-card ${isFocused ? 'border-primary ring-1 ring-primary' : 'border-border'}`}>
+      {replyingToMessage && (
+        <div className="flex items-center justify-between px-3 py-2 bg-muted/50 border-b border-border">
+          <div className="flex items-center gap-2 truncate text-sm text-muted-foreground">
+            <Reply className="w-4 h-4 shrink-0" />
+            <span className="font-semibold">{replyingToMessage.senderId}</span>
+            <span className="truncate">{replyingToMessage.content}</span>
+          </div>
+          <button onClick={() => setActiveThread(null)} className="p-1 hover:bg-muted rounded-full text-muted-foreground hover:text-foreground transition-colors shrink-0">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+      )}
       <textarea
         value={content}
         onChange={handleChange}
@@ -72,7 +87,8 @@ export const ChatComposer: React.FC<{ channelId: string; parentId?: string }> = 
                   size: file.size,
                   type: file.type,
                   url: URL.createObjectURL(file)
-                });
+                }, activeThreadMessageId || undefined);
+                setActiveThread(null);
                 if (fileInputRef.current) fileInputRef.current.value = '';
               }
             }}

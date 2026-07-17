@@ -2,21 +2,20 @@ import React, { useRef, useEffect } from 'react';
 import { Channel, useChatStore } from '../../stores/chat.store';
 import { ChatComposer } from './ChatComposer';
 import { MessageBubble } from './MessageBubble';
-import { ThreadPanel } from './ThreadPanel';
 import { Hash, Pin } from 'lucide-react';
 import { AnimatePresence, motion } from 'framer-motion';
 
 interface ChatWindowProps {
   channel: Channel;
-  showThread: boolean;
+  showThread?: boolean; // Kept for backwards compatibility but unused
 }
 
-export const ChatWindow: React.FC<ChatWindowProps> = ({ channel, showThread }) => {
-  const { messages, activeThreadMessageId, setActiveThread, markChannelRead, typingUsers } = useChatStore();
+export const ChatWindow: React.FC<ChatWindowProps> = ({ channel }) => {
+  const { messages, setActiveThread, markChannelRead, typingUsers } = useChatStore();
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  // Filter out messages that are thread replies
-  const channelMessages = messages.filter(m => m.channelId === channel.id && !m.parentId);
+  // Do not filter out thread replies anymore, show all messages inline
+  const channelMessages = messages.filter(m => m.channelId === channel.id);
   const pinnedMessages = channelMessages.filter(m => m.pinned);
   
   const typingInChannel = typingUsers[channel.id] || [];
@@ -100,23 +99,6 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({ channel, showThread }) =
         </div>
 
       </div>
-
-      {/* Thread Panel */}
-      <AnimatePresence initial={false}>
-        {showThread && activeThreadMessageId && (
-          <motion.div
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 380, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ duration: 0.2, ease: "easeInOut" }}
-            className="border-l border-border shrink-0 bg-muted/20 overflow-hidden"
-          >
-            <div className="w-[380px] h-full">
-               <ThreadPanel messageId={activeThreadMessageId} onClose={() => setActiveThread(null)} />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
 
     </div>
   );

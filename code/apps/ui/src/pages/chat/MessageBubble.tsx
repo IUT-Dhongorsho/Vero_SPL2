@@ -1,15 +1,17 @@
 import React, { useState } from 'react';
 import { Message, useChatStore } from '../../stores/chat.store';
-import { Pin, MessageSquare, Smile, MoreHorizontal, FileText, Download } from 'lucide-react';
+import { Pin, MessageSquare, Smile, MoreHorizontal, FileText, Download, Reply } from 'lucide-react';
 import { useAuthStore } from '../../stores/auth.store';
 
 export const MessageBubble: React.FC<{ message: Message; onReply: () => void }> = ({ message, onReply }) => {
   const user = useAuthStore(state => state.user);
-  const { pinMessage, toggleReaction } = useChatStore();
+  const { pinMessage, toggleReaction, messages } = useChatStore();
   const [showActions, setShowActions] = useState(false);
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   
   const isMe = message.senderId === user?.id; // Or mock ID if user not setup properly in mock
+  
+  const parentMessage = message.parentId ? messages.find(m => m.id === message.parentId) : null;
 
   return (
     <div 
@@ -17,7 +19,7 @@ export const MessageBubble: React.FC<{ message: Message; onReply: () => void }> 
       onMouseEnter={() => setShowActions(true)}
       onMouseLeave={() => setShowActions(false)}
     >
-      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0">
+      <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold shrink-0 mt-auto mb-1">
         {message.senderId.charAt(0).toUpperCase()}
       </div>
 
@@ -29,8 +31,16 @@ export const MessageBubble: React.FC<{ message: Message; onReply: () => void }> 
           </span>
           {message.pinned && <Pin className="w-3 h-3 text-emerald-500 ml-1" />}
         </div>
+        
+        {parentMessage && (
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground bg-muted/40 px-2 py-1 rounded border border-border/50 max-w-full opacity-80 mb-0.5 relative translate-y-1">
+            <Reply className="w-3 h-3 shrink-0" />
+            <span className="font-semibold truncate max-w-[80px] shrink-0">{parentMessage.senderId}</span>
+            <span className="truncate flex-1">{parentMessage.content}</span>
+          </div>
+        )}
 
-        <div className={`px-4 py-2.5 rounded-2xl relative ${isMe ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-muted text-foreground rounded-tl-sm'}`}>
+        <div className={`px-4 py-2.5 rounded-2xl relative ${isMe ? 'bg-primary text-primary-foreground rounded-tr-sm' : 'bg-muted text-foreground rounded-tl-sm'} ${parentMessage && (isMe ? 'rounded-tr-2xl' : 'rounded-tl-2xl')}`}>
           <p className="text-sm whitespace-pre-wrap">{message.content}</p>
           
           {message.file && (
@@ -66,13 +76,6 @@ export const MessageBubble: React.FC<{ message: Message; onReply: () => void }> 
             ))}
           </div>
         )}
-
-        {/* Thread indicator */}
-        {message.threadCount ? (
-           <button onClick={onReply} className="mt-1 text-xs font-semibold text-primary hover:underline flex items-center gap-1">
-             <MessageSquare className="w-3 h-3" /> {message.threadCount} replies
-           </button>
-        ) : null}
       </div>
 
       {/* Floating Action Menu */}
@@ -103,7 +106,7 @@ export const MessageBubble: React.FC<{ message: Message; onReply: () => void }> 
           >
             <Smile className="w-4 h-4" />
           </button>
-          <button onClick={onReply} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" title="Reply in thread">
+          <button onClick={onReply} className="p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors" title="Reply">
             <MessageSquare className="w-4 h-4" />
           </button>
           <button onClick={() => pinMessage(message.id)} className={`p-1.5 hover:bg-muted rounded-md transition-colors ${message.pinned ? 'text-emerald-500' : 'text-muted-foreground hover:text-foreground'}`} title={message.pinned ? "Unpin" : "Pin"}>

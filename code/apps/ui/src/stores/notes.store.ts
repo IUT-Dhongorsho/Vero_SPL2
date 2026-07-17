@@ -7,6 +7,7 @@ export interface Note {
   createdAt: string;
   updatedAt: string;
   moduleId: string;
+  isPrivate: boolean;
 }
 
 interface NotesState {
@@ -16,6 +17,7 @@ interface NotesState {
   updateNote: (note: Note) => void;
   deleteNote: (id: string) => void;
   duplicateNote: (note: Note) => Note;
+  togglePrivacy: (id: string) => void;
 }
 
 export const useNotesStore = create<NotesState>((set, get) => ({
@@ -31,6 +33,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           moduleId,
+          isPrivate: false,
         },
         {
           id: '2',
@@ -39,6 +42,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
           createdAt: new Date().toISOString(),
           updatedAt: new Date().toISOString(),
           moduleId,
+          isPrivate: false,
         }
       ]
     });
@@ -51,6 +55,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       moduleId,
+      isPrivate: false,
     };
     set((state) => ({ notes: [newNote, ...state.notes] }));
     return newNote;
@@ -70,8 +75,14 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       title: `${note.title} (Copy)`,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
+      isPrivate: note.isPrivate,
     };
     set((state) => ({ notes: [duplicated, ...state.notes] }));
     return duplicated;
+  },
+  togglePrivacy: (id: string) => {
+    set((state) => ({
+      notes: state.notes.map(n => n.id === id ? { ...n, isPrivate: !n.isPrivate, updatedAt: new Date().toISOString() } : n)
+    }));
   }
 }));

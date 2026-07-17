@@ -3,6 +3,7 @@ import { Search, ChevronDown } from 'lucide-react';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useAuthStore } from '../../stores/auth.store';
 import { useNotificationStore } from '../../stores/notification.store';
+import { useNavigationStore } from '../../stores/navigationStore';
 import { useNavigate } from 'react-router-dom';
 
 export interface TopBarProps {
@@ -17,6 +18,7 @@ export const TopBar: React.FC<TopBarProps> = ({ title, actions }) => {
   
   const connectSocket = useNotificationStore((state) => state.connectSocket);
   const disconnectSocket = useNotificationStore((state) => state.disconnectSocket);
+  const { isSidebarCollapsed } = useNavigationStore();
 
   useEffect(() => {
     if (user?.id) {
@@ -27,7 +29,7 @@ export const TopBar: React.FC<TopBarProps> = ({ title, actions }) => {
     };
   }, [user?.id, connectSocket, disconnectSocket]);
   return (
-    <header className="fixed top-0 right-0 left-16 md:left-64 h-16 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:px-8 z-40 transition-all duration-300">
+    <header className={`fixed top-0 right-0 h-16 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:px-8 z-40 transition-all duration-300 ${isSidebarCollapsed ? 'left-16' : 'left-16 md:left-64'}`}>
       
       {/* Breadcrumb / Title */}
       <div className="flex items-center gap-2 cursor-pointer group rounded-md hover:bg-muted p-1 -ml-1 transition-colors">

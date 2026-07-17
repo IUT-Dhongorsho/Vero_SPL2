@@ -5,7 +5,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 
-import { Bold, Italic, List, ListOrdered, Heading1, Heading2, Code, CheckSquare, LayoutDashboard } from 'lucide-react';
+import { Bold, Italic, List, ListOrdered, Heading1, Heading2, Code, CheckSquare, LayoutDashboard, Globe, Lock } from 'lucide-react';
 import { Note, useNotesStore } from '../../stores/notes.store';
 import { toast } from '../../components/Providers/ToastProvider';
 
@@ -14,7 +14,7 @@ interface RichTextEditorProps {
 }
 
 export const RichTextEditor: React.FC<RichTextEditorProps> = ({ note }) => {
-  const { updateNote } = useNotesStore();
+  const { updateNote, togglePrivacy } = useNotesStore();
   const [title, setTitle] = useState(note.title);
   const [isSaving, setIsSaving] = useState(false);
   const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
@@ -81,6 +81,11 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ note }) => {
     toast.success(`Sent to Kanban Board: "${text}"`);
   };
 
+  const handleTogglePrivacy = () => {
+    togglePrivacy(note.id);
+    toast.success(`Note is now ${!note.isPrivate ? 'private' : 'public'}`);
+  };
+
   if (!editor) return null;
 
   return (
@@ -94,7 +99,18 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ note }) => {
             className="text-3xl font-bold bg-transparent text-foreground focus:outline-none w-full placeholder:text-muted-foreground"
             placeholder="Untitled Note"
           />
-          <div className="flex items-center gap-2 shrink-0 ml-4">
+          <div className="flex items-center gap-4 shrink-0 ml-4">
+            <button
+              onClick={handleTogglePrivacy}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border ${note.isPrivate ? 'bg-muted border-border text-muted-foreground hover:bg-muted/80' : 'bg-primary/10 border-primary/20 text-primary hover:bg-primary/20'}`}
+              title={note.isPrivate ? "Make Public" : "Make Private"}
+            >
+              {note.isPrivate ? (
+                <><Lock className="w-3.5 h-3.5" /> Private</>
+              ) : (
+                <><Globe className="w-3.5 h-3.5" /> Public</>
+              )}
+            </button>
             <span className={`text-xs font-medium transition-opacity duration-300 ${isSaving ? 'text-muted-foreground opacity-100' : 'text-emerald-500 opacity-70'}`}>
               {isSaving ? 'Saving...' : 'Saved'}
             </span>
