@@ -11,7 +11,7 @@ import { PageContainer } from '../../components/Layout/PageContainer';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { GlassCard } from '../../components/ui/GlassCard';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/Providers/ToastProvider';
 
 interface Participant {
   id: string;

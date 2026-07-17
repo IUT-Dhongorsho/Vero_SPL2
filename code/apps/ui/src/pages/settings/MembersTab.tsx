@@ -3,7 +3,7 @@ import { motion } from 'framer-motion';
 import { MoreVertical, UserPlus, Mail } from 'lucide-react';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/Providers/ToastProvider';
 import { mockMembers, Member } from '../../data/mockData';
 
 export const MembersTab: React.FC = () => {

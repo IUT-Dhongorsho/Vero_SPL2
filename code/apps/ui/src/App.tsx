@@ -2,7 +2,7 @@ import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { PageTransition } from './components/ui/PageTransition';
-import { ToastProvider } from './components/ui/Toast';
+import { ToastProvider } from './components/Providers/ToastProvider';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -55,9 +55,10 @@ function AppContent() {
 
 function App() {
   return (
-    <ToastProvider>
+    <>
+      <ToastProvider />
       <AppContent />
-    </ToastProvider>
+    </>
   );
 }
 

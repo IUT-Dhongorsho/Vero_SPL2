@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Globe, Lock } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
-import { toast } from '../ui/Toast';
+import { toast } from '../Providers/ToastProvider';
 import { projectService, CreateProjectData } from '../../services/projectService';
 
 interface CreateProjectModalProps {

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { GlassCard } from '../../components/ui/GlassCard';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/Providers/ToastProvider';
 import { User, Mail, Github, Moon, Sun, Bell } from 'lucide-react';
-import { useTheme } from '../../context/ThemeContext';
+import { useTheme } from '../../components/Providers/ThemeProvider';
 
 export const ProfileTab: React.FC = () => {
   const { theme, toggleTheme } = useTheme();

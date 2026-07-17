@@ -30,7 +30,7 @@ import { GlassCard } from '../components/ui/GlassCard';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { InviteMemberModal } from '../components/modals/InviteMemberModal';
 import { taskService, Task } from '../services/taskService';
-import { toast } from '../components/ui/Toast';
+import { toast } from '../components/Providers/ToastProvider';
 
 const SortableTaskCard: React.FC<{ 
   task: Task; 

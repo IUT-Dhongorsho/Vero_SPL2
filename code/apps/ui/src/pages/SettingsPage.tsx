@@ -8,7 +8,7 @@ import { WorkspaceTab } from './settings/WorkspaceTab';
 import { MembersTab } from './settings/MembersTab';
 import { BillingTab } from './settings/BillingTab';
 import { DangerZoneTab } from './settings/DangerZoneTab';
-import { ToastProvider } from '../components/ui/Toast';
+import { toast } from '../components/Providers/ToastProvider';
 
 type Tab = 'profile' | 'workspace' | 'members' | 'billing' | 'danger';
 

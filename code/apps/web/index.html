@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="One workspace for meetings, docs, and tasks — no more app-switching" />
+    <title>Vero - Unified Collaboration Workspace</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div id="error-overlay" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.9); color:red; padding:2rem; z-index:9999; overflow:auto;"></div>
+    <script>
+      window.onerror = function(message, source, lineno, colno, error) {
+        var overlay = document.getElementById('error-overlay');
+        overlay.style.display = 'block';
+        overlay.innerHTML += '<p><strong>Error:</strong> ' + message + '</p>';
+      };
+      window.addEventListener('unhandledrejection', function(event) {
+        var overlay = document.getElementById('error-overlay');
+        overlay.style.display = 'block';
+        overlay.innerHTML += '<p><strong>Unhandled Promise:</strong> ' + (event.reason && event.reason.message || event.reason) + '</p>';
+      });
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

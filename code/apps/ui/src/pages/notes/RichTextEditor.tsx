@@ -5,7 +5,7 @@ import Placeholder from '@tiptap/extension-placeholder';
 import Underline from '@tiptap/extension-underline';
 import { Bold, Italic, Underline as UnderlineIcon, List, ListOrdered, Heading1, Heading2, ArrowLeft } from 'lucide-react';
 import { Note } from './NotesPage';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/Providers/ToastProvider';
 import { useNavigate } from 'react-router-dom';
 
 interface RichTextEditorProps {

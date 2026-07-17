@@ -6,7 +6,7 @@ import { PageContainer } from '../../components/Layout/PageContainer';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
 import { RichTextEditor } from './RichTextEditor';
-import { toast } from '../../components/ui/Toast';
+import { toast } from '../../components/Providers/ToastProvider';
 
 export interface Note {
   id: string;
