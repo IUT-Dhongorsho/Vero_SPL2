@@ -59,7 +59,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
   fetchNotifications: async (userId) => {
     set({ loading: true });
     try {
-      const response = await notificationClient.get<Notification[]>('/api/notifications', {
+      const response = await notificationClient.get<Notification[]>('/notifications/', {
         params: { userId },
       });
       set({ notifications: response.data, loading: false });
@@ -71,7 +71,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   fetchUnreadCount: async (userId) => {
     try {
-      const response = await notificationClient.get<{ count: number }>('/api/notifications/unread-count', {
+      const response = await notificationClient.get<{ count: number }>('/notifications/unread-count/', {
         params: { userId },
       });
       set({ unreadCount: response.data.count });
@@ -82,7 +82,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   markAsRead: async (userId, id) => {
     try {
-      await notificationClient.patch(`/api/notifications/${id}/read`, { userId });
+      await notificationClient.patch(`/notifications/${id}/read`, { userId });
       
       const { notifications, unreadCount } = get();
       const target = notifications.find((n) => n.id === id);
@@ -101,7 +101,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   markAllAsRead: async (userId) => {
     try {
-      await notificationClient.patch('/api/notifications/read-all', { userId });
+      await notificationClient.patch('/notifications/read-all', { userId });
       
       const { notifications } = get();
       set({
@@ -115,7 +115,7 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   deleteNotification: async (userId, id) => {
     try {
-      await notificationClient.delete(`/api/notifications/${id}`, {
+      await notificationClient.delete(`/notifications/${id}`, {
         data: { userId },
       });
 

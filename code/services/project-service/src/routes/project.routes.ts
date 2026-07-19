@@ -1,5 +1,4 @@
 import { Router } from 'express';
-import { workspaceController } from '../controllers/workspace.controller.js';
 import { projectController } from '../controllers/project.controller.js';
 import { moduleController } from '../controllers/module.controller.js';
 import { authMiddleware } from '../middleware/auth.js';
@@ -8,16 +7,19 @@ const router = Router();
 
 router.use(authMiddleware);
 
-// Workspace Routes
-router.get('/workspaces', workspaceController.getMyWorkspaces);
-router.get('/workspaces/:id', workspaceController.getWorkspaceById);
+// ── Project Routes ──────────────────────────────────────────
+router.get('/projects',              projectController.getUserProjects);
+router.post('/projects/join',        projectController.joinProject);
+router.get('/projects/:projectId',   projectController.getProject);
+router.post('/projects',             projectController.createProject);
+router.patch('/projects/:projectId', projectController.updateProject);
+router.post('/projects/:projectId/invite-code', projectController.generateInviteCode);
+router.delete('/projects/:projectId',projectController.deleteProject);
 
-// Project Routes
-router.post('/projects', projectController.createProject);
-router.get('/workspaces/:workspaceId/projects', projectController.getWorkspaceProjects);
-
-// Module Routes
-router.post('/modules', moduleController.createModule);
-router.get('/projects/:projectId/modules', moduleController.getProjectModules);
+// ── Module Routes ───────────────────────────────────────────
+router.get('/projects/:projectId/modules',  moduleController.getProjectModules);
+router.post('/modules',                     moduleController.createModule);
+router.patch('/modules/:moduleId',          moduleController.updateModule);
+router.delete('/modules/:moduleId',         moduleController.deleteModule);
 
 export default router;

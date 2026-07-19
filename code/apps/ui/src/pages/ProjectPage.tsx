@@ -3,34 +3,75 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { FolderKanban, Plus, Clock, Users, ArrowRight, ArrowLeft, Shield } from 'lucide-react';
 import { useModuleStore } from '../stores/module.store';
+import { useProjectStore } from '../stores/project.store';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { toast } from '../components/Providers/ToastProvider';
 import { motion } from 'framer-motion';
+import { CreateModuleModal } from '../components/modals/CreateModuleModal';
 
 export const ProjectPage: React.FC = () => {
   const { workspaceId, projectId } = useParams();
   const navigate = useNavigate();
   const { modules, fetchModules } = useModuleStore();
+  const { projects, fetchProjects } = useProjectStore();
+  const [isModalOpen, setIsModalOpen] = useState(false);
+
+  const project = projects.find(p => p.id === projectId);
 
   useEffect(() => {
+    if (projects.length === 0) {
+      fetchProjects();
+    }
     if (projectId) {
       fetchModules(projectId);
     }
-  }, [projectId, fetchModules]);
+  }, [projectId, fetchModules, fetchProjects, projects.length]);
 
   return (
     <PageContainer title="Project Modules">
       <div className="max-w-7xl mx-auto">
         <div className="flex flex-col md:flex-row md:items-start justify-between gap-4 mb-8">
           <div>
-            <AnimatedButton variant="outline" size="sm" onClick={() => navigate(`/workspace/${workspaceId}`)} className="mb-4 text-muted-foreground border-transparent hover:bg-muted">
+            <AnimatedButton variant="outline" size="sm" onClick={() => navigate('/projects')} className="mb-4 text-muted-foreground border-transparent hover:bg-muted">
               <ArrowLeft className="w-4 h-4 mr-2" /> Back to Projects
             </AnimatedButton>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">Project Modules</h1>
-            <p className="text-muted-foreground text-lg">Manage the specific sub-projects (modules) within this project.</p>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">{project?.name || 'Project Modules'}</h1>
+            <p className="text-muted-foreground text-lg">{project?.description || 'Manage the specific sub-projects (modules) within this project.'}</p>
           </div>
-          <AnimatedButton variant="primary">
-            <Plus className="w-4 h-4 mr-2" /> New Module
-          </AnimatedButton>
+          <div className="flex flex-col sm:flex-row items-end sm:items-center gap-3">
+            {project?.inviteCode ? (
+              <div 
+                onClick={() => {
+                  navigator.clipboard.writeText(project.inviteCode!);
+                  toast.success('Invite code copied!');
+                }}
+                className="bg-muted px-4 py-2 rounded-lg cursor-pointer hover:bg-muted/80 transition-colors border border-border flex items-center gap-2"
+                title="Click to copy invite code"
+              >
+                <span className="text-sm font-medium text-muted-foreground">Invite Code:</span>
+                <span className="font-mono font-bold text-primary tracking-wider">{project.inviteCode}</span>
+              </div>
+            ) : project?.userRole === 'admin' ? (
+              <AnimatedButton 
+                variant="outline" 
+                onClick={async () => {
+                  if (projectId) {
+                    try {
+                      await useProjectStore.getState().generateInviteCode(projectId);
+                      toast.success('Invite code generated!');
+                    } catch (e) {
+                      toast.error('Failed to generate invite code.');
+                    }
+                  }
+                }}
+              >
+                Generate Invite Code
+              </AnimatedButton>
+            ) : null}
+            <AnimatedButton variant="primary" onClick={() => setIsModalOpen(true)}>
+              <Plus className="w-4 h-4 mr-2" /> New Module
+            </AnimatedButton>
+          </div>
         </div>
 
         <div className="flex flex-col gap-4">
@@ -40,7 +81,7 @@ export const ProjectPage: React.FC = () => {
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ delay: i * 0.05 }}
-              onClick={() => navigate(`/workspace/${workspaceId}/project/${projectId}/module/${mod.id}`)}
+              onClick={() => navigate(`/project/${projectId}/module/${mod.id}`)}
               className="group bg-card hover:bg-muted/30 border border-border rounded-xl p-4 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md flex flex-col md:flex-row items-start md:items-center justify-between gap-4"
             >
               <div className="flex items-center gap-4 flex-grow">
@@ -72,6 +113,12 @@ export const ProjectPage: React.FC = () => {
           ))}
         </div>
       </div>
+      
+      <CreateModuleModal 
+        isOpen={isModalOpen} 
+        onClose={() => setIsModalOpen(false)} 
+        projectId={projectId!}
+      />
     </PageContainer>
   );
 };

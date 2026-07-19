@@ -21,7 +21,14 @@ export const PageContainer: React.FC<PageContainerProps> = ({
     <div className="min-h-screen bg-background">
       <Sidebar />
       <TopBar title={title} actions={topBarActions} />
-      <main className={`pt-24 pb-8 px-4 md:pt-28 md:px-8 transition-all duration-300 min-h-screen ${isSidebarCollapsed ? 'ml-16' : 'ml-16 md:ml-64'}`}>
+      {/* Mobile: no left margin (sidebar is overlay). Desktop: push content right. */}
+      <main
+        className={`
+          pt-24 pb-8 px-4 transition-all duration-300 min-h-screen
+          md:pt-28 md:px-8
+          ${isSidebarCollapsed ? 'md:ml-16' : 'md:ml-64'}
+        `}
+      >
         {children}
       </main>
     </div>

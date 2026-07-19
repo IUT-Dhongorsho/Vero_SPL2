@@ -75,6 +75,16 @@ export class ChannelService {
       }).returning();
 
       // 3. Add members
+      // If the creator is 'system', ensure the system user exists in this local DB first
+      if (data.creatorId === 'system') {
+        const { users } = await import('../models/user.model.js');
+        await tx.insert(users).values({
+          id: 'system',
+          name: 'System Bot',
+          avatarUrl: 'https://api.dicebear.com/7.x/bottts/svg?seed=system'
+        }).onConflictDoNothing();
+      }
+
       const membersToCreate = [
         {
           channelId: newChannel.id,

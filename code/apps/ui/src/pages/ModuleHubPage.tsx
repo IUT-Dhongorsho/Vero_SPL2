@@ -4,14 +4,23 @@ import { PageContainer } from '../components/Layout/PageContainer';
 import { Users, FolderKanban, Video, FileText, MessageSquare, ArrowLeft, ShieldCheck } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { motion } from 'framer-motion';
+import { useModuleStore } from '../stores/module.store';
+import { useEffect } from 'react';
 
 export const ModuleHubPage: React.FC = () => {
   const { workspaceId, projectId, moduleId } = useParams();
   const navigate = useNavigate();
+  const { modules, fetchModules } = useModuleStore();
 
-  // In a real app, fetch module details from moduleStore using moduleId
-  const moduleName = "Authentication System";
-  const moduleDescription = "OAuth2 and SSO integration";
+  useEffect(() => {
+    if (projectId && modules.length === 0) {
+      fetchModules(projectId);
+    }
+  }, [projectId, modules.length, fetchModules]);
+
+  const module = modules.find(m => m.id === moduleId);
+  const moduleName = module?.name || 'Module Hub';
+  const moduleDescription = module?.description || 'Select a tool to start collaborating.';
 
   const tools = [
     { 
@@ -21,7 +30,7 @@ export const ModuleHubPage: React.FC = () => {
       color: 'text-foreground', 
       bg: 'bg-muted',
       description: 'Track tasks specific to this module',
-      route: `/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/board` 
+      route: `/project/${projectId}/module/${moduleId}/board` 
     },
     { 
       id: 'notes', 
@@ -30,7 +39,7 @@ export const ModuleHubPage: React.FC = () => {
       color: 'text-foreground', 
       bg: 'bg-muted',
       description: 'Module documentation and specs',
-      route: `/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/notes` 
+      route: `/project/${projectId}/module/${moduleId}/notes` 
     },
     { 
       id: 'chat', 
@@ -39,7 +48,7 @@ export const ModuleHubPage: React.FC = () => {
       color: 'text-foreground', 
       bg: 'bg-muted',
       description: 'Private channel for module members',
-      route: `/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/chat` 
+      route: `/project/${projectId}/module/${moduleId}/chat` 
     },
     { 
       id: 'meet', 
@@ -48,7 +57,7 @@ export const ModuleHubPage: React.FC = () => {
       color: 'text-foreground', 
       bg: 'bg-muted',
       description: 'Sync with the module team',
-      route: `/workspace/${workspaceId}/project/${projectId}/module/${moduleId}/meet` 
+      route: `/project/${projectId}/module/${moduleId}/meet` 
     }
   ];
 
@@ -59,7 +68,7 @@ export const ModuleHubPage: React.FC = () => {
         {/* Header Section */}
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-start justify-between gap-6">
           <div>
-            <AnimatedButton variant="outline" size="sm" onClick={() => navigate(`/workspace/${workspaceId}/project/${projectId}`)} className="mb-4 text-muted-foreground border-transparent hover:bg-muted">
+            <AnimatedButton variant="outline" size="sm" onClick={() => navigate(`/project/${projectId}`)} className="mb-4 text-muted-foreground border-transparent hover:bg-muted">
               <ArrowLeft className="w-4 h-4 mr-2" /> Back to Project Modules
             </AnimatedButton>
             <div className="flex items-center gap-3 mb-2">
@@ -70,16 +79,18 @@ export const ModuleHubPage: React.FC = () => {
             </div>
             <p className="text-muted-foreground text-lg">{moduleDescription}</p>
           </div>
-          <div className="flex flex-col items-end gap-3">
-            <div className="flex -space-x-2 mr-2">
-              {[1,2,3].map(i => (
-                <div key={i} className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium ring-2 ring-background">👤</div>
-              ))}
+            <div className="flex flex-col items-end gap-3">
+              <div className="flex -space-x-2 mr-2">
+                {Array.from({ length: Math.min(module?.members || 1, 3) }).map((_, i) => (
+                  <div key={i} className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium ring-2 ring-background">
+                    {['J', 'A', 'S'][i % 3]}
+                  </div>
+                ))}
+              </div>
+              <AnimatedButton variant="outline" size="sm">
+                <Users className="w-4 h-4 mr-2" /> {module?.members || 1} Member{(module?.members || 1) !== 1 ? 's' : ''}
+              </AnimatedButton>
             </div>
-            <AnimatedButton variant="outline" size="sm">
-              <Users className="w-4 h-4 mr-2" /> Assign Members
-            </AnimatedButton>
-          </div>
         </motion.div>
 
         {/* Tools Grid */}

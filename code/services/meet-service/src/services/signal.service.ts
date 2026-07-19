@@ -52,7 +52,11 @@ export const signalService = {
     socket.join(roomId);
     socket.data.roomId = roomId;
 
-    const existingProducers = roomService.getAllProducersInRoom(roomId, userId);
+    const existingProducers = roomService.getAllProducersInRoom(roomId, userId).map(p => {
+      // Find the user name from db or socket.user? Wait, room.peers has socketId.
+      const pSocket = io.sockets.sockets.get(room.peers.get(p.userId)?.socketId || '');
+      return { ...p, userName: (pSocket as AuthSocket)?.user?.name || `User ${p.userId.substring(0,4)}` };
+    });
 
     let activeMeeting = await db.query.meetings.findFirst({
       where: and(eq(meetings.roomId, roomId), isNull(meetings.endedAt)),
@@ -91,8 +95,18 @@ export const signalService = {
       userId,
     });
 
-    socket.to(roomId).emit('peer-joined', { userId });
-    socket.emit('room-joined', { existingProducers });
+    const existingPeersList = Array.from(room.peers.entries())
+      .filter(([pId]) => pId !== userId)
+      .map(([pId, peerObj]) => {
+        const pSocket = io.sockets.sockets.get(peerObj.socketId);
+        return {
+          userId: pId,
+          userName: (pSocket as AuthSocket)?.user?.name || `User ${pId.substring(0, 4)}`,
+        };
+      });
+
+    socket.to(roomId).emit('peer-joined', { userId, userName: socket.user?.name });
+    socket.emit('room-joined', { existingProducers, existingPeers: existingPeersList });
     console.log(
       `✅ [Signal] ${userId} joined room "${roomId}" — ${room.peers.size} peers, ${existingProducers.length} existing producers`
     );
@@ -177,11 +191,12 @@ export const signalService = {
     });
 
     if (peer.rtpCapabilities) {
-      await this._pushExistingConsumers(socket, room, peer, data.roomId);
+      await this._pushExistingConsumers(io, socket, room, peer, data.roomId);
     }
   },
 
   async _pushExistingConsumers(
+    io: Server,
     socket: AuthSocket,
     room: Room,
     peer: Peer,
@@ -212,12 +227,16 @@ export const signalService = {
         socket.emit('consumer-closed', { consumerId: consumer.id });
       });
 
+      const producerSocket = producerPeer
+        ? io.sockets.sockets.get(producerPeer.socketId)
+        : undefined;
       socket.emit('consume', {
         consumerId: consumer.id,
         producerId,
         kind: consumer.kind,
         rtpParameters: consumer.rtpParameters,
         userId: producerUserId,
+        userName: (producerSocket as AuthSocket)?.user?.name || `User ${producerUserId.substring(0,4)}`,
       });
     }
   },
@@ -320,6 +339,7 @@ export const signalService = {
         kind: consumer.kind,
         rtpParameters: consumer.rtpParameters,
         userId,
+        userName: socket.user?.name || `User ${userId.substring(0,4)}`,
       });
     }
   },

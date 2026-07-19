@@ -29,10 +29,10 @@ export const TopBar: React.FC<TopBarProps> = ({ title, actions }) => {
     };
   }, [user?.id, connectSocket, disconnectSocket]);
   return (
-    <header className={`fixed top-0 right-0 h-16 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:px-8 z-40 transition-all duration-300 ${isSidebarCollapsed ? 'left-16' : 'left-16 md:left-64'}`}>
+    <header className={`fixed top-0 right-0 h-16 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:px-8 z-40 transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-16' : 'md:left-64'}`}>
       
-      {/* Breadcrumb / Title */}
-      <div className="flex items-center gap-2 cursor-pointer group rounded-md hover:bg-muted p-1 -ml-1 transition-colors">
+      {/* Breadcrumb / Title — offset on mobile to clear the hamburger button */}
+      <div className="flex items-center gap-2 cursor-pointer group rounded-md hover:bg-muted p-1 -ml-1 transition-colors pl-10 md:pl-0">
         <h2 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors truncate max-w-[150px] md:max-w-none">{title}</h2>
         <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
       </div>

@@ -14,14 +14,17 @@ export const connectNotificationSocket = (
     return socket;
   }
 
-  const wsUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+  // Socket.io needs the server origin only — NOT the /api path prefix.
+  // The path option below tells socket.io where the endpoint is on the server.
+  const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+  const wsUrl = apiUrl.replace(/\/api$/, ''); // strips trailing /api → http://localhost:8080
 
   console.log(`🔌 [WS] Connecting to Notification Server: ${wsUrl} for user: ${userId}`);
 
   socket = io(wsUrl, {
     path: '/api/notifications/socket.io/',
     query: { userId },
-    transports: ['websocket'], // Use pure WebSocket to prevent CORS fallback pollings
+    transports: ['websocket'],
   });
 
   socket.on('connect', () => {

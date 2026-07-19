@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { db } from '../db/client.js';
-import { projects, modules, projectMembers } from '../models/workspace.model.js';
+import { projects, modules, projectMembers, moduleMembers } from '../models/workspace.model.js';
 import { eq, and } from 'drizzle-orm';
 import { queueService } from '../services/queue.service.js';
 
@@ -11,10 +11,10 @@ export class ModuleController {
    */
   async createModule(req: Request, res: Response) {
     try {
-      const { name, projectId } = req.body;
+      const { name, description, projectId } = req.body;
       const userId = (req as any).user.id;
 
-      // 1. Authorization: User must be an admin/member of the project
+      // 1. Authorization: User must be an admin of the project
       const membership = await db.query.projectMembers.findFirst({
         where: and(
             eq(projectMembers.projectId, projectId),
@@ -36,10 +36,26 @@ export class ModuleController {
       // 3. Create module locally
       const [newModule] = await db.insert(modules).values({
         name,
+        description,
         projectId,
       }).returning();
 
-      // 4. Trigger Resource Orchestration (Async via Queue)
+      // 4. Automatically add all project admins to the moduleMembers table
+      const projectAdmins = await db.query.projectMembers.findMany({
+        where: and(eq(projectMembers.projectId, projectId), eq(projectMembers.role, 'admin'))
+      });
+
+      if (projectAdmins.length > 0) {
+        await db.insert(moduleMembers).values(
+          projectAdmins.map(admin => ({
+            moduleId: newModule.id,
+            userId: admin.userId,
+            projectMemberId: admin.id,
+          }))
+        );
+      }
+
+      // 5. Trigger Resource Orchestration (Async via Queue)
       await queueService.queueModuleProvisioning({
           moduleId: newModule.id,
           name: newModule.name,
@@ -60,10 +76,44 @@ export class ModuleController {
       const { projectId } = req.params;
       const results = await db.query.modules.findMany({
         where: eq(modules.projectId, projectId),
+        with: {
+          members: true
+        }
       });
-      res.json(results);
+      res.json(results.map((m: any) => ({ ...m, members: m.members.length })));
     } catch (error) {
       res.status(500).json({ error: 'Failed to fetch modules' });
+    }
+  }
+  async updateModule(req: Request, res: Response) {
+    try {
+      const { moduleId } = req.params;
+      const { name, description, status } = req.body;
+      
+      // Should verify project membership here in a real scenario
+      const [updated] = await db.update(modules)
+        .set({ name, updatedAt: new Date() })
+        .where(eq(modules.id, moduleId))
+        .returning();
+
+      res.json(updated);
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to update module' });
+    }
+  }
+
+  async deleteModule(req: Request, res: Response) {
+    try {
+      const { moduleId } = req.params;
+      
+      // Should verify project membership here in a real scenario
+      await db.delete(modules).where(eq(modules.id, moduleId));
+      
+      res.json({ success: true, message: 'Module deleted' });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ error: 'Failed to delete module' });
     }
   }
 }

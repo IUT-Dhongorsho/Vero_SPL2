@@ -79,9 +79,11 @@ export const NotesPage: React.FC = () => {
                 <div className="p-4 border-b border-border">
                   <div className="flex items-center justify-between mb-4">
                     <div className="flex items-center gap-2">
-                       <AnimatedButton variant="outline" size="sm" onClick={() => navigate(`/workspace/${workspaceId}/project/${projectId}/module/${moduleId}`)} className="text-muted-foreground border-transparent hover:bg-muted p-2">
-                         <ArrowLeft className="w-4 h-4" />
-                       </AnimatedButton>
+                       <div>
+                        <AnimatedButton variant="outline" size="sm" onClick={() => navigate(`/project/${projectId}/module/${moduleId}`)} className="text-muted-foreground border-transparent hover:bg-muted p-2">
+                          <ArrowLeft className="w-4 h-4 mr-2" /> Back
+                        </AnimatedButton>
+                      </div>
                        <h2 className="text-lg font-bold text-foreground">Notes</h2>
                     </div>
                     <div className="flex items-center gap-1">

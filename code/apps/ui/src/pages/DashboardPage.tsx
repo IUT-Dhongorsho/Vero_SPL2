@@ -4,6 +4,8 @@ import { PageContainer } from '../components/Layout/PageContainer';
 import { LayoutDashboard, CheckSquare, Clock, ArrowRight, FileText, Zap, FolderOpen, MoreHorizontal, Activity } from 'lucide-react';
 import { useBoardStore } from '../stores/board.store';
 import { useMeetStore } from '../stores/meet.store';
+import { useAuthStore } from '../stores/auth.store';
+import { useProjectStore } from '../stores/project.store';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
@@ -12,11 +14,16 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { tasks, fetchTasks, loading: tasksLoading } = useBoardStore();
   const { todayMeetings, fetchTodayMeetings } = useMeetStore();
+  const { user } = useAuthStore();
+  const { projects, fetchProjects } = useProjectStore();
 
   useEffect(() => {
     fetchTasks('3'); // Default mock workspace
     fetchTodayMeetings();
-  }, [fetchTasks, fetchTodayMeetings]);
+    if (projects.length === 0) {
+      fetchProjects();
+    }
+  }, [fetchTasks, fetchTodayMeetings, fetchProjects, projects.length]);
 
   const dueTasks = tasks.filter(t => t.status !== 'done').sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   
@@ -58,7 +65,7 @@ export const DashboardPage: React.FC = () => {
         <motion.div variants={fadeUp} className="flex flex-col md:flex-row md:items-end justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-              {getGreeting()}, Jane.
+              {getGreeting()}, {user?.name ? user.name.split(' ')[0] : 'there'}.
             </h1>
             <p className="text-muted-foreground text-lg">
               Here is your command center for today.
@@ -74,22 +81,23 @@ export const DashboardPage: React.FC = () => {
             </h2>
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {[
-              { title: 'Q3 Marketing Roadmap', type: 'Notes', project: 'Global Rebrand', icon: FileText, color: 'text-foreground' },
-              { title: 'Authentication Module', type: 'Board', project: 'Backend API', icon: LayoutDashboard, color: 'text-foreground' },
-              { title: 'Weekly Sync', type: 'Meet', project: 'SPL-II Dev', icon: FolderOpen, color: 'text-foreground' }
-            ].map((item, i) => (
-              <div key={i} className="group bg-card hover:bg-muted/50 border border-border rounded-2xl p-5 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md">
+            {projects.slice(0, 3).map((project, i) => (
+              <div key={project.id} onClick={() => navigate(`/project/${project.id}`)} className="group bg-card hover:bg-muted/50 border border-border rounded-2xl p-5 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md">
                 <div className="flex justify-between items-start mb-3">
-                  <div className={`p-2 rounded-xl bg-muted ${item.color}`}>
-                    <item.icon className="w-5 h-5" />
+                  <div className={`p-2 rounded-xl bg-muted text-foreground`}>
+                    <FolderOpen className="w-5 h-5" />
                   </div>
                   <MoreHorizontal className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
                 </div>
-                <h3 className="font-semibold text-foreground mb-1">{item.title}</h3>
-                <p className="text-sm text-muted-foreground">{item.project} • {item.type}</p>
+                <h3 className="font-semibold text-foreground mb-1">{project.name}</h3>
+                <p className="text-sm text-muted-foreground">{project.description || 'Project Workspace'}</p>
               </div>
             ))}
+            {projects.length === 0 && (
+              <div className="col-span-3 text-center py-8 text-muted-foreground text-sm">
+                No recent projects found.
+              </div>
+            )}
           </div>
         </motion.div>
 

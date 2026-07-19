@@ -1,25 +1,20 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Globe, Lock } from 'lucide-react';
+import { X } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { toast } from '../Providers/ToastProvider';
-import { projectService, CreateProjectData } from '../../services/projectService';
+import { useProjectStore } from '../../stores/project.store';
 
 interface CreateProjectModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSuccess: () => void;
 }
 
-export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
-  isOpen,
-  onClose,
-  onSuccess,
-}) => {
+export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({ isOpen, onClose }) => {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [visibility, setVisibility] = useState<'private' | 'team'>('team');
   const [loading, setLoading] = useState(false);
+  const { createProject, fetchProjects } = useProjectStore();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,13 +25,12 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
     setLoading(true);
     try {
-      await projectService.createProject({ name, description, visibility });
+      await createProject({ name, description });
       toast.success('Project created successfully!');
       setName('');
       setDescription('');
-      onSuccess();
       onClose();
-    } catch (error) {
+    } catch {
       toast.error('Failed to create project');
     } finally {
       setLoading(false);
@@ -70,7 +64,9 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
 
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">Project Name <span className="text-destructive">*</span></label>
+                  <label className="block text-sm font-medium text-foreground mb-1.5">
+                    Project Name <span className="text-destructive">*</span>
+                  </label>
                   <input
                     type="text"
                     value={name}
@@ -90,38 +86,6 @@ export const CreateProjectModal: React.FC<CreateProjectModalProps> = ({
                     rows={3}
                     className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all placeholder:text-muted-foreground resize-none"
                   />
-                </div>
-
-                <div className="pt-2 mb-6">
-                  <label className="block text-sm font-medium text-foreground mb-3">Visibility</label>
-                  <div className="flex gap-4">
-                    <label className="flex-1 flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors group">
-                      <input
-                        type="radio"
-                        value="team"
-                        checked={visibility === 'team'}
-                        onChange={() => setVisibility('team')}
-                        className="w-4 h-4 text-primary bg-background border-border focus:ring-primary"
-                      />
-                      <div className="flex items-center gap-2 text-foreground group-hover:text-primary transition-colors">
-                        <Globe className="w-4 h-4" />
-                        <span className="text-sm font-medium">Team</span>
-                      </div>
-                    </label>
-                    <label className="flex-1 flex items-center gap-3 p-3 border border-border rounded-lg cursor-pointer hover:border-primary/50 transition-colors group">
-                      <input
-                        type="radio"
-                        value="private"
-                        checked={visibility === 'private'}
-                        onChange={() => setVisibility('private')}
-                        className="w-4 h-4 text-primary bg-background border-border focus:ring-primary"
-                      />
-                      <div className="flex items-center gap-2 text-foreground group-hover:text-primary transition-colors">
-                        <Lock className="w-4 h-4" />
-                        <span className="text-sm font-medium">Private</span>
-                      </div>
-                    </label>
-                  </div>
                 </div>
 
                 <div className="flex gap-3 pt-2">

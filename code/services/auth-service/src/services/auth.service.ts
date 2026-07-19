@@ -103,12 +103,35 @@ export const auth = betterAuth({
         google: {
             clientId: env.GOOGLE_CLIENT_ID || "",
             clientSecret: env.GOOGLE_CLIENT_SECRET || "",
+            getUserInfo: async (token: any) => {
+                const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                    headers: { Authorization: `Bearer ${token.accessToken}` },
+                });
+                const profile = await res.json() as any;
+                const name =
+                    profile.name ||
+                    `${profile.given_name ?? ''} ${profile.family_name ?? ''}`.trim() ||
+                    profile.email?.split('@')[0] ||
+                    'User';
+                return {
+                    user: {
+                        id: profile.sub,
+                        name,
+                        email: profile.email,
+                        image: profile.picture,
+                        emailVerified: profile.email_verified ?? false,
+                    },
+                    data: profile,
+                };
+            },
         }
     },
     plugins: [
         bearer(), // Enable bearer token support for headers
         username(), // Enable username support
-        dash(), // Enable BetterAuth Dashboard support
+        dash({
+            apiKey: env.BETTER_AUTH_API_KEY
+        }), // Enable BetterAuth Dashboard support
         admin(), // Enable Admin management
         {
             id: "custom-tokens",

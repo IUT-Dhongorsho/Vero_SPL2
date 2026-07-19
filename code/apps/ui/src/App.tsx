@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AnimatePresence } from 'framer-motion';
 import { PageTransition } from './components/ui/PageTransition';
@@ -21,6 +21,8 @@ import { NotesPage } from './pages/notes/NotesPage';
 import { ChatPage } from './pages/chat/ChatPage';
 import { MeetPage } from './pages/meet/MeetPage';
 import { authService } from './services/authService';
+import { authClient } from './lib/auth-client';
+import { useAuthStore } from './stores/auth.store';
 
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   if (!authService.isAuthenticated()) {
@@ -41,21 +43,18 @@ function AppContent() {
         
         <Route path="/dashboard" element={<ProtectedRoute><PageTransition><DashboardPage /></PageTransition></ProtectedRoute>} />
         
-        {/* Workspace routing: /workspace/:workspaceId */}
-        <Route path="/workspace/:workspaceId" element={<ProtectedRoute><PageTransition><WorkspacePage /></PageTransition></ProtectedRoute>} />
+        {/* Projects and Module Hub */}
+        <Route path="/projects" element={<ProtectedRoute><PageTransition><WorkspacePage /></PageTransition></ProtectedRoute>} />
+        <Route path="/project/:projectId" element={<ProtectedRoute><PageTransition><ProjectPage /></PageTransition></ProtectedRoute>} />
         
-        {/* Project routing: /workspace/:workspaceId/project/:projectId */}
-        <Route path="/workspace/:workspaceId/project/:projectId" element={<ProtectedRoute><PageTransition><ProjectPage /></PageTransition></ProtectedRoute>} />
-        
-        {/* Module Hub routing: /workspace/:workspaceId/project/:projectId/module/:moduleId */}
-        <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId" element={<ProtectedRoute><PageTransition><ModuleHubPage /></PageTransition></ProtectedRoute>} />
-        <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId/board" element={<ProtectedRoute><PageTransition><TasksPage /></PageTransition></ProtectedRoute>} />
-        <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId/notes" element={<ProtectedRoute><PageTransition><NotesPage /></PageTransition></ProtectedRoute>} />
-        <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId/chat" element={<ProtectedRoute><PageTransition><ChatPage /></PageTransition></ProtectedRoute>} />
-        <Route path="/workspace/:workspaceId/project/:projectId/module/:moduleId/meet" element={<ProtectedRoute><PageTransition><MeetPage /></PageTransition></ProtectedRoute>} />
+        {/* Module specific routes */}
+        <Route path="/project/:projectId/module/:moduleId" element={<ProtectedRoute><PageTransition><ModuleHubPage /></PageTransition></ProtectedRoute>} />
+        <Route path="/project/:projectId/module/:moduleId/board" element={<ProtectedRoute><PageTransition><TasksPage /></PageTransition></ProtectedRoute>} />
+        <Route path="/project/:projectId/module/:moduleId/notes" element={<ProtectedRoute><PageTransition><NotesPage /></PageTransition></ProtectedRoute>} />
+        <Route path="/project/:projectId/module/:moduleId/chat" element={<ProtectedRoute><PageTransition><ChatPage /></PageTransition></ProtectedRoute>} />
+        <Route path="/project/:projectId/module/:moduleId/meet" element={<ProtectedRoute><PageTransition><MeetPage /></PageTransition></ProtectedRoute>} />
         
         {/* Top-level pages */}
-        <Route path="/projects" element={<ProtectedRoute><Navigate to="/workspace/1" replace /></ProtectedRoute>} />
         <Route path="/tasks" element={<ProtectedRoute><PageTransition><TasksPage /></PageTransition></ProtectedRoute>} />
         <Route path="/calendar" element={<ProtectedRoute><PageTransition><CalendarPage /></PageTransition></ProtectedRoute>} />
         <Route path="/files" element={<ProtectedRoute><PageTransition><FilesPage /></PageTransition></ProtectedRoute>} />
@@ -68,6 +67,43 @@ function AppContent() {
 }
 
 function App() {
+  const [isReady, setIsReady] = useState(false);
+  const { setAuth, clearAuth } = useAuthStore();
+
+  useEffect(() => {
+    async function syncSession() {
+      try {
+        const { data, error } = await authClient.getSession();
+        if (data && !error) {
+          setAuth(
+            {
+              id: data.user.id,
+              name: data.user.name,
+              email: data.user.email,
+              avatar: data.user.image || undefined,
+            },
+            (data.session as any).authToken || data.session.token || 'session-active'
+          );
+        } else {
+          clearAuth();
+        }
+      } catch (err) {
+        clearAuth();
+      } finally {
+        setIsReady(true);
+      }
+    }
+    syncSession();
+  }, [setAuth, clearAuth]);
+
+  if (!isReady) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+      </div>
+    );
+  }
+
   return (
     <>
       <ToastProvider />

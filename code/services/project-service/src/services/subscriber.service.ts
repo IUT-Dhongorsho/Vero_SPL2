@@ -2,7 +2,7 @@ import { Redis } from 'ioredis';
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
 import { users, sessions } from '../models/user.model.js';
-import { workspaces } from '../models/workspace.model.js';
+
 import { eq } from 'drizzle-orm';
 
 export const subClient = new Redis(env.REDIS_URL);
@@ -44,15 +44,7 @@ export class SubscriberService {
                 },
               });
 
-              // 2. Automated Workspace Creation
-              const [newWorkspace] = await tx.insert(workspaces).values({
-                  name: `${data.name}'s Workspace`,
-                  ownerId: data.id
-              }).onConflictDoNothing().returning();
-
-              if (newWorkspace) {
-                  console.log(`🏢 [SubscriberService] Created automated workspace for user: ${data.id}`);
-              }
+              console.log(`👤 [SubscriberService] Synced user: ${data.id}`);
           });
           break;
 
@@ -77,6 +69,13 @@ export class SubscriberService {
           break;
 
         case 'SESSION_CREATED':
+          // Upsert a placeholder user to avoid Foreign Key violations if the USER_CREATED 
+          // event was dropped or arrived out of order (common in basic Redis Pub/Sub).
+          await db.insert(users).values({
+            id: data.userId,
+            name: 'User',
+          }).onConflictDoNothing();
+
           await db.insert(sessions).values({
             id: data.id,
             token: data.token,
@@ -85,6 +84,14 @@ export class SubscriberService {
             createdAt: new Date(data.createdAt),
             authToken: data.authToken,
             refreshToken: data.refreshToken,
+          }).onConflictDoUpdate({
+            target: sessions.id,
+            set: {
+              token: data.token,
+              expiresAt: new Date(data.expiresAt),
+              authToken: data.authToken,
+              refreshToken: data.refreshToken,
+            }
           });
           console.log(`🔑 Session replicated: ${data.id}`);
           break;

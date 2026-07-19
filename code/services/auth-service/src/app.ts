@@ -17,7 +17,24 @@ app.use(metricsMiddleware);
 app.use(express.json());
 
 // BetterAuth handler
-app.all("/better-auth/*", toNodeHandler(auth));
+app.all(["/api/better-auth/*", "/better-auth/*"], (req, res, next) => {
+    // If request comes through Nginx, it strips '/api' -> '/better-auth/...'
+    // If request comes directly (e.g. ngrok to 8001), it keeps '/api/better-auth/...'
+    if (!req.url.startsWith('/api')) {
+        req.url = '/api' + req.url;
+    }
+    
+    // Sanitize duplicate X-Forwarded headers (e.g., "https, https" from ngrok + proxies)
+    // which otherwise crash better-auth's underlying URL parser.
+    if (req.headers['x-forwarded-proto'] && typeof req.headers['x-forwarded-proto'] === 'string') {
+        req.headers['x-forwarded-proto'] = req.headers['x-forwarded-proto'].split(',')[0].trim();
+    }
+    if (req.headers['x-forwarded-host'] && typeof req.headers['x-forwarded-host'] === 'string') {
+        req.headers['x-forwarded-host'] = req.headers['x-forwarded-host'].split(',')[0].trim();
+    }
+
+    toNodeHandler(auth)(req, res);
+});
 
 // Core Session & JWT Entry point (Modular HS256)
 app.get("/auth/session", authController.getSession);
