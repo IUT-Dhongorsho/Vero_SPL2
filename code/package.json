@@ -4,7 +4,7 @@
   "private": true,
   "packageManager": "pnpm@8.15.0",
   "scripts": {
-    "dev": "turbo dev",
+    "dev": "turbo dev --concurrency=20",
     "dev:ui": "pnpm run --filter @repo/ui dev",
     "dev:web": "pnpm run --filter web dev",
     "build": "turbo build",

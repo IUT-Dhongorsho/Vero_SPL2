@@ -17,10 +17,14 @@ export const apiClient = axios.create({
 // Request Interceptor: Automatically attach the bearer token to every request
 apiClient.interceptors.request.use(
   (config) => {
-    const token = useAuthStore.getState().token;
+    const { token, user } = useAuthStore.getState();
     
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
+    }
+    // Send user ID header for dev-mode services that use fake auth
+    if (user?.id) {
+      config.headers['X-User-Id'] = user.id;
     }
     
     return config;

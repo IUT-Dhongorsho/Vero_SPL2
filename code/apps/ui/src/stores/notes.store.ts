@@ -1,88 +1,97 @@
 import { create } from 'zustand';
-
-export interface Note {
-  id: string;
-  title: string;
-  content: string;
-  createdAt: string;
-  updatedAt: string;
-  moduleId: string;
-  isPrivate: boolean;
-}
+import { notesService } from '../services/notesService';
+import type { Note, NoteListItem, CreateNoteDTO, UpdateNoteMetaDTO } from '../../../../packages/shared/src/types/notes.types';
 
 interface NotesState {
-  notes: Note[];
-  fetchNotes: (moduleId: string) => void;
-  createNote: (moduleId: string) => Note;
-  updateNote: (note: Note) => void;
-  deleteNote: (id: string) => void;
-  duplicateNote: (note: Note) => Note;
-  togglePrivacy: (id: string) => void;
+  notes: NoteListItem[];
+  activeNote: Note | null;
+  isLoading: boolean;
+  isSaving: boolean;
+
+  fetchNotes: (moduleId: string) => Promise<void>;
+  openNote: (id: string) => Promise<void>;
+  createNote: (dto: CreateNoteDTO) => Promise<Note>;
+  updateNoteMeta: (id: string, dto: UpdateNoteMetaDTO) => Promise<void>;
+  updateNoteContent: (id: string, content: string) => Promise<void>;
+  deleteNote: (id: string) => Promise<void>;
+  duplicateNote: (note: NoteListItem) => Promise<Note>;
+  setIsSaving: (v: boolean) => void;
 }
 
 export const useNotesStore = create<NotesState>((set, get) => ({
   notes: [],
-  fetchNotes: (moduleId: string) => {
-    // Mock data
-    set({
-      notes: [
-        {
-          id: '1',
-          title: 'Feature Spec: Authentication',
-          content: '<h1>Feature Spec</h1><p>We need to implement OAuth2 and SAML.</p>',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          moduleId,
-          isPrivate: false,
-        },
-        {
-          id: '2',
-          title: 'API Design Docs',
-          content: '<h2>Endpoints</h2><ul><li>GET /api/users</li></ul>',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          moduleId,
-          isPrivate: false,
-        }
-      ]
-    });
+  activeNote: null,
+  isLoading: false,
+  isSaving: false,
+
+  fetchNotes: async (moduleId) => {
+    set({ isLoading: true });
+    try {
+      const notes = await notesService.list(moduleId);
+      set({ notes, isLoading: false });
+    } catch (e) {
+      console.error(e);
+      set({ isLoading: false });
+    }
   },
-  createNote: (moduleId: string) => {
-    const newNote: Note = {
-      id: Date.now().toString(),
-      title: 'Untitled Note',
-      content: '<p></p>',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      moduleId,
-      isPrivate: false,
-    };
-    set((state) => ({ notes: [newNote, ...state.notes] }));
-    return newNote;
+
+  openNote: async (id) => {
+    try {
+      const note = await notesService.getById(id);
+      set({ activeNote: note });
+    } catch (e) {
+      console.error(e);
+    }
   },
-  updateNote: (updatedNote: Note) => {
-    set((state) => ({
-      notes: state.notes.map((n) => n.id === updatedNote.id ? { ...updatedNote, updatedAt: new Date().toISOString() } : n)
-    }));
-  },
-  deleteNote: (id: string) => {
-    set((state) => ({ notes: state.notes.filter((n) => n.id !== id) }));
-  },
-  duplicateNote: (note: Note) => {
-    const duplicated: Note = {
+
+  createNote: async (dto) => {
+    const note = await notesService.create(dto);
+    const noteListItem: NoteListItem = {
       ...note,
-      id: Date.now().toString(),
-      title: `${note.title} (Copy)`,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-      isPrivate: note.isPrivate,
+      previewText: note.contentSnapshot?.substring(0, 150) || ''
     };
-    set((state) => ({ notes: [duplicated, ...state.notes] }));
-    return duplicated;
+    set((s) => ({ notes: [noteListItem, ...s.notes], activeNote: note }));
+    return note;
   },
-  togglePrivacy: (id: string) => {
-    set((state) => ({
-      notes: state.notes.map(n => n.id === id ? { ...n, isPrivate: !n.isPrivate, updatedAt: new Date().toISOString() } : n)
+
+  updateNoteMeta: async (id, dto) => {
+    const updated = await notesService.updateMeta(id, dto);
+    set((s) => ({
+      notes: s.notes.map(n => n.id === id ? { ...n, ...updated } : n),
+      activeNote: s.activeNote?.id === id ? { ...s.activeNote, ...updated } : s.activeNote,
     }));
-  }
+  },
+
+  updateNoteContent: async (id, content) => {
+    const updated = await notesService.updateContent(id, content);
+    set((s) => ({
+      notes: s.notes.map(n => n.id === id ? { ...n, previewText: content.substring(0, 150) } : n),
+      activeNote: s.activeNote?.id === id ? { ...s.activeNote, contentSnapshot: content } : s.activeNote,
+    }));
+  },
+
+  deleteNote: async (id) => {
+    await notesService.delete(id);
+    set((s) => ({
+      notes: s.notes.filter(n => n.id !== id),
+      activeNote: s.activeNote?.id === id ? null : s.activeNote,
+    }));
+  },
+
+  duplicateNote: async (note) => {
+    const dup = await notesService.create({
+      moduleId: note.moduleId,
+      title: `${note.title} (Copy)`,
+      visibility: note.visibility,
+      editPermission: note.editPermission,
+    });
+    const dupListItem: NoteListItem = {
+      ...dup,
+      previewText: dup.contentSnapshot?.substring(0, 150) || ''
+    };
+    set((s) => ({ notes: [dupListItem, ...s.notes] }));
+    return dup;
+  },
+
+  setIsSaving: (v) => set({ isSaving: v }),
 }));

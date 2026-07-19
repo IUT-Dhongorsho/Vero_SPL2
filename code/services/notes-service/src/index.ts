@@ -3,6 +3,7 @@ import { Server } from 'socket.io';
 import { app } from './app.js';
 import { env } from './config/env.js';
 import { subscriberService } from './services/subscriber.service.js';
+import { attachYjsServer } from './ws/yjs-server.js';
 
 const server = http.createServer(app);
 
@@ -26,6 +27,9 @@ io.on('connection', (socket) => {
   });
 });
 
+attachYjsServer(server);
+
 server.listen(env.PORT, () => {
     console.log(`🚀 Notes service running on port ${env.PORT} in ${env.NODE_ENV} mode`);
 });
+
