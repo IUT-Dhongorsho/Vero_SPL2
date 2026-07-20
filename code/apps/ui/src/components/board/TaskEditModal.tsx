@@ -81,8 +81,8 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, onClose }) =
         >
           <div className="bg-card border border-border rounded-2xl shadow-2xl overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-border">
-              <h2 className="text-lg font-semibold text-foreground">Edit Task</h2>
+            <div className="flex items-center justify-between px-7 py-5 border-b border-border">
+              <h2 className="text-xl font-semibold text-foreground">Edit Task</h2>
               <div className="flex items-center gap-2">
                 <button
                   onClick={handleDelete}
@@ -100,24 +100,24 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, onClose }) =
             </div>
 
             {/* Body */}
-            <div className="px-6 py-5 space-y-5">
+            <div className="px-7 py-6 space-y-6">
               {/* Title */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Title</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Title</label>
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                  className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                 />
               </div>
 
               {/* Description */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Description</label>
+                <label className="block text-sm font-medium text-foreground mb-2">Description</label>
                 <textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
-                  rows={3}
+                  rows={4}
                   placeholder="Add a description..."
                   className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all resize-none placeholder:text-muted-foreground"
                 />
@@ -125,14 +125,14 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, onClose }) =
 
               {/* Priority */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">Priority</label>
-                <div className="flex gap-2">
+                <label className="block text-sm font-medium text-foreground mb-2">Priority</label>
+                <div className="flex gap-2.5">
                   {(['low', 'medium', 'high', 'urgent'] as const).map((p) => (
                     <button
                       key={p}
                       type="button"
                       onClick={() => setPriority(p)}
-                      className={`text-xs font-semibold px-3 py-1.5 rounded-full uppercase tracking-wider transition-all ${
+                      className={`text-xs font-semibold px-3.5 py-2 rounded-full uppercase tracking-wider transition-all ${
                         priority === p
                           ? p === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 ring-1 ring-red-300'
                           : p === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 ring-1 ring-orange-300'
@@ -149,7 +149,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, onClose }) =
 
               {/* Due Date */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   <Calendar className="w-3.5 h-3.5 inline mr-1.5" />
                   Due Date
                 </label>
@@ -157,17 +157,17 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, onClose }) =
                   type="date"
                   value={dueDate}
                   onChange={(e) => setDueDate(e.target.value)}
-                  className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all"
+                  className="w-full px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all"
                 />
               </div>
 
               {/* Labels */}
               <div>
-                <label className="block text-sm font-medium text-foreground mb-1.5">
+                <label className="block text-sm font-medium text-foreground mb-2">
                   <Tag className="w-3.5 h-3.5 inline mr-1.5" />
                   Labels
                 </label>
-                <div className="flex gap-2 mb-2">
+                <div className="flex gap-2 mb-3">
                   <input
                     value={labelInput}
                     onChange={(e) => setLabelInput(e.target.value)}
@@ -178,12 +178,12 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, onClose }) =
                       }
                     }}
                     placeholder="Add label..."
-                    className="flex-1 px-4 py-2 bg-background border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-primary transition-all placeholder:text-muted-foreground"
+                    className="flex-1 px-4 py-3 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all placeholder:text-muted-foreground"
                   />
                   <button
                     type="button"
                     onClick={addLabel}
-                    className="px-3 py-2 bg-muted text-muted-foreground hover:text-foreground rounded-lg text-sm transition-colors"
+                    className="px-4 py-3 bg-muted text-muted-foreground hover:text-foreground rounded-lg text-sm font-medium transition-colors"
                   >
                     Add
                   </button>
@@ -193,7 +193,7 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, onClose }) =
                     {labels.map((label, i) => (
                       <span
                         key={i}
-                        className="inline-flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground"
+                        className="inline-flex items-center gap-1.5 text-sm font-medium px-3 py-1.5 rounded-full bg-muted text-muted-foreground"
                       >
                         {label}
                         <button
@@ -210,17 +210,17 @@ export const TaskEditModal: React.FC<TaskEditModalProps> = ({ task, onClose }) =
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 px-6 py-4 border-t border-border bg-muted/30">
+            <div className="flex items-center justify-end gap-3 px-7 py-5 border-t border-border bg-muted/30">
               <button
                 onClick={onClose}
-                className="px-4 py-2 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
+                className="px-5 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleSave}
                 disabled={!title.trim() || saving}
-                className="px-5 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                className="px-6 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
               >
                 {saving ? 'Saving...' : 'Save Changes'}
               </button>

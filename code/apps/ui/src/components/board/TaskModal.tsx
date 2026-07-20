@@ -23,7 +23,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ onSubmit, onClose }) => {
     <motion.div
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-card border border-border rounded-xl p-3.5 shadow-lg"
+      className="bg-card border border-border rounded-xl p-4 shadow-lg"
     >
       <form onSubmit={handleSubmit}>
         <input
@@ -31,22 +31,22 @@ export const TaskModal: React.FC<TaskModalProps> = ({ onSubmit, onClose }) => {
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Task title..."
-          className="w-full text-sm font-medium text-foreground bg-transparent focus:outline-none placeholder:text-muted-foreground mb-2"
+          className="w-full text-base font-medium text-foreground bg-transparent focus:outline-none placeholder:text-muted-foreground mb-3"
         />
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Add a description..."
           rows={2}
-          className="w-full text-xs text-muted-foreground bg-transparent focus:outline-none placeholder:text-muted-foreground/60 resize-none mb-3"
+          className="w-full text-sm text-muted-foreground bg-transparent focus:outline-none placeholder:text-muted-foreground/60 resize-none mb-4"
         />
-        <div className="flex items-center gap-2 mb-3">
+        <div className="flex items-center gap-2 mb-4">
           {(['low', 'medium', 'high', 'urgent'] as const).map((p) => (
             <button
               key={p}
               type="button"
               onClick={() => setPriority(p)}
-              className={`text-[10px] font-semibold px-2 py-1 rounded-full uppercase tracking-wider transition-all ${
+              className={`text-xs font-semibold px-3 py-1.5 rounded-full uppercase tracking-wider transition-all ${
                 priority === p
                   ? p === 'urgent' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 ring-1 ring-red-300'
                   : p === 'high' ? 'bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400 ring-1 ring-orange-300'

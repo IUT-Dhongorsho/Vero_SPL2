@@ -14,6 +14,12 @@
   --color-ring: var(--ring);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
 }
 
 @layer base {
@@ -22,9 +28,15 @@
     --foreground: #0a0a0a;
     --card: #ffffff;
     --card-foreground: #0a0a0a;
+    --popover: #ffffff;
+    --popover-foreground: #0a0a0a;
     --border: #e5e5e5;
     --primary: #0a0a0a;
     --primary-foreground: #ffffff;
+    --secondary: #f5f5f5;
+    --secondary-foreground: #0a0a0a;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
     --ring: rgba(10, 10, 10, 0.5);
     --muted: #f5f5f5;
     --muted-foreground: #737373;
@@ -35,9 +47,15 @@
     --foreground: #fafafa;
     --card: #0a0a0a;
     --card-foreground: #fafafa;
+    --popover: #0a0a0a;
+    --popover-foreground: #fafafa;
     --border: #262626;
     --primary: #ffffff;
     --primary-foreground: #000000;
+    --secondary: #171717;
+    --secondary-foreground: #fafafa;
+    --destructive: #ef4444;
+    --destructive-foreground: #ffffff;
     --ring: rgba(255, 255, 255, 0.5);
     --muted: #171717;
     --muted-foreground: #a3a3a3;

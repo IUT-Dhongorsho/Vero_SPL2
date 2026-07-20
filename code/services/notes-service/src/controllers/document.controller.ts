@@ -27,7 +27,7 @@ export const documentController = {
 
   async create(req: AuthRequest, res: Response) {
     try {
-      const dto: CreateNoteDTO = req.body;
+      const dto: CreateNoteDTO = { ...req.body, moduleId: req.params.moduleId || req.body.moduleId };
       const doc = await documentService.create(dto, req.userId!);
       res.status(201).json(doc);
     } catch (err: any) {

@@ -13,6 +13,7 @@ app.use(cors({
   credentials: true,
   allowedHeaders: ['Content-Type', 'Authorization', 'X-User-Id'],
 }));
+app.use(express.json());
 app.use(loggerMiddleware);
 app.use(metricsMiddleware);
 // Bypass Express router for /yjs WebSocket requests

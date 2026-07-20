@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../ui/Dialog';
 import { Button } from '../ui/Button';
-import { useBoardStore } from '../../stores/board.store'; // Hypothetical future integration
+import { useBoardStore } from '../../stores/board.store';
+import { useAuthStore } from '../../stores/auth.store';
+import { toast } from '../../components/Providers/ToastProvider';
+import { Loader2 } from 'lucide-react';
 
 interface SendToBoardModalProps {
   isOpen: boolean;
@@ -14,15 +17,43 @@ interface SendToBoardModalProps {
 export const SendToBoardModal: React.FC<SendToBoardModalProps> = ({
   isOpen, onClose, selectedText, noteId, projectId
 }) => {
-  const [type, setType] = useState<'task' | 'checklist'>('task');
+  const [columnId, setColumnId] = useState('');
+  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [sending, setSending] = useState(false);
+  const { columns, fetchBoard, createTask } = useBoardStore();
+  const { user } = useAuthStore();
 
-  const handleSend = () => {
-    // TODO: call board-service when API contract is finalized
-    // boardService.createTaskFromNote({ text: selectedText, noteId, projectId, type });
-    
-    // toast.success(`Sent to Board as ${type} — board integration coming soon`);
-    console.log('Sending to board...', { selectedText, noteId, type, projectId });
-    onClose();
+  useEffect(() => {
+    if (isOpen && projectId && columns.length === 0) {
+      fetchBoard(projectId);
+    }
+  }, [isOpen, projectId, columns.length, fetchBoard]);
+
+  useEffect(() => {
+    if (columns.length > 0 && !columnId) {
+      const backlog = columns.find(c => c.name === 'Backlog');
+      setColumnId(backlog?.id || columns[0]?.id || '');
+    }
+  }, [columns, columnId]);
+
+  const handleSend = async () => {
+    if (!columnId || !user?.id) return;
+    setSending(true);
+    try {
+      await createTask({
+        title: selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText,
+        description: `Source: Note ${noteId}\n\n${selectedText}`,
+        columnId,
+        creatorId: user.id,
+        priority,
+      });
+      toast.success('Task created on board');
+      onClose();
+    } catch (e) {
+      toast.error('Failed to create task');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -30,35 +61,60 @@ export const SendToBoardModal: React.FC<SendToBoardModalProps> = ({
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Send to Board</DialogTitle>
-          <DialogDescription>Create a task or checklist item from the selected text.</DialogDescription>
+          <DialogDescription>Create a task on the Kanban board from selected text.</DialogDescription>
         </DialogHeader>
-        
-        <div className="my-4">
-          <div className="p-3 bg-muted rounded-md text-sm italic mb-4 border-l-2 border-primary">
-            "{selectedText.length > 100 ? selectedText.substring(0, 100) + '...' : selectedText}"
+
+        <div className="space-y-5 my-4">
+          <div className="p-4 bg-muted rounded-xl text-sm text-foreground border-l-4 border-primary">
+            "{selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText}"
           </div>
-          
-          <div className="space-y-3">
-            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-              <input type="radio" name="board_type" className="mt-1" checked={type === 'task'} onChange={() => setType('task')} />
-              <div>
-                <div className="font-semibold text-sm">Task (in Kanban)</div>
-                <div className="text-xs text-muted-foreground">Creates a new top-level task in the project board.</div>
-              </div>
-            </label>
-            <label className="flex items-start gap-3 p-3 border rounded-lg cursor-pointer hover:bg-muted/50 transition-colors">
-              <input type="radio" name="board_type" className="mt-1" checked={type === 'checklist'} onChange={() => setType('checklist')} />
-              <div>
-                <div className="font-semibold text-sm">Checklist Item</div>
-                <div className="text-xs text-muted-foreground">Creates a checklist item linked to an existing task.</div>
-              </div>
-            </label>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Column</label>
+            <div className="grid grid-cols-2 gap-2">
+              {columns.sort((a, b) => a.order - b.order).map((col) => (
+                <button
+                  key={col.id}
+                  onClick={() => setColumnId(col.id)}
+                  className={`text-sm font-medium px-3 py-2.5 rounded-lg border-2 transition-all text-left ${
+                    columnId === col.id
+                      ? 'border-primary bg-primary/5 text-foreground'
+                      : 'border-border bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  {col.name}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">Priority</label>
+            <div className="flex gap-2">
+              {(['low', 'medium', 'high'] as const).map((p) => (
+                <button
+                  key={p}
+                  onClick={() => setPriority(p)}
+                  className={`text-xs font-semibold px-3.5 py-2 rounded-full uppercase tracking-wider transition-all ${
+                    priority === p
+                      ? p === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 ring-1 ring-red-300'
+                      : p === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 ring-1 ring-yellow-300'
+                      : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 ring-1 ring-green-300'
+                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
+                  }`}
+                >
+                  {p}
+                </button>
+              ))}
+            </div>
           </div>
         </div>
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSend}>Send to Board</Button>
+          <Button onClick={handleSend} disabled={sending || !columnId}>
+            {sending ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Creating...</> : 'Send to Board'}
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

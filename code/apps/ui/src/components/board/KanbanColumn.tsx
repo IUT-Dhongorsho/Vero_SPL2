@@ -82,14 +82,14 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, tasks, userI
       layout
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className={`flex-shrink-0 w-72 flex flex-col max-h-[calc(100vh-12rem)] rounded-xl transition-colors ${
+      className={`flex-shrink-0 w-80 flex flex-col max-h-[calc(100vh-12rem)] rounded-xl transition-colors ${
         isOver ? 'bg-primary/5 ring-2 ring-primary/30' : ''
       }`}
     >
       {/* Column Header */}
-      <div className="flex items-center justify-between mb-3 px-1">
-        <div className="flex items-center gap-2">
-          <div className={`w-2.5 h-2.5 rounded-full ${COLUMN_DOT_COLORS[column.name] || 'bg-muted-foreground'}`} />
+      <div className="flex items-center justify-between mb-4 px-1">
+        <div className="flex items-center gap-2.5">
+          <div className={`w-3 h-3 rounded-full ${COLUMN_DOT_COLORS[column.name] || 'bg-muted-foreground'}`} />
           {isEditing ? (
             <input
               autoFocus
@@ -103,12 +103,12 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, tasks, userI
                   setIsEditing(false);
                 }
               }}
-              className="text-sm font-semibold text-foreground bg-transparent border-b border-primary focus:outline-none w-32"
+              className="text-base font-semibold text-foreground bg-transparent border-b border-primary focus:outline-none w-36"
             />
           ) : (
-            <h3 className="text-sm font-semibold text-foreground">{column.name}</h3>
+            <h3 className="text-base font-semibold text-foreground">{column.name}</h3>
           )}
-          <span className="text-xs text-muted-foreground bg-muted rounded-full px-2 py-0.5 font-medium">
+          <span className="text-sm text-muted-foreground bg-muted rounded-full px-2.5 py-1 font-medium">
             {tasks.length}
           </span>
         </div>
@@ -152,7 +152,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, tasks, userI
       </div>
 
       {/* Task List — Droppable */}
-      <div ref={setNodeRef} className="flex-1 overflow-y-auto space-y-2 pr-1 min-h-[100px]">
+      <div ref={setNodeRef} className="flex-1 overflow-y-auto space-y-3 pr-1 min-h-[120px]">
         <SortableContext items={taskIds} strategy={verticalListSortingStrategy}>
           <AnimatePresence>
             {tasks.map((task) => (
@@ -180,7 +180,7 @@ export const KanbanColumn: React.FC<KanbanColumnProps> = ({ column, tasks, userI
         ) : (
           <button
             onClick={() => setIsCreating(true)}
-            className="w-full flex items-center justify-center gap-2 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl border border-dashed border-border transition-all"
+            className="w-full flex items-center justify-center gap-2 py-3 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-xl border border-dashed border-border transition-all"
           >
             <Plus className="w-4 h-4" /> Add task
           </button>

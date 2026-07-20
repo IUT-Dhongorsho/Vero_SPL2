@@ -76,13 +76,13 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, isDragOverlay = false 
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: isDragging ? 0.4 : 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.95 }}
-        className={`group bg-card border border-border rounded-xl p-3.5 shadow-sm hover:shadow-md transition-all relative ${
+        className={`group bg-card border border-border rounded-xl p-4 shadow-sm hover:shadow-md transition-all relative ${
           isDragging ? 'opacity-40' : ''
         } ${isDragOverlay ? 'shadow-2xl ring-2 ring-primary/30' : ''}`}
       >
         {/* Priority + Actions row */}
-        <div className="flex items-start justify-between mb-2">
-          <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider ${priority.color}`}>
+        <div className="flex items-start justify-between mb-2.5">
+          <span className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full uppercase tracking-wider ${priority.color}`}>
             <PriorityIcon className="w-3 h-3" />
             {task.priority}
           </span>
@@ -118,7 +118,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, isDragOverlay = false 
 
         {/* Title — clickable to edit */}
         <h4
-          className="text-sm font-medium text-foreground mb-1.5 leading-snug cursor-pointer hover:text-primary transition-colors"
+          className="text-base font-medium text-foreground mb-2 leading-snug cursor-pointer hover:text-primary transition-colors"
           onClick={() => setIsEditing(true)}
         >
           {task.title}
@@ -126,16 +126,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, isDragOverlay = false 
 
         {/* Description preview */}
         {task.description && (
-          <p className="text-xs text-muted-foreground line-clamp-2 mb-2 leading-relaxed">{task.description}</p>
+          <p className="text-sm text-muted-foreground line-clamp-2 mb-2.5 leading-relaxed">{task.description}</p>
         )}
 
         {/* Labels */}
         {labels.length > 0 && (
-          <div className="flex flex-wrap gap-1 mb-2">
+          <div className="flex flex-wrap gap-1.5 mb-2.5">
             {labels.map((label, i) => (
               <span
                 key={i}
-                className="text-[10px] font-medium px-2 py-0.5 rounded-full bg-muted text-muted-foreground"
+                className="text-xs font-medium px-2.5 py-1 rounded-full bg-muted text-muted-foreground"
               >
                 {label}
               </span>
@@ -144,9 +144,9 @@ export const TaskCard: React.FC<TaskCardProps> = ({ task, isDragOverlay = false 
         )}
 
         {/* Footer */}
-        <div className="flex items-center justify-between mt-1">
+        <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
           {dueDateLabel ? (
-            <span className={`text-[11px] flex items-center gap-1 ${
+            <span className={`text-xs flex items-center gap-1.5 ${
               dueDateLabel.includes('overdue')
                 ? 'text-red-500 font-medium'
                 : 'text-muted-foreground'

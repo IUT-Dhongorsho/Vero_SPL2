@@ -169,3 +169,43 @@
 2026-07-20T12:54:23.674610Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
 2026-07-20T12:59:05.373801Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/Layout/Sidebar.tsx")}
 2026-07-20T12:59:05.373817Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:39:10.666806Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/ws/notificationSocket.ts")}
+2026-07-20T23:39:10.667523Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:40:11.763537Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("services/notes-service/src/app.ts")}
+2026-07-20T23:40:11.763583Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("notes-service"), path: AnchoredSystemPathBuf("services/notes-service") }}))
+2026-07-20T23:41:10.480391Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("services/notes-service/src/controllers/document.controller.ts")}
+2026-07-20T23:41:10.480409Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("notes-service"), path: AnchoredSystemPathBuf("services/notes-service") }}))
+2026-07-20T23:42:01.480923Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/styles/globals.css")}
+2026-07-20T23:42:01.480936Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:42:10.181702Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskCard.tsx")}
+2026-07-20T23:42:10.181712Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:42:18.581814Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskCard.tsx")}
+2026-07-20T23:42:18.581824Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:42:28.181820Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskCard.tsx")}
+2026-07-20T23:42:28.181829Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:42:38.981433Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/KanbanColumn.tsx")}
+2026-07-20T23:42:38.981516Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:42:48.381587Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/KanbanColumn.tsx")}
+2026-07-20T23:42:48.381631Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:42:57.481140Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/KanbanColumn.tsx")}
+2026-07-20T23:42:57.481150Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:43:05.081107Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskEditModal.tsx")}
+2026-07-20T23:43:05.081119Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:43:14.381332Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskEditModal.tsx")}
+2026-07-20T23:43:14.381458Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:43:22.480478Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskEditModal.tsx")}
+2026-07-20T23:43:22.480497Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:43:32.181652Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskEditModal.tsx")}
+2026-07-20T23:43:32.181672Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:43:50.281625Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskEditModal.tsx")}
+2026-07-20T23:43:50.281639Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:43:58.781231Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskEditModal.tsx")}
+2026-07-20T23:43:58.781243Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:44:08.680664Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskModal.tsx")}
+2026-07-20T23:44:08.680677Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:44:37.080408Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/board/TaskEditModal.tsx")}
+2026-07-20T23:44:37.080434Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:50:43.181766Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/pages/TasksPage.tsx")}
+2026-07-20T23:50:43.181782Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
+2026-07-20T23:50:58.581816Z  WARN turborepo_lib::package_changes_watcher: changed_files: {AnchoredSystemPathBuf("apps/ui/src/components/notes/SendToBoardModal.tsx")}
+2026-07-20T23:50:58.581833Z  WARN turborepo_lib::package_changes_watcher: changed_packages: Ok(Some({WorkspacePackage { name: Other("@repo/ui"), path: AnchoredSystemPathBuf("apps/ui") }}))
