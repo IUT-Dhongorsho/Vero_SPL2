@@ -6,7 +6,7 @@ import { columnService } from './column.service.js';
 export interface CreateProjectInput {
   name: string;
   description?: string;
-  workspaceId: string;
+  workspaceId?: string;
   ownerId: string;
 }
 
@@ -26,15 +26,18 @@ export const projectService = {
     return project || null;
   },
 
-  async createProject(input: CreateProjectInput) {
+  async createProject(input: CreateProjectInput & { id?: string }) {
+    const values: Record<string, any> = {
+      name: input.name,
+      description: input.description || '',
+      ownerId: input.ownerId,
+    };
+    if (input.id) values.id = input.id;
+    if (input.workspaceId) values.workspaceId = input.workspaceId;
+
     const [project] = await db
       .insert(projects)
-      .values({
-        name: input.name,
-        description: input.description || '',
-        workspaceId: input.workspaceId,
-        ownerId: input.ownerId,
-      })
+      .values(values)
       .returning();
 
     await columnService.initializeBoard(project.id);

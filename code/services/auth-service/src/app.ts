@@ -17,12 +17,15 @@ app.use(metricsMiddleware);
 app.use(express.json());
 
 // BetterAuth handler
+// Frontend sends to /api/better-auth/* (via Vite proxy) or /better-auth/* (direct).
+// BetterAuth internally expects /api/auth/*, so we rewrite the prefix.
 app.all(["/api/better-auth/*", "/better-auth/*"], (req, res, next) => {
-    // If request comes through Nginx, it strips '/api' -> '/better-auth/...'
-    // If request comes directly (e.g. ngrok to 8001), it keeps '/api/better-auth/...'
+    // Normalize: /better-auth/... → /api/better-auth/...
     if (!req.url.startsWith('/api')) {
         req.url = '/api' + req.url;
     }
+    // Rewrite: /api/better-auth/... → /api/auth/...
+    req.url = req.url.replace('/api/better-auth', '/api/auth');
     
     // Sanitize duplicate X-Forwarded headers (e.g., "https, https" from ngrok + proxies)
     // which otherwise crash better-auth's underlying URL parser.

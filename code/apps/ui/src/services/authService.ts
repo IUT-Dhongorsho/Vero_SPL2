@@ -37,10 +37,7 @@ export const authService = {
       avatar: signInData.user.image || undefined,
     };
 
-    // Better Auth handles tokens via cookies, but if you're persisting a token
-    // manually in your setup, you'd extract it here. 
-    // We'll pass a dummy token or standard token to satisfy the interface for now
-    const token = signInData.session.token || 'session-active';
+    const token = signInData.token || 'session-active';
 
     useAuthStore.getState().setAuth(user, token);
     return { user, token };
@@ -75,7 +72,7 @@ export const authService = {
       avatar: signUpData.user.image || undefined,
     };
 
-    const token = signUpData.session.token || 'session-active';
+    const token = signUpData.token || 'session-active';
     useAuthStore.getState().setAuth(user, token);
 
     return { user, token };

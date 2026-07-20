@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import { env } from './config/env.js';
 import taskRoutes from './routes/task.routes.js';
 import columnRoutes from './routes/column.routes.js';

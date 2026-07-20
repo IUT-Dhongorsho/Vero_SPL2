@@ -82,7 +82,7 @@ function App() {
               email: data.user.email,
               avatar: data.user.image || undefined,
             },
-            (data.session as any).authToken || data.session.token || 'session-active'
+            (data.session as any)?.authToken || data.session?.token || 'session-active'
           );
         } else {
           clearAuth();

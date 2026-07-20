@@ -14,7 +14,12 @@ import { publisherService } from "./publisher.service.js";
 export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [process.env.CLIENT_URL || "http://localhost:5173"],
+    trustedOrigins: [
+        process.env.CLIENT_URL || "http://localhost:3000",
+        "http://localhost:3000",
+        "http://localhost:5173",
+        "http://localhost:5174",
+    ],
     database: drizzleAdapter(db, {
         provider: "pg",
         schema: {

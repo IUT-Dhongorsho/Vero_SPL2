@@ -1,10 +1,10 @@
-import { pgTable, text, timestamp, varchar, uuid } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core';
 
 export const workspaces = pgTable('workspaces', {
-  id: uuid('id').primaryKey().defaultRandom(),
+  id: text('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  ownerId: uuid('owner_id').notNull(), // Reverted to uuid
+  ownerId: text('owner_id').notNull(),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

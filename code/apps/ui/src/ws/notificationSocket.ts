@@ -25,6 +25,9 @@ export const connectNotificationSocket = (
     path: '/api/notifications/socket.io/',
     query: { userId },
     transports: ['websocket'],
+    reconnectionAttempts: 3,
+    reconnectionDelay: 5000,
+    timeout: 10000,
   });
 
   socket.on('connect', () => {

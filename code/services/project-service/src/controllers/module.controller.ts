@@ -38,6 +38,7 @@ export class ModuleController {
         name,
         description,
         projectId,
+        type: 'general',
       }).returning();
 
       // 4. Automatically add all project admins to the moduleMembers table
@@ -56,14 +57,18 @@ export class ModuleController {
       }
 
       // 5. Trigger Resource Orchestration (Async via Queue)
-      await queueService.queueModuleProvisioning({
-          moduleId: newModule.id,
-          name: newModule.name,
-          projectId: project.id,
-          workspaceId: project.workspaceId
-      });
+      try {
+        await queueService.queueModuleProvisioning({
+            moduleId: newModule.id,
+            name: newModule.name,
+            projectId: project.id,
+            workspaceId: (project as any).workspaceId || '',
+        });
+        console.log(`✨ [ModuleController] Module created and orchestration queued: ${newModule.id}`);
+      } catch (queueErr) {
+        console.warn(`⚠️ [ModuleController] Module created but queue failed:`, queueErr);
+      }
 
-      console.log(`✨ [ModuleController] Module created and orchestration queued: ${newModule.id}`);
       res.status(201).json(newModule);
     } catch (error) {
       console.error(error);

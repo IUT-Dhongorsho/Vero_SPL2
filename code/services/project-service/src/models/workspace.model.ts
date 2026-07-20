@@ -51,7 +51,8 @@ export const modules = pgTable('modules', {
   projectId: text('project_id').notNull().references(() => projects.id, { onDelete: 'cascade' }),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  status: varchar('status', { length: 50 }).default('on-track').notNull(), // on-track | at-risk | blocked
+  type: varchar('type', { length: 50 }).default('general').notNull(),
+  status: varchar('status', { length: 50 }).default('on-track').notNull(),
 
   // Resource IDs provisioned by other microservices
   chatResourceId: text('chat_resource_id'),

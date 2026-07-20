@@ -3,6 +3,7 @@ import { NavLink, useNavigate } from 'react-router-dom';
 import {
   Home, Folder, Settings, Moon, Sun, UserCircle,
   ChevronLeft, ChevronRight, Menu, LogOut, X,
+  CheckSquare, CalendarDays,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../Providers/ThemeProvider';
@@ -12,6 +13,8 @@ import { authClient } from '../../lib/auth-client';
 
 const NAV_ITEMS = [
   { to: '/dashboard', icon: Home, label: 'Home' },
+  { to: '/tasks', icon: CheckSquare, label: 'My Tasks' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendar' },
   { to: '/projects', icon: Folder, label: 'Projects' },
 ];
 

@@ -1,29 +1,32 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { LayoutDashboard, CheckSquare, Clock, ArrowRight, FileText, Zap, FolderOpen, MoreHorizontal, Activity } from 'lucide-react';
-import { useBoardStore } from '../stores/board.store';
 import { useMeetStore } from '../stores/meet.store';
 import { useAuthStore } from '../stores/auth.store';
 import { useProjectStore } from '../stores/project.store';
+import { mockTasks } from '../data/mockData';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const { tasks, fetchTasks, loading: tasksLoading } = useBoardStore();
+  const [tasksLoading] = useState(false);
+  const tasks = mockTasks.map(t => ({
+    ...t,
+    status: t.status === 'in-progress' ? 'progress' : t.status,
+  })) as any[];
   const { todayMeetings, fetchTodayMeetings } = useMeetStore();
   const { user } = useAuthStore();
   const { projects, fetchProjects } = useProjectStore();
 
   useEffect(() => {
-    fetchTasks('3'); // Default mock workspace
     fetchTodayMeetings();
     if (projects.length === 0) {
       fetchProjects();
     }
-  }, [fetchTasks, fetchTodayMeetings, fetchProjects, projects.length]);
+  }, [fetchTodayMeetings, fetchProjects, projects.length]);
 
   const dueTasks = tasks.filter(t => t.status !== 'done').sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
   

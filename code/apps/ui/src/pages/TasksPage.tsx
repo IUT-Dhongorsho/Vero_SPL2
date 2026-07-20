@@ -1,26 +1,38 @@
 import React, { useState } from 'react';
+import { useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Circle, Filter, Calendar as CalendarIcon, Flag, LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, Files } from 'lucide-react';
+import { CheckCircle2, Circle, Filter, Calendar as CalendarIcon } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { GlassCard } from '../components/ui/GlassCard';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { ThemeToggle } from '../components/ui/ThemeToggle';
 import { EmptyState } from '../components/ui/EmptyState';
+import { KanbanBoard } from '../components/board/KanbanBoard';
 import { mockTasks, Task } from '../data/mockData';
 import { groupTasksByDueDate, formatDate } from '../utils/dateUtils';
 
 export const TasksPage: React.FC = () => {
+  const { projectId, moduleId } = useParams<{ projectId?: string; moduleId?: string }>();
+
+  // If accessed from a module route, render the Kanban board
+  if (projectId && moduleId) {
+    return (
+      <PageContainer title="Kanban Board">
+        <div className="max-w-full mx-auto">
+          <KanbanBoard />
+        </div>
+      </PageContainer>
+    );
+  }
+
+  // Top-level personal task list view
+  return <PersonalTaskList />;
+};
+
+const PersonalTaskList: React.FC = () => {
   const [tasks, setTasks] = useState<Task[]>(mockTasks);
   const [filter, setFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
   const [showFilter, setShowFilter] = useState(false);
-
-  const sidebarItems = [
-    { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard' },
-    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
-    { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks', active: true },
-    { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
-    { icon: <Files className="w-4 h-4" />, label: 'Files', href: '/files' },
-  ];
 
   const filteredTasks = tasks.filter(task => {
     if (filter === 'all') return true;
@@ -75,9 +87,9 @@ export const TasksPage: React.FC = () => {
             </div>
             <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{task.description}</p>
             <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
-              <span className="flex items-center gap-1">📁 {task.projectName}</span>
+              <span className="flex items-center gap-1">{task.projectName}</span>
               <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> Due: {formatDate(new Date(task.dueDate))}</span>
-              <span>👤 {task.assigneeName}</span>
+              <span>{task.assigneeName}</span>
             </div>
           </div>
         </div>
@@ -88,7 +100,6 @@ export const TasksPage: React.FC = () => {
   return (
     <PageContainer
       title="My Tasks"
-      sidebarItems={sidebarItems}
       topBarActions={
         <div className="flex gap-3 items-center">
           <div className="relative">
@@ -102,7 +113,7 @@ export const TasksPage: React.FC = () => {
                   initial={{ opacity: 0, y: -10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
-                  className="absolute right-0 mt-2 w-36 glass rounded-lg shadow-lg overflow-hidden z-10"
+                  className="absolute right-0 mt-2 w-36 bg-card border border-border rounded-xl shadow-lg overflow-hidden z-10"
                 >
                   {['all', 'high', 'medium', 'low'].map((priority) => (
                     <button
@@ -111,7 +122,7 @@ export const TasksPage: React.FC = () => {
                         setFilter(priority as any);
                         setShowFilter(false);
                       }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-white/20 transition-colors ${filter === priority ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
+                      className={`w-full text-left px-4 py-2 text-sm hover:bg-muted transition-colors ${filter === priority ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
                     >
                       {priority === 'all' ? 'All Tasks' : `${priority.toUpperCase()} Priority`}
                     </button>
@@ -137,7 +148,7 @@ export const TasksPage: React.FC = () => {
             {groups.today.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-foreground">📅</span> Due Today ({groups.today.length})
+                  <span className="text-foreground">Due Today</span> ({groups.today.length})
                 </h3>
                 {groups.today.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
@@ -146,7 +157,7 @@ export const TasksPage: React.FC = () => {
             {groups.tomorrow.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-foreground">📅</span> Due Tomorrow ({groups.tomorrow.length})
+                  <span className="text-foreground">Due Tomorrow</span> ({groups.tomorrow.length})
                 </h3>
                 {groups.tomorrow.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
@@ -155,7 +166,7 @@ export const TasksPage: React.FC = () => {
             {groups.thisWeek.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-foreground">📅</span> This Week ({groups.thisWeek.length})
+                  <span className="text-foreground">This Week</span> ({groups.thisWeek.length})
                 </h3>
                 {groups.thisWeek.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
@@ -164,7 +175,7 @@ export const TasksPage: React.FC = () => {
             {groups.later.length > 0 && (
               <div className="mb-6">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-muted-foreground">📅</span> Later ({groups.later.length})
+                  <span className="text-muted-foreground">Later</span> ({groups.later.length})
                 </h3>
                 {groups.later.map((task: Task) => <TaskItem key={task.id} task={task} />)}
               </div>
