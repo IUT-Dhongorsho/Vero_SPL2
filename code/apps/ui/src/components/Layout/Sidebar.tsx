@@ -1,262 +1,350 @@
-import React from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import React, { useEffect } from 'react';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import {
-  Home, Folder, Settings, Moon, Sun, UserCircle,
-  ChevronLeft, ChevronRight, Menu, LogOut, X,
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
+  CheckSquare,
+  FolderKanban,
+  Home,
+  Inbox,
+  LayoutGrid,
+  LogOut,
+  Menu,
+  Moon,
+  Settings,
+  Sun,
+  UserRound,
+  X,
+  type LucideIcon,
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { AnimatePresence, motion } from 'framer-motion';
 import { useTheme } from '../Providers/ThemeProvider';
 import { useAuthStore } from '../../stores/auth.store';
 import { useNavigationStore } from '../../stores/navigationStore';
+import { useInboxStore } from '../../stores/inbox.store';
 import { authClient } from '../../lib/auth-client';
+import { Avatar } from '../ui/Avatar';
+import { springSoft } from '../../lib/motion';
+import { cn } from '../../utils/cn';
 
-const NAV_ITEMS = [
+interface NavEntry {
+  to: string;
+  icon: LucideIcon;
+  label: string;
+  /** Reads the unread/pending count for the badge. */
+  badge?: 'inbox';
+}
+
+const PRIMARY_NAV: NavEntry[] = [
   { to: '/dashboard', icon: Home, label: 'Home' },
-  { to: '/projects', icon: Folder, label: 'Projects' },
+  { to: '/inbox', icon: Inbox, label: 'Inbox', badge: 'inbox' },
+  { to: '/calendar', icon: CalendarDays, label: 'Calendar' },
+  { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
+  { to: '/progress', icon: LayoutGrid, label: 'Progress' },
+  { to: '/projects', icon: FolderKanban, label: 'Projects' },
+];
+
+const SECONDARY_NAV: NavEntry[] = [
+  { to: '/profile', icon: UserRound, label: 'Profile' },
+  { to: '/settings', icon: Settings, label: 'Settings' },
 ];
 
 const NavItem: React.FC<{
-  to: string;
-  icon: React.ElementType;
-  label: string;
+  entry: NavEntry;
   collapsed: boolean;
+  badgeCount?: number;
   onClick?: () => void;
-}> = ({ to, icon: Icon, label, collapsed, onClick }) => (
-  <NavLink
-    to={to}
-    onClick={onClick}
-    title={label}
-    className={({ isActive }) =>
-      `flex items-center gap-3 p-2.5 rounded-lg transition-colors font-medium text-sm ${
-        collapsed ? 'justify-center' : 'px-3'
-      } ${
-        isActive
-          ? 'bg-primary text-primary-foreground'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-      }`
-    }
-  >
-    <Icon className="w-5 h-5 shrink-0" />
-    {!collapsed && <span className="truncate">{label}</span>}
-  </NavLink>
-);
+}> = ({ entry, collapsed, badgeCount = 0, onClick }) => {
+  const { icon: Icon, label, to } = entry;
 
-export const Sidebar: React.FC = () => {
-  const { theme, toggleTheme } = useTheme();
+  return (
+    <NavLink to={to} onClick={onClick} title={collapsed ? label : undefined} className="block">
+      {({ isActive }) => (
+        <div
+          className={cn(
+            'relative flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150',
+            collapsed && 'justify-center px-0',
+            isActive
+              ? 'text-foreground'
+              : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+          )}
+        >
+          {/* Shared layoutId slides the highlight between items instead of popping. */}
+          {isActive && (
+            <motion.span
+              layoutId="sidebar-active"
+              transition={springSoft}
+              className="absolute inset-0 rounded-xl bg-muted border border-border"
+            />
+          )}
+
+          <span className="relative flex items-center justify-center shrink-0">
+            <Icon className="w-[18px] h-[18px]" strokeWidth={isActive ? 2.3 : 1.9} />
+            {collapsed && badgeCount > 0 && (
+              <span className="absolute -top-1 -right-1.5 w-2 h-2 rounded-full bg-accent" />
+            )}
+          </span>
+
+          {!collapsed && <span className="relative truncate flex-1">{label}</span>}
+
+          {!collapsed && badgeCount > 0 && (
+            <span className="relative min-w-5 h-5 px-1.5 rounded-full bg-accent text-accent-foreground text-2xs font-semibold flex items-center justify-center tabular-nums">
+              {badgeCount > 99 ? '99+' : badgeCount}
+            </span>
+          )}
+
+          {isActive && !collapsed && (
+            <motion.span
+              layoutId="sidebar-active-bar"
+              transition={springSoft}
+              className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-5 rounded-r-full bg-accent"
+            />
+          )}
+        </div>
+      )}
+    </NavLink>
+  );
+};
+
+function useSidebarData() {
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
-  const { isSidebarCollapsed, toggleSidebar } = useNavigationStore();
   const navigate = useNavigate();
 
+  const incomingRequests = useInboxStore((state) => state.connections.incoming.length);
+  const unreadMessages = useInboxStore((state) => state.totalUnread());
+  const loadConnections = useInboxStore((state) => state.loadConnections);
+
+  useEffect(() => {
+    if (user?.id) loadConnections();
+  }, [user?.id, loadConnections]);
+
   const handleLogout = async () => {
-    try { await authClient.signOut(); } catch {}
+    try {
+      await authClient.signOut();
+    } catch {
+      /* the local session is cleared regardless */
+    }
     clearAuth();
     navigate('/');
   };
 
-  // On mobile: sidebar is always "collapsed" (icon-only w-16) unless explicitly opened via overlay
-  // On desktop: respects isSidebarCollapsed toggle
+  return { user, handleLogout, inboxBadge: incomingRequests + unreadMessages };
+}
+
+const SidebarBody: React.FC<{
+  collapsed: boolean;
+  inboxBadge: number;
+  user: ReturnType<typeof useAuthStore.getState>['user'];
+  onLogout: () => void;
+  onNavigate?: () => void;
+}> = ({ collapsed, inboxBadge, user, onLogout, onNavigate }) => {
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
 
   return (
     <>
-      {/* ── Desktop sidebar ─────────────────────────────────── */}
-      <aside
-        className={`
-          hidden md:flex fixed left-0 top-0 h-screen bg-card border-r border-border
-          flex-col z-50 transition-all duration-300
-          ${isSidebarCollapsed ? 'w-16' : 'w-64'}
-        `}
-      >
-        {/* Header */}
-        <div className="h-16 flex items-center justify-between px-3 border-b border-border shrink-0">
-          <div className="flex items-center overflow-hidden flex-1">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold shrink-0">
-              V
-            </div>
-            {!isSidebarCollapsed && (
-              <span className="ml-3 font-semibold truncate text-foreground">Vero Workspace</span>
-            )}
-          </div>
-          <button
-            onClick={toggleSidebar}
-            className="text-muted-foreground hover:text-foreground p-1 rounded-md hover:bg-muted shrink-0 ml-1"
-            title="Toggle sidebar"
-          >
-            {isSidebarCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
-          </button>
-        </div>
+      <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-4 flex flex-col gap-1">
+        {!collapsed && (
+          <p className="px-3 pb-2 text-2xs font-semibold uppercase tracking-widest text-subtle-foreground">
+            Workspace
+          </p>
+        )}
+        {PRIMARY_NAV.map((entry) => (
+          <NavItem
+            key={entry.to}
+            entry={entry}
+            collapsed={collapsed}
+            badgeCount={entry.badge === 'inbox' ? inboxBadge : 0}
+            onClick={onNavigate}
+          />
+        ))}
 
-        {/* Nav */}
-        <nav className="flex-1 py-4 flex flex-col gap-1 px-2 overflow-y-auto">
-          {NAV_ITEMS.map((item) => (
-            <NavItem key={item.to} {...item} collapsed={isSidebarCollapsed} />
-          ))}
-        </nav>
+        <div className="my-3 h-px bg-border mx-1" />
 
-        {/* Bottom section */}
-        <div className="border-t border-border p-2 flex flex-col gap-1">
-          <button
-            onClick={toggleTheme}
-            title="Toggle theme"
-            className={`flex items-center gap-3 p-2.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-sm font-medium ${isSidebarCollapsed ? 'justify-center' : 'px-3'}`}
-          >
-            {theme === 'light' ? <Moon className="w-5 h-5 shrink-0" /> : <Sun className="w-5 h-5 shrink-0" />}
-            {!isSidebarCollapsed && <span>Theme</span>}
-          </button>
+        {!collapsed && (
+          <p className="px-3 pb-2 text-2xs font-semibold uppercase tracking-widest text-subtle-foreground">
+            Account
+          </p>
+        )}
+        {SECONDARY_NAV.map((entry) => (
+          <NavItem key={entry.to} entry={entry} collapsed={collapsed} onClick={onNavigate} />
+        ))}
+      </nav>
 
-          <NavLink
-            to="/settings"
-            title="Settings"
-            className={({ isActive }) =>
-              `flex items-center gap-3 p-2.5 rounded-lg transition-colors text-sm font-medium ${isSidebarCollapsed ? 'justify-center' : 'px-3'} ${isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`
-            }
-          >
-            <Settings className="w-5 h-5 shrink-0" />
-            {!isSidebarCollapsed && <span>Settings</span>}
-          </NavLink>
+      <div className="border-t border-border p-3 flex flex-col gap-1">
+        <button
+          onClick={toggleTheme}
+          title="Toggle theme"
+          className={cn(
+            'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer',
+            collapsed && 'justify-center px-0'
+          )}
+        >
+          {theme === 'light' ? (
+            <Moon className="w-[18px] h-[18px] shrink-0" strokeWidth={1.9} />
+          ) : (
+            <Sun className="w-[18px] h-[18px] shrink-0" strokeWidth={1.9} />
+          )}
+          {!collapsed && <span>{theme === 'light' ? 'Dark mode' : 'Light mode'}</span>}
+        </button>
 
-          <button
-            onClick={handleLogout}
-            title="Logout"
-            className={`flex items-center gap-3 p-2.5 rounded-lg text-red-500 hover:bg-red-500/10 hover:text-red-600 transition-colors text-sm font-medium ${isSidebarCollapsed ? 'justify-center' : 'px-3'}`}
-          >
-            <LogOut className="w-5 h-5 shrink-0" />
-            {!isSidebarCollapsed && <span>Logout</span>}
-          </button>
+        <button
+          onClick={onLogout}
+          title="Log out"
+          className={cn(
+            'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-danger hover:bg-danger-soft transition-colors cursor-pointer',
+            collapsed && 'justify-center px-0'
+          )}
+        >
+          <LogOut className="w-[18px] h-[18px] shrink-0" strokeWidth={1.9} />
+          {!collapsed && <span>Log out</span>}
+        </button>
 
-          {/* Profile */}
-          <div className={`mt-1 flex items-center gap-3 py-2 ${isSidebarCollapsed ? 'justify-center' : 'px-3'}`}>
-            {user?.avatar ? (
-              <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full shrink-0 object-cover" />
-            ) : (
-              <UserCircle className="w-8 h-8 text-muted-foreground shrink-0" />
-            )}
-            {!isSidebarCollapsed && (
-              <div className="flex flex-col min-w-0">
-                <span className="text-sm font-medium text-foreground truncate">{user?.name || 'User'}</span>
-                <span className="text-xs text-muted-foreground truncate">{user?.email || ''}</span>
-              </div>
-            )}
-          </div>
-        </div>
-      </aside>
-
-      {/* ── Mobile sidebar (drawer overlay) ─────────────────── */}
-      <MobileSidebar
-        theme={theme}
-        toggleTheme={toggleTheme}
-        user={user}
-        handleLogout={handleLogout}
-      />
+        <button
+          onClick={() => {
+            navigate('/profile');
+            onNavigate?.();
+          }}
+          className={cn(
+            'mt-1 flex items-center gap-3 rounded-xl p-2 hover:bg-muted transition-colors cursor-pointer text-left',
+            collapsed && 'justify-center'
+          )}
+        >
+          <Avatar name={user?.name} src={user?.avatar} size="sm" />
+          {!collapsed && (
+            <span className="flex flex-col min-w-0">
+              <span className="text-sm font-medium text-foreground truncate">
+                {user?.name || 'Your profile'}
+              </span>
+              <span className="text-xs text-subtle-foreground truncate">{user?.email || ''}</span>
+            </span>
+          )}
+        </button>
+      </div>
     </>
   );
 };
 
-// ─── Mobile sidebar as a slide-in drawer ─────────────────────────────────────
-const MobileSidebar: React.FC<{
-  theme: string;
-  toggleTheme: () => void;
-  user: any;
-  handleLogout: () => void;
-}> = ({ theme, toggleTheme, user, handleLogout }) => {
-  const [open, setOpen] = React.useState(false);
-  const close = () => setOpen(false);
+export const Sidebar: React.FC = () => {
+  const { isSidebarCollapsed, toggleSidebar } = useNavigationStore();
+  const { user, handleLogout, inboxBadge } = useSidebarData();
 
   return (
     <>
-      {/* Hamburger button — fixed top-left on mobile */}
+      <motion.aside
+        animate={{ width: isSidebarCollapsed ? 68 : 264 }}
+        transition={springSoft}
+        className="hidden md:flex fixed left-0 top-0 h-screen bg-card border-r border-border flex-col z-50"
+      >
+        <div
+          className={cn(
+            'h-16 flex items-center border-b border-border shrink-0 px-3',
+            isSidebarCollapsed ? 'justify-center' : 'justify-between'
+          )}
+        >
+          {!isSidebarCollapsed && (
+            <div className="flex items-center gap-2.5 min-w-0">
+              <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold text-sm shrink-0">
+                V
+              </span>
+              <span className="font-semibold tracking-tight truncate text-foreground">Vero</span>
+            </div>
+          )}
+          <button
+            onClick={toggleSidebar}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 cursor-pointer"
+            title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          >
+            {isSidebarCollapsed ? (
+              <ChevronRight className="w-4 h-4" />
+            ) : (
+              <ChevronLeft className="w-4 h-4" />
+            )}
+          </button>
+        </div>
+
+        <SidebarBody
+          collapsed={isSidebarCollapsed}
+          inboxBadge={inboxBadge}
+          user={user}
+          onLogout={handleLogout}
+        />
+      </motion.aside>
+
+      <MobileSidebar inboxBadge={inboxBadge} user={user} onLogout={handleLogout} />
+    </>
+  );
+};
+
+const MobileSidebar: React.FC<{
+  inboxBadge: number;
+  user: ReturnType<typeof useAuthStore.getState>['user'];
+  onLogout: () => void;
+}> = ({ inboxBadge, user, onLogout }) => {
+  const [open, setOpen] = React.useState(false);
+  const location = useLocation();
+
+  // Close the drawer whenever the route changes, including via back/forward.
+  useEffect(() => setOpen(false), [location.pathname]);
+
+  return (
+    <>
       <button
         onClick={() => setOpen(true)}
-        className="md:hidden fixed top-4 left-4 z-50 p-2 rounded-lg bg-card border border-border shadow-sm text-foreground hover:bg-muted transition-colors"
-        aria-label="Open menu"
+        className="md:hidden fixed top-3.5 left-4 z-50 p-2 rounded-xl bg-card border border-border shadow-soft text-foreground hover:bg-muted transition-colors"
+        aria-label="Open navigation"
       >
         <Menu className="w-5 h-5" />
+        {inboxBadge > 0 && (
+          <span className="absolute top-1 right-1 w-2 h-2 rounded-full bg-accent" />
+        )}
       </button>
 
       <AnimatePresence>
         {open && (
           <>
-            {/* Backdrop */}
             <motion.div
               key="backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              onClick={close}
-              className="md:hidden fixed inset-0 bg-black/50 z-[60]"
+              onClick={() => setOpen(false)}
+              className="md:hidden fixed inset-0 bg-black/55 backdrop-blur-sm z-[60]"
             />
-
-            {/* Drawer */}
             <motion.aside
               key="drawer"
               initial={{ x: '-100%' }}
               animate={{ x: 0 }}
               exit={{ x: '-100%' }}
-              transition={{ type: 'spring', damping: 28, stiffness: 300 }}
-              className="md:hidden fixed left-0 top-0 h-screen w-72 bg-card border-r border-border flex flex-col z-[70] shadow-2xl"
+              transition={{ type: 'spring', damping: 30, stiffness: 320 }}
+              className="md:hidden fixed left-0 top-0 h-screen w-[280px] bg-card border-r border-border flex flex-col z-[70] shadow-lifted"
             >
-              {/* Header */}
               <div className="h-16 flex items-center justify-between px-4 border-b border-border shrink-0">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground font-bold shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold text-sm">
                     V
-                  </div>
-                  <span className="font-semibold text-foreground">Vero Workspace</span>
+                  </span>
+                  <span className="font-semibold tracking-tight text-foreground">Vero</span>
                 </div>
-                <button onClick={close} className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted">
+                <button
+                  onClick={() => setOpen(false)}
+                  className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted"
+                  aria-label="Close navigation"
+                >
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Nav */}
-              <nav className="flex-1 py-4 flex flex-col gap-1 px-2 overflow-y-auto">
-                {NAV_ITEMS.map((item) => (
-                  <NavItem key={item.to} {...item} collapsed={false} onClick={close} />
-                ))}
-              </nav>
-
-              {/* Bottom */}
-              <div className="border-t border-border p-2 flex flex-col gap-1">
-                <button
-                  onClick={() => { toggleTheme(); }}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground transition-colors text-sm font-medium"
-                >
-                  {theme === 'light' ? <Moon className="w-5 h-5 shrink-0" /> : <Sun className="w-5 h-5 shrink-0" />}
-                  <span>Toggle Theme</span>
-                </button>
-
-                <NavLink
-                  to="/settings"
-                  onClick={close}
-                  className={({ isActive }) =>
-                    `flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors text-sm font-medium ${isActive ? 'bg-primary text-primary-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'}`
-                  }
-                >
-                  <Settings className="w-5 h-5 shrink-0" />
-                  <span>Settings</span>
-                </NavLink>
-
-                <button
-                  onClick={handleLogout}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-red-500 hover:bg-red-500/10 hover:text-red-600 transition-colors text-sm font-medium"
-                >
-                  <LogOut className="w-5 h-5 shrink-0" />
-                  <span>Logout</span>
-                </button>
-
-                {/* Profile */}
-                <div className="flex items-center gap-3 px-3 py-2 mt-1">
-                  {user?.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="w-8 h-8 rounded-full shrink-0 object-cover" />
-                  ) : (
-                    <UserCircle className="w-8 h-8 text-muted-foreground shrink-0" />
-                  )}
-                  <div className="flex flex-col min-w-0">
-                    <span className="text-sm font-medium text-foreground truncate">{user?.name || 'User'}</span>
-                    <span className="text-xs text-muted-foreground truncate">{user?.email || ''}</span>
-                  </div>
-                </div>
-              </div>
+              <SidebarBody
+                collapsed={false}
+                inboxBadge={inboxBadge}
+                user={user}
+                onLogout={onLogout}
+                onNavigate={() => setOpen(false)}
+              />
             </motion.aside>
           </>
         )}

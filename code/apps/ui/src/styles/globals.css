@@ -3,17 +3,62 @@
 @source "../../**/*.{js,ts,jsx,tsx}";
 @source "../../../../apps/ui/src/**/*.{js,ts,jsx,tsx}";
 
+/* ==========================================================================
+   Design tokens
+   The palette stays monochrome — the accent and status hues are the only
+   colour in the system, which keeps them meaningful wherever they appear.
+   ========================================================================== */
+
 @theme {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
   --color-card-foreground: var(--card-foreground);
+  --color-elevated: var(--elevated);
   --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
   --color-primary: var(--primary);
   --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
   --color-ring: var(--ring);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-subtle-foreground: var(--subtle-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent-soft: var(--accent-soft);
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --radius-card: 1rem;
+  --radius-panel: 1.25rem;
+
+  /* Type scale — the previous UI paired 12–14px text with 24px padding, which
+     is what made the cards read as mostly empty. Everything steps up. */
+  --text-2xs: 0.75rem;
+  --text-xs: 0.8125rem;
+  --text-sm: 0.9062rem;
+  --text-base: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.3125rem;
+  --text-2xl: 1.625rem;
+  --text-3xl: 2.0625rem;
+  --text-4xl: 2.5rem;
+  --text-5xl: 3.25rem;
+
+  --font-sans: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, monospace;
+
+  --animate-shimmer: shimmer 2s linear infinite;
+  --animate-float: float 6s ease-in-out infinite;
+  --animate-pulse-ring: pulse-ring 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @layer base {
@@ -22,34 +67,254 @@
     --foreground: #0a0a0a;
     --card: #ffffff;
     --card-foreground: #0a0a0a;
-    --border: #e5e5e5;
+    --elevated: #ffffff;
+    --border: #e6e6e6;
+    --border-strong: #d0d0d0;
     --primary: #0a0a0a;
     --primary-foreground: #ffffff;
-    --ring: rgba(10, 10, 10, 0.5);
-    --muted: #f5f5f5;
-    --muted-foreground: #737373;
+    --secondary: #f1f1f1;
+    --secondary-foreground: #0a0a0a;
+    --ring: rgba(10, 10, 10, 0.45);
+    --muted: #f4f4f4;
+    /* Lifted from #737373 to clear WCAG AA on the card surface. */
+    --muted-foreground: #5f5f5f;
+    --subtle-foreground: #8a8a8a;
+
+    --accent: #4f46e5;
+    --accent-foreground: #ffffff;
+    --accent-soft: rgba(79, 70, 229, 0.1);
+
+    --success: #15803d;
+    --success-soft: rgba(21, 128, 61, 0.12);
+    --warning: #b45309;
+    --warning-soft: rgba(180, 83, 9, 0.12);
+    --danger: #dc2626;
+    --danger-soft: rgba(220, 38, 38, 0.1);
+    --info: #0369a1;
+    --info-soft: rgba(3, 105, 161, 0.12);
+
+    --shadow-soft: 0 1px 2px rgba(15, 15, 15, 0.04), 0 4px 16px rgba(15, 15, 15, 0.05);
+    --shadow-lifted: 0 2px 4px rgba(15, 15, 15, 0.05), 0 12px 32px rgba(15, 15, 15, 0.09);
+    --glass-bg: rgba(255, 255, 255, 0.72);
+    --glass-border: rgba(255, 255, 255, 0.6);
   }
-  
+
   .dark {
-    --background: #000000;
+    --background: #08080a;
     --foreground: #fafafa;
-    --card: #0a0a0a;
+    --card: #101013;
     --card-foreground: #fafafa;
-    --border: #262626;
-    --primary: #ffffff;
-    --primary-foreground: #000000;
-    --ring: rgba(255, 255, 255, 0.5);
-    --muted: #171717;
-    --muted-foreground: #a3a3a3;
+    --elevated: #17171b;
+    --border: #26262b;
+    --border-strong: #3a3a41;
+    --primary: #fafafa;
+    --primary-foreground: #08080a;
+    --secondary: #1c1c21;
+    --secondary-foreground: #fafafa;
+    --ring: rgba(250, 250, 250, 0.45);
+    --muted: #17171b;
+    --muted-foreground: #a1a1aa;
+    --subtle-foreground: #71717a;
+
+    --accent: #818cf8;
+    --accent-foreground: #08080a;
+    --accent-soft: rgba(129, 140, 248, 0.16);
+
+    --success: #4ade80;
+    --success-soft: rgba(74, 222, 128, 0.14);
+    --warning: #fbbf24;
+    --warning-soft: rgba(251, 191, 36, 0.14);
+    --danger: #f87171;
+    --danger-soft: rgba(248, 113, 113, 0.14);
+    --info: #38bdf8;
+    --info-soft: rgba(56, 189, 248, 0.14);
+
+    --shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.4), 0 4px 16px rgba(0, 0, 0, 0.35);
+    --shadow-lifted: 0 2px 4px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.55);
+    --glass-bg: rgba(23, 23, 27, 0.68);
+    --glass-border: rgba(255, 255, 255, 0.08);
   }
 }
 
 @layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  html {
+    -webkit-text-size-adjust: 100%;
+  }
+
   body {
     background-color: var(--background);
     color: var(--foreground);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+    font-weight: 650;
+  }
+
+  ::selection {
+    background: var(--accent-soft);
+    color: var(--foreground);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+
+  /* Scrollbars that read as part of the surface rather than the OS. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 99px;
+    border: 3px solid transparent;
+    background-clip: content-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--subtle-foreground);
+    background-clip: content-box;
   }
 }
 
+/* ==========================================================================
+   Component utilities
+   ========================================================================== */
 
+@layer utilities {
+  /* `glass` was referenced across the app but never defined, so those surfaces
+     rendered as transparent boxes. This is the real implementation. */
+  .glass {
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px) saturate(160%);
+    -webkit-backdrop-filter: blur(16px) saturate(160%);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .surface {
+    background: var(--card);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-soft);
+  }
+
+  .surface-elevated {
+    background: var(--elevated);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-lifted);
+  }
+
+  .shadow-soft {
+    box-shadow: var(--shadow-soft);
+  }
+
+  .shadow-lifted {
+    box-shadow: var(--shadow-lifted);
+  }
+
+  .text-gradient {
+    background: linear-gradient(120deg, var(--foreground) 20%, var(--accent) 55%, var(--foreground) 90%);
+    background-size: 200% auto;
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .grid-backdrop {
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 48px 48px;
+    mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%);
+    -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 0%, #000 40%, transparent 100%);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Fades long scroll regions into the surface instead of cutting them off. */
+  .fade-edges-y {
+    mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+    -webkit-mask-image: linear-gradient(to bottom, transparent, #000 12px, #000 calc(100% - 12px), transparent);
+  }
+}
+
+/* ==========================================================================
+   Keyframes
+   ========================================================================== */
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
+@keyframes pulse-ring {
+  0% { box-shadow: 0 0 0 0 var(--accent-soft); }
+  70% { box-shadow: 0 0 0 12px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+
+@keyframes gradient-pan {
+  0% { background-position: 0% 50%; }
+  100% { background-position: 200% 50%; }
+}
+
+.animate-gradient-pan {
+  animation: gradient-pan 6s linear infinite;
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--muted) 25%,
+    var(--secondary) 37%,
+    var(--muted) 63%
+  );
+  background-size: 400% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

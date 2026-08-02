@@ -1,177 +1,390 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle2, Circle, Filter, Calendar as CalendarIcon, Flag, LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, Files } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { AnimatePresence, motion } from 'framer-motion';
+import {
+  CalendarClock,
+  Check,
+  CheckCircle2,
+  Circle,
+  Filter,
+  Pin,
+  Plus,
+  Search,
+  Trash2,
+} from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
-import { GlassCard } from '../components/ui/GlassCard';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { ThemeToggle } from '../components/ui/ThemeToggle';
+import { Badge, PriorityBadge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
-import { mockTasks, Task } from '../data/mockData';
-import { groupTasksByDueDate, formatDate } from '../utils/dateUtils';
+import { TaskEditorModal } from '../components/tasks/TaskEditorModal';
+import { dueMeta } from '../components/board/KanbanBoard';
+import { toast } from '../components/Providers/ToastProvider';
+import { useWorkStore } from '../stores/work.store';
+import type { WorkItem } from '../services/workService';
+import { fadeUp, stagger } from '../lib/motion';
+import { cn } from '../utils/cn';
 
-export const TasksPage: React.FC = () => {
-  const [tasks, setTasks] = useState<Task[]>(mockTasks);
-  const [filter, setFilter] = useState<'all' | 'high' | 'medium' | 'low'>('all');
-  const [showFilter, setShowFilter] = useState(false);
+type Bucket = 'overdue' | 'today' | 'tomorrow' | 'thisWeek' | 'later' | 'someday' | 'done';
 
-  const sidebarItems = [
-    { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard' },
-    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
-    { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks', active: true },
-    { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
-    { icon: <Files className="w-4 h-4" />, label: 'Files', href: '/files' },
-  ];
+const BUCKET_ORDER: { id: Bucket; label: string }[] = [
+  { id: 'overdue', label: 'Overdue' },
+  { id: 'today', label: 'Today' },
+  { id: 'tomorrow', label: 'Tomorrow' },
+  { id: 'thisWeek', label: 'This week' },
+  { id: 'later', label: 'Later' },
+  { id: 'someday', label: 'No due date' },
+  { id: 'done', label: 'Completed' },
+];
 
-  const filteredTasks = tasks.filter(task => {
-    if (filter === 'all') return true;
-    return task.priority === filter;
-  });
+function bucketFor(task: WorkItem): Bucket {
+  if (task.status === 'done') return 'done';
+  if (!task.dueDate) return 'someday';
 
-  const groups = groupTasksByDueDate(filteredTasks);
-  const hasTasks = filteredTasks.length > 0;
+  const due = new Date(task.dueDate);
+  if (Number.isNaN(due.getTime())) return 'someday';
 
-  const getPriorityColor = (priority: string) => {
-    switch (priority) {
-      case 'high': return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400';
-      case 'medium': return 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400';
-      case 'low': return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400';
-      default: return 'bg-gray-100 text-gray-700';
-    }
-  };
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  const days = Math.floor((due.getTime() - startOfToday.getTime()) / 86_400_000);
 
-  const toggleTaskStatus = (taskId: string) => {
-    setTasks(prev => prev.map(task =>
-      task.id === taskId
-        ? { ...task, status: task.status === 'done' ? 'todo' : 'done' }
-        : task
-    ));
-  };
+  if (days < 0) return 'overdue';
+  if (days === 0) return 'today';
+  if (days === 1) return 'tomorrow';
+  if (days <= 7) return 'thisWeek';
+  return 'later';
+}
 
-  const TaskItem = ({ task }: { task: Task }) => (
+const PRIORITY_FILTERS = ['all', 'urgent', 'high', 'medium', 'low'] as const;
+type PriorityFilter = (typeof PRIORITY_FILTERS)[number];
+
+const TaskRow: React.FC<{
+  task: WorkItem;
+  onToggle: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+  onPin: () => void;
+}> = ({ task, onToggle, onEdit, onDelete, onPin }) => {
+  const done = task.status === 'done';
+  const due = dueMeta(task.dueDate);
+
+  return (
     <motion.div
       layout
-      initial={{ opacity: 0, x: -20 }}
-      animate={{ opacity: 1, x: 0 }}
-      exit={{ opacity: 0, x: 20 }}
-      whileHover={{ scale: 1.01 }}
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, x: 12 }}
+      transition={{ duration: 0.2 }}
+      className="group surface rounded-xl p-4 flex items-start gap-3.5 hover:border-border-strong transition-colors"
     >
-      <GlassCard className="p-4 mb-3">
-        <div className="flex items-start gap-3">
-          <button onClick={() => toggleTaskStatus(task.id)} className="mt-0.5">
-            {task.status === 'done' ? (
-              <CheckCircle2 className="w-5 h-5 text-foreground" />
-            ) : (
-              <Circle className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />
+      <button
+        onClick={onToggle}
+        className="mt-0.5 shrink-0 cursor-pointer"
+        aria-label={done ? 'Mark as not done' : 'Mark as done'}
+      >
+        {done ? (
+          <CheckCircle2 className="w-5 h-5 text-success" />
+        ) : (
+          <Circle className="w-5 h-5 text-muted-foreground hover:text-foreground transition-colors" />
+        )}
+      </button>
+
+      <button onClick={onEdit} className="flex-1 min-w-0 text-left cursor-pointer">
+        <div className="flex items-center gap-2 flex-wrap">
+          <p
+            className={cn(
+              'font-medium text-foreground leading-snug',
+              done && 'line-through text-muted-foreground'
             )}
-          </button>
-          <div className="flex-1">
-            <div className="flex items-center gap-2 flex-wrap mb-1">
-              <h4 className={`font-semibold text-gray-900 dark:text-white ${task.status === 'done' ? 'line-through text-gray-400 dark:text-gray-500' : ''}`}>
-                {task.title}
-              </h4>
-              <span className={`text-xs px-2 py-0.5 rounded-full ${getPriorityColor(task.priority)}`}>
-                {task.priority.toUpperCase()}
-              </span>
-            </div>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">{task.description}</p>
-            <div className="flex items-center gap-4 text-xs text-gray-500 dark:text-gray-500">
-              <span className="flex items-center gap-1">📁 {task.projectName}</span>
-              <span className="flex items-center gap-1"><CalendarIcon className="w-3 h-3" /> Due: {formatDate(new Date(task.dueDate))}</span>
-              <span>👤 {task.assigneeName}</span>
-            </div>
-          </div>
+          >
+            {task.title}
+          </p>
+          {task.pinned && <Pin className="w-3.5 h-3.5 text-accent shrink-0" />}
         </div>
-      </GlassCard>
+
+        {task.description && (
+          <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2 leading-relaxed">
+            {task.description}
+          </p>
+        )}
+
+        <div className="flex flex-wrap items-center gap-2 mt-3">
+          <PriorityBadge priority={task.priority} />
+          {due && !done && (
+            <Badge tone={due.tone}>
+              <CalendarClock className="w-3 h-3" />
+              {due.label}
+            </Badge>
+          )}
+          {task.source === 'project' && <Badge tone="info">{task.projectName}</Badge>}
+          {task.labels.map((label) => (
+            <Badge key={label}>{label}</Badge>
+          ))}
+        </div>
+      </button>
+
+      {task.source === 'personal' && (
+        <div className="flex items-center gap-0.5 shrink-0 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+          <button
+            onClick={onPin}
+            title={task.pinned ? 'Unpin' : 'Pin to top'}
+            className="p-2 rounded-lg text-muted-foreground hover:text-accent hover:bg-accent-soft transition-colors cursor-pointer"
+          >
+            <Pin className="w-4 h-4" />
+          </button>
+          <button
+            onClick={onDelete}
+            title="Delete task"
+            className="p-2 rounded-lg text-muted-foreground hover:text-danger hover:bg-danger-soft transition-colors cursor-pointer"
+          >
+            <Trash2 className="w-4 h-4" />
+          </button>
+        </div>
+      )}
     </motion.div>
   );
+};
+
+export const TasksPage: React.FC = () => {
+  const {
+    projectTasks,
+    personalTasks,
+    loading,
+    error,
+    load,
+    loadStats,
+    createPersonal,
+    updatePersonal,
+    deletePersonal,
+    move,
+  } = useWorkStore();
+
+  const [search, setSearch] = useState('');
+  const [priority, setPriority] = useState<PriorityFilter>('all');
+  const [showDone, setShowDone] = useState(false);
+  const [includeProject, setIncludeProject] = useState(true);
+  const [editing, setEditing] = useState<WorkItem | null>(null);
+  const [creating, setCreating] = useState(false);
+
+  useEffect(() => {
+    load();
+    loadStats();
+  }, [load, loadStats]);
+
+  const filtered = useMemo(() => {
+    const term = search.trim().toLowerCase();
+    return [...personalTasks, ...(includeProject ? projectTasks : [])]
+      .filter((task) => (showDone ? true : task.status !== 'done'))
+      .filter((task) => (priority === 'all' ? true : task.priority === priority))
+      .filter(
+        (task) =>
+          !term ||
+          task.title.toLowerCase().includes(term) ||
+          (task.description ?? '').toLowerCase().includes(term)
+      );
+  }, [personalTasks, projectTasks, includeProject, showDone, priority, search]);
+
+  const grouped = useMemo(() => {
+    const map = new Map<Bucket, WorkItem[]>();
+    for (const task of filtered) {
+      const bucket = bucketFor(task);
+      const list = map.get(bucket) ?? [];
+      list.push(task);
+      map.set(bucket, list);
+    }
+    // Pinned first inside each bucket, then by due date.
+    for (const list of map.values()) {
+      list.sort((a, b) => {
+        if (Boolean(a.pinned) !== Boolean(b.pinned)) return a.pinned ? -1 : 1;
+        const dueA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const dueB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        return dueA - dueB;
+      });
+    }
+    return map;
+  }, [filtered]);
+
+  const openTotal = filtered.filter((t) => t.status !== 'done').length;
 
   return (
     <PageContainer
-      title="My Tasks"
-      sidebarItems={sidebarItems}
+      title="Tasks"
+      subtitle={`${openTotal} open ${openTotal === 1 ? 'task' : 'tasks'}`}
       topBarActions={
-        <div className="flex gap-3 items-center">
-          <div className="relative">
-            <AnimatedButton variant="outline" size="sm" onClick={() => setShowFilter(!showFilter)}>
-              <Filter className="w-4 h-4 mr-1" />
-              Filter
-            </AnimatedButton>
-            <AnimatePresence>
-              {showFilter && (
-                <motion.div
-                  initial={{ opacity: 0, y: -10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  className="absolute right-0 mt-2 w-36 glass rounded-lg shadow-lg overflow-hidden z-10"
-                >
-                  {['all', 'high', 'medium', 'low'].map((priority) => (
-                    <button
-                      key={priority}
-                      onClick={() => {
-                        setFilter(priority as any);
-                        setShowFilter(false);
-                      }}
-                      className={`w-full text-left px-4 py-2 text-sm hover:bg-white/20 transition-colors ${filter === priority ? 'text-foreground font-semibold' : 'text-muted-foreground'}`}
-                    >
-                      {priority === 'all' ? 'All Tasks' : `${priority.toUpperCase()} Priority`}
-                    </button>
-                  ))}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-          <ThemeToggle />
-        </div>
+        <AnimatedButton size="sm" variant="accent" onClick={() => setCreating(true)}>
+          <Plus className="w-4 h-4" />
+          <span className="hidden sm:inline">New task</span>
+        </AnimatedButton>
       }
     >
-      <div className="max-w-3xl mx-auto">
-        <div className="mb-6">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Your Tasks</h2>
-          <p className="text-gray-600 dark:text-gray-400">{filteredTasks.length} task{filteredTasks.length !== 1 ? 's' : ''} assigned to you</p>
-        </div>
+      <motion.div
+        variants={stagger()}
+        initial="hidden"
+        animate="show"
+        className="max-w-4xl mx-auto space-y-6"
+      >
+        <motion.div variants={fadeUp} className="surface rounded-2xl p-4 space-y-4">
+          <div className="relative">
+            <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+            <input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Search your tasks"
+              className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-muted border border-transparent text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-accent transition-colors"
+            />
+          </div>
 
-        {!hasTasks ? (
-          <EmptyState type="tasks" />
-        ) : (
-          <>
-            {groups.today.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-foreground">📅</span> Due Today ({groups.today.length})
-                </h3>
-                {groups.today.map((task: Task) => <TaskItem key={task.id} task={task} />)}
-              </div>
-            )}
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground mr-1">
+              <Filter className="w-4 h-4" /> Priority
+            </span>
+            {PRIORITY_FILTERS.map((entry) => (
+              <button
+                key={entry}
+                onClick={() => setPriority(entry)}
+                className={cn(
+                  'px-3 py-1.5 rounded-lg text-sm font-medium transition-colors cursor-pointer',
+                  priority === entry
+                    ? 'bg-primary text-primary-foreground'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+              >
+                {entry === 'all' ? 'All' : entry.charAt(0).toUpperCase() + entry.slice(1)}
+              </button>
+            ))}
 
-            {groups.tomorrow.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-foreground">📅</span> Due Tomorrow ({groups.tomorrow.length})
-                </h3>
-                {groups.tomorrow.map((task: Task) => <TaskItem key={task.id} task={task} />)}
-              </div>
-            )}
+            <span className="flex-1" />
 
-            {groups.thisWeek.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-foreground">📅</span> This Week ({groups.thisWeek.length})
-                </h3>
-                {groups.thisWeek.map((task: Task) => <TaskItem key={task.id} task={task} />)}
-              </div>
-            )}
+            <button
+              onClick={() => setIncludeProject((v) => !v)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors cursor-pointer inline-flex items-center gap-1.5',
+                includeProject
+                  ? 'border-accent text-accent bg-accent-soft'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {includeProject && <Check className="w-3.5 h-3.5" />}
+              Project tasks
+            </button>
 
-            {groups.later.length > 0 && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-3 flex items-center gap-2">
-                  <span className="text-muted-foreground">📅</span> Later ({groups.later.length})
-                </h3>
-                {groups.later.map((task: Task) => <TaskItem key={task.id} task={task} />)}
-              </div>
-            )}
-          </>
+            <button
+              onClick={() => setShowDone((v) => !v)}
+              className={cn(
+                'px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors cursor-pointer inline-flex items-center gap-1.5',
+                showDone
+                  ? 'border-accent text-accent bg-accent-soft'
+                  : 'border-border text-muted-foreground hover:text-foreground'
+              )}
+            >
+              {showDone && <Check className="w-3.5 h-3.5" />}
+              Completed
+            </button>
+          </div>
+        </motion.div>
+
+        {error && (
+          <motion.div variants={fadeUp} className="surface rounded-2xl p-5">
+            <p className="text-sm text-danger font-medium">{error}</p>
+          </motion.div>
         )}
-      </div>
+
+        {loading && filtered.length === 0 ? (
+          <div className="space-y-3">
+            {Array.from({ length: 5 }).map((_, i) => (
+              <div key={i} className="h-24 rounded-xl skeleton-shimmer" />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <motion.div variants={fadeUp} className="surface rounded-2xl">
+            <EmptyState
+              type="tasks"
+              title={search ? 'No matches' : 'No tasks yet'}
+              description={
+                search
+                  ? `Nothing matches “${search}”.`
+                  : 'Add a task of your own, or pick one up on a project board — anything assigned to you lands here too.'
+              }
+              actionLabel="Add a task"
+              onAction={() => setCreating(true)}
+            />
+          </motion.div>
+        ) : (
+          BUCKET_ORDER.map(({ id, label }) => {
+            const tasks = grouped.get(id);
+            if (!tasks?.length) return null;
+
+            return (
+              <motion.section key={id} variants={fadeUp}>
+                <div className="flex items-center gap-2.5 mb-3 px-1">
+                  <h2
+                    className={cn(
+                      'text-lg font-semibold tracking-tight',
+                      id === 'overdue' ? 'text-danger' : 'text-foreground'
+                    )}
+                  >
+                    {label}
+                  </h2>
+                  <span className="text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5 tabular-nums">
+                    {tasks.length}
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  <AnimatePresence initial={false}>
+                    {tasks.map((task) => (
+                      <TaskRow
+                        key={task.id}
+                        task={task}
+                        onToggle={async () => {
+                          try {
+                            await move(task.id, task.status === 'done' ? 'backlog' : 'done');
+                          } catch {
+                            toast.error('Could not update that task');
+                          }
+                        }}
+                        onEdit={() => {
+                          if (task.source === 'personal') setEditing(task);
+                          else
+                            toast.success(
+                              `“${task.title}” is managed on the ${task.projectName} board`
+                            );
+                        }}
+                        onDelete={async () => {
+                          await deletePersonal(task.id);
+                          toast.success('Task deleted');
+                        }}
+                        onPin={() => updatePersonal(task.id, { pinned: !task.pinned })}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </div>
+              </motion.section>
+            );
+          })
+        )}
+      </motion.div>
+
+      <TaskEditorModal
+        open={creating || Boolean(editing)}
+        task={editing}
+        onClose={() => {
+          setCreating(false);
+          setEditing(null);
+        }}
+        onSubmit={async (input) => {
+          if (editing) {
+            await updatePersonal(editing.id, input);
+            toast.success('Task updated');
+          } else {
+            await createPersonal(input);
+            toast.success('Task created');
+          }
+          loadStats();
+        }}
+        onDelete={async (id) => {
+          await deletePersonal(id);
+          toast.success('Task deleted');
+        }}
+      />
     </PageContainer>
   );
 };
