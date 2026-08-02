@@ -1,69 +1,87 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { ArrowLeft, MailCheck } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { AuthField, AuthShell } from './auth/AuthShell';
+import { springSoft } from '../lib/motion';
 
 export const ForgotPasswordPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (event: React.FormEvent) => {
+    event.preventDefault();
     setLoading(true);
-    await new Promise(resolve => setTimeout(resolve, 1000));
+    // The reset mail itself is sent by the notification service once wired up;
+    // the response is deliberately identical whether or not the address exists.
+    await new Promise((resolve) => setTimeout(resolve, 900));
     setSubmitted(true);
     setLoading(false);
   };
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-blue-600 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-xl text-center">
-          <div className="text-green-500 text-5xl mb-4">✓</div>
-          <h1 className="text-2xl font-bold text-gray-900 mb-2">Check your email</h1>
-          <p className="text-gray-600 mb-6">
-            We sent a password reset link to <strong>{email}</strong>
-          </p>
-          <Link to="/login" className="text-blue-600 hover:underline">
-            Back to login
+      <AuthShell
+        title="Check your email"
+        subtitle={`If an account exists for ${email}, a reset link is on its way.`}
+        footer={
+          <Link
+            to="/login"
+            className="inline-flex items-center gap-1.5 text-sm text-accent font-medium hover:underline"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Back to sign in
           </Link>
-        </div>
-      </div>
+        }
+      >
+        <motion.div
+          initial={{ scale: 0.9, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
+          transition={springSoft}
+          className="surface rounded-2xl p-8 text-center"
+        >
+          <span className="w-16 h-16 rounded-2xl bg-success-soft text-success grid place-items-center mx-auto mb-5">
+            <MailCheck className="w-8 h-8" strokeWidth={1.7} />
+          </span>
+          <p className="text-foreground font-medium">Link sent</p>
+          <p className="text-sm text-muted-foreground mt-2 leading-relaxed">
+            The link expires in an hour. Check your spam folder if it does not arrive.
+          </p>
+        </motion.div>
+      </AuthShell>
     );
   }
 
   return (
-    <div className="min-h-screen bg-blue-600 flex items-center justify-center p-4">
-      <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Reset password</h1>
-          <p className="text-gray-600">Enter your email and we'll send you a reset link</p>
-        </div>
-
-        <form onSubmit={handleSubmit}>
-          <div className="mb-6">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Email address</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:ring-2 focus:ring-blue-500"
-              placeholder="name@company.com"
-              required
-            />
-          </div>
-
-          <AnimatedButton type="submit" variant="primary" fullWidth loading={loading}>
-            Send Reset Link
-          </AnimatedButton>
-        </form>
-
-        <div className="mt-6 text-center">
-          <Link to="/login" className="text-sm text-blue-600 hover:underline">
-            Back to login
-          </Link>
-        </div>
-      </div>
-    </div>
+    <AuthShell
+      title="Reset your password"
+      subtitle="Enter your email and we'll send you a link to set a new one."
+      footer={
+        <Link
+          to="/login"
+          className="inline-flex items-center gap-1.5 text-sm text-accent font-medium hover:underline"
+        >
+          <ArrowLeft className="w-4 h-4" />
+          Back to sign in
+        </Link>
+      }
+    >
+      <form onSubmit={handleSubmit} className="space-y-5">
+        <AuthField
+          label="Email address"
+          type="email"
+          value={email}
+          onChange={setEmail}
+          placeholder="name@company.com"
+          autoComplete="email"
+          required
+        />
+        <AnimatedButton type="submit" variant="primary" size="lg" fullWidth loading={loading}>
+          Send reset link
+        </AnimatedButton>
+      </form>
+    </AuthShell>
   );
 };

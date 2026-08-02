@@ -15,6 +15,22 @@ export interface SignupData {
   password: string;
 }
 
+/**
+ * Better Auth returns the opaque session token at the top level on sign-in and
+ * sign-up, but the JWT the microservices prefer only exists on the persisted
+ * session. Re-read the session so we hand downstream services the better token
+ * when it is available, and fall back to the opaque one when it is not.
+ */
+async function resolveSessionToken(fallback: string | undefined): Promise<string> {
+  try {
+    const { data } = await authClient.getSession();
+    const session = data?.session as { authToken?: string; token?: string } | undefined;
+    return session?.authToken || session?.token || fallback || 'session-active';
+  } catch {
+    return fallback || 'session-active';
+  }
+}
+
 export const authService = {
   async login(data: LoginData): Promise<{ user: User; token: string }> {
     const { data: signInData, error } = await authClient.signIn.email({
@@ -37,10 +53,9 @@ export const authService = {
       avatar: signInData.user.image || undefined,
     };
 
-    // Better Auth handles tokens via cookies, but if you're persisting a token
-    // manually in your setup, you'd extract it here. 
-    // We'll pass a dummy token or standard token to satisfy the interface for now
-    const token = signInData.session.token || 'session-active';
+    const token = await resolveSessionToken(
+      (signInData as any).token ?? (signInData as any).session?.token
+    );
 
     useAuthStore.getState().setAuth(user, token);
     return { user, token };
@@ -75,7 +90,9 @@ export const authService = {
       avatar: signUpData.user.image || undefined,
     };
 
-    const token = signUpData.session.token || 'session-active';
+    const token = await resolveSessionToken(
+      (signUpData as any).token ?? (signUpData as any).session?.token
+    );
     useAuthStore.getState().setAuth(user, token);
 
     return { user, token };

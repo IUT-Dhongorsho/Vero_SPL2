@@ -37,24 +37,23 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-/** Wraps a page in the protected guard plus the shared route transition. */
-const guarded = (element: React.ReactNode) => (
-  <ProtectedRoute>
-    <PageTransition>{element}</PageTransition>
-  </ProtectedRoute>
-);
+const guarded = (element: React.ReactNode) => <ProtectedRoute>{element}</ProtectedRoute>;
 
 function AppContent() {
   const location = useLocation();
 
   return (
-    <AnimatePresence mode="wait">
-      <Routes location={location} key={location.pathname}>
-        <Route path="/" element={<PageTransition><LandingPage /></PageTransition>} />
-        <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
-        <Route path="/signup" element={<PageTransition><SignupPage /></PageTransition>} />
-        <Route path="/forgot-password" element={<PageTransition><ForgotPasswordPage /></PageTransition>} />
-        <Route path="/auth/callback" element={<PageTransition><AuthCallbackPage /></PageTransition>} />
+    // The keyed motion wrapper — not <Routes> — is what AnimatePresence tracks.
+    // Keying <Routes> directly leaves the exit unresolved and `mode="wait"`
+    // then never mounts the incoming route.
+    <AnimatePresence mode="wait" initial={false}>
+      <PageTransition key={location.pathname}>
+        <Routes location={location}>
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+        <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
         <Route path="/dashboard" element={guarded(<DashboardPage />)} />
 
@@ -78,7 +77,8 @@ function AppContent() {
         <Route path="/project/:projectId/module/:moduleId/meet" element={guarded(<MeetPage />)} />
 
         <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
+        </Routes>
+      </PageTransition>
     </AnimatePresence>
   );
 }

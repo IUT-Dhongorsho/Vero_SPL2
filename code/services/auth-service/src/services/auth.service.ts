@@ -14,8 +14,18 @@ import { GMAIL_SCOPES } from "./gmail.service.js";
 
 export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,
+    // Better Auth defaults this to `/api/auth`, but every caller — the Express
+    // route below, the nginx rule and the browser client — uses
+    // `/api/better-auth`, so without this every auth request 404s.
+    basePath: "/api/better-auth",
     secret: env.BETTER_AUTH_SECRET,
-    trustedOrigins: [process.env.CLIENT_URL || "http://localhost:5173"],
+    // The Vite dev server runs on :3000; :5173 stays for anyone on the Vite
+    // default. Extra origins can be added with a comma-separated CLIENT_URL.
+    trustedOrigins: [
+        ...(process.env.CLIENT_URL?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? []),
+        "http://localhost:3000",
+        "http://localhost:5173",
+    ],
     database: drizzleAdapter(db, {
         provider: "pg",
         schema: {

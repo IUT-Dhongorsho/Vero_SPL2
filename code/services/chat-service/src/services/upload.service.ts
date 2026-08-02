@@ -41,6 +41,29 @@ export function publicUrlFor(storedName: string): string {
   return `/api/chat/files/${storedName}`;
 }
 
+/** Small extension→MIME map; enough for what chat attachments actually are. */
+const MIME_BY_EXTENSION: Record<string, string> = {
+  '.png': 'image/png',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.gif': 'image/gif',
+  '.webp': 'image/webp',
+  '.svg': 'image/svg+xml',
+  '.pdf': 'application/pdf',
+  '.txt': 'text/plain; charset=utf-8',
+  '.md': 'text/plain; charset=utf-8',
+  '.csv': 'text/csv; charset=utf-8',
+  '.json': 'application/json',
+  '.zip': 'application/zip',
+  '.mp4': 'video/mp4',
+  '.mp3': 'audio/mpeg',
+  '.webm': 'video/webm',
+};
+
+export function lookupMime(filePath: string): string {
+  return MIME_BY_EXTENSION[path.extname(filePath).toLowerCase()] ?? 'application/octet-stream';
+}
+
 export function resolveStoredPath(storedName: string): string | null {
   const resolved = path.resolve(UPLOAD_ROOT, path.basename(storedName));
   // Defence in depth: never serve anything outside the upload root.

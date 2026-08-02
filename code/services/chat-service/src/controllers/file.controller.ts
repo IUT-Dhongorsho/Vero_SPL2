@@ -1,4 +1,5 @@
 import fs from 'node:fs';
+import path from 'node:path';
 import { Request, Response } from 'express';
 import multer from 'multer';
 import {
@@ -7,6 +8,7 @@ import {
   displayName,
   ensureUploadRoot,
   isAllowedFilename,
+  lookupMime,
   publicUrlFor,
   resolveStoredPath,
   safeStoredName,
@@ -62,12 +64,28 @@ export const fileController = {
   /** Streams a stored attachment back. Membership is enforced on upload. */
   download(req: Request, res: Response) {
     const resolved = resolveStoredPath(req.params.storedName);
-    if (!resolved || !fs.existsSync(resolved)) {
+    if (!resolved) return res.status(404).json({ error: 'File not found' });
+
+    let stat: fs.Stats;
+    try {
+      stat = fs.statSync(resolved);
+    } catch {
       return res.status(404).json({ error: 'File not found' });
     }
-    const downloadName = typeof req.query.name === 'string' ? displayName(req.query.name) : undefined;
-    // Never render uploaded content inline as HTML in the app's own origin.
+    if (!stat.isFile()) return res.status(404).json({ error: 'File not found' });
+
+    const downloadName =
+      typeof req.query.name === 'string' ? displayName(req.query.name) : path.basename(resolved);
+
+    // Streamed rather than res.sendFile: `send` refuses any path containing a
+    // dot-directory, which breaks whenever the checkout itself lives under one.
     res.setHeader('X-Content-Type-Options', 'nosniff');
-    res.sendFile(resolved, { headers: downloadName ? { 'Content-Disposition': `inline; filename="${downloadName}"` } : {} });
+    res.setHeader('Content-Type', lookupMime(resolved));
+    res.setHeader('Content-Length', String(stat.size));
+    res.setHeader('Content-Disposition', `inline; filename="${downloadName.replace(/"/g, '')}"`);
+
+    const stream = fs.createReadStream(resolved);
+    stream.on('error', () => res.destroy());
+    stream.pipe(res);
   },
 };
