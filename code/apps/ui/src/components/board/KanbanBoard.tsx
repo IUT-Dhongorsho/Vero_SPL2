@@ -55,7 +55,10 @@ export function dueMeta(dueDate?: string | null) {
 
   const startOfToday = new Date();
   startOfToday.setHours(0, 0, 0, 0);
-  const days = Math.round((due.getTime() - startOfToday.getTime()) / 86_400_000);
+  // Floor, not round: a deadline at 12:00 today is 0.5 days away and must read
+  // as "today", and yesterday at 12:00 must read as overdue. This has to match
+  // the bucketing on the Tasks page or a row lands under the wrong heading.
+  const days = Math.floor((due.getTime() - startOfToday.getTime()) / 86_400_000);
 
   if (days < 0) return { label: `${Math.abs(days)}d overdue`, tone: 'danger' as const };
   if (days === 0) return { label: 'Due today', tone: 'warning' as const };
