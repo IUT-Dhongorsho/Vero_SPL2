@@ -9,10 +9,22 @@ export enum SocketEvents {
   ERROR = 'error',
 }
 
+export interface MessageAttachment {
+  url: string;
+  name: string;
+  mime: string;
+  size: number;
+}
+
 export interface MessagePayload {
   channelId: string;
   content: string;
+  /** text | file | image | action | system */
   type?: string;
+  attachment?: MessageAttachment;
+  replyToId?: string;
+  /** Echoed back so the sender can reconcile its optimistic bubble. */
+  clientId?: string;
 }
 
 export interface TypingPayload {

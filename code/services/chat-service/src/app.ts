@@ -1,4 +1,5 @@
 import express from 'express';
+import cors from 'cors';
 import http from 'http';
 import { env } from './config/env.js';
 import { initSocketServer } from './ws/socket-server.js';
@@ -9,6 +10,8 @@ import { loggerMiddleware } from './middleware/logger.js';
 import channelRoutes from './routes/channel.routes.js';
 import messageRoutes from './routes/message.routes.js';
 import userRoutes from './routes/user.routes.js';
+import connectionRoutes from './routes/connection.routes.js';
+import fileRoutes from './routes/file.routes.js';
 import monitoringRoutes from './routes/monitoring.routes.js';
 
 const app = express();
@@ -24,6 +27,7 @@ initGrpcServer();
 subscriberService.init().catch(console.error);
 
 // Middleware
+app.use(cors({ origin: (_origin, callback) => callback(null, true), credentials: true }));
 app.use(loggerMiddleware);
 app.use(express.json());
 app.use(metricsMiddleware);
@@ -32,6 +36,8 @@ app.use(metricsMiddleware);
 app.use('/channels', channelRoutes);
 app.use('/messages', messageRoutes);
 app.use('/users', userRoutes);
+app.use('/connections', connectionRoutes);
+app.use('/files', fileRoutes);
 app.use('/', monitoringRoutes);
 
 server.listen(env.PORT, () => {

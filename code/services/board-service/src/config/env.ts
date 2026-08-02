@@ -9,6 +9,7 @@ const envSchema = z.object({
   DATABASE_URL: z.string(),
   REDIS_URL: z.string().default('redis://localhost:6379'),
   BETTER_AUTH_SECRET: z.string(),
+  AUTH_SERVICE_URL: z.string().default('http://localhost:8001'),
 });
 
 const _env = envSchema.safeParse(process.env);

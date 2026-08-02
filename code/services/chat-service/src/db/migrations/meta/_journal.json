@@ -8,6 +8,13 @@
       "when": 1779634222252,
       "tag": "0000_yellow_albert_cleary",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785647281790,
+      "tag": "0001_connections_and_attachments",
+      "breakpoints": true
     }
   ]
 }
