@@ -3,18 +3,38 @@ import { toNodeHandler } from "better-auth/node";
 import { auth } from "./services/auth.service.js";
 import { env } from "./config/env.js";
 
+import cors from "cors";
 import { verifyController } from "./controllers/verify.controller.js";
-import { getProfileController, updateProfileController } from "./controllers/user.controller.js";
+import {
+    getProfileController,
+    getPublicProfileController,
+    getUsersByIdsController,
+    searchUsersController,
+    updateProfileController,
+} from "./controllers/user.controller.js";
+import { activitySummaryController, heartbeatController } from "./controllers/activity.controller.js";
+import {
+    mailInboxController,
+    mailMessageController,
+    mailReplyController,
+    mailStatusController,
+} from "./controllers/mail.controller.js";
 import { authController } from "./controllers/auth.controller.js";
 import { loggerMiddleware } from "./middleware/logger.js";
+import { requireSession } from "./middleware/session.js";
 import { metricsMiddleware } from "./middleware/monitor.middleware.js";
 import { metricsController } from "./controllers/metrics.controller.js";
 
 const app = express();
 
+app.use(
+    cors({
+        origin: (origin, callback) => callback(null, true),
+        credentials: true,
+    })
+);
 app.use(loggerMiddleware);
 app.use(metricsMiddleware);
-app.use(express.json());
 
 // BetterAuth handler
 app.all(["/api/better-auth/*", "/better-auth/*"], (req, res, next) => {
@@ -36,12 +56,30 @@ app.all(["/api/better-auth/*", "/better-auth/*"], (req, res, next) => {
     toNodeHandler(auth)(req, res);
 });
 
+// Body parsing is mounted *after* the Better Auth handler, which needs the raw stream.
+app.use(express.json({ limit: "2mb" }));
+
 // Core Session & JWT Entry point (Modular HS256)
 app.get("/auth/session", authController.getSession);
 
 // User Profile routes
-app.get("/user/profile", getProfileController);
-app.patch("/user/profile", updateProfileController);
+app.get("/user/profile", requireSession, getProfileController);
+app.patch("/user/profile", requireSession, updateProfileController);
+
+// Directory — used by the Inbox "add someone" search and member chips
+app.get("/users/search", requireSession, searchUsersController);
+app.get("/users/bulk", requireSession, getUsersByIdsController);
+app.get("/users/:identifier", requireSession, getPublicProfileController);
+
+// Presence / time-on-site metrics
+app.post("/user/activity/heartbeat", requireSession, heartbeatController);
+app.get("/user/activity/summary", requireSession, activitySummaryController);
+
+// Gmail bridge for the dashboard mail widget
+app.get("/mail/status", requireSession, mailStatusController);
+app.get("/mail/inbox", requireSession, mailInboxController);
+app.get("/mail/messages/:id", requireSession, mailMessageController);
+app.post("/mail/messages/:id/reply", requireSession, mailReplyController);
 
 // Internal verification endpoint for other microservices
 app.get("/internal/verify", verifyController);
