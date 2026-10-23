@@ -13,7 +13,7 @@ import { toast } from '../../components/Providers/ToastProvider';
 import { useYjs } from '../../hooks/useYjs';
 import { AwarenessCursors } from '../../components/notes/AwarenessCursors';
 import { SendToBoardModal } from '../../components/notes/SendToBoardModal';
-import type { Note } from '../../../../packages/shared/src/types/notes.types';
+import type { Note } from '../../../../../packages/shared/src/types/notes.types';
 import { useParams } from 'react-router-dom';
 
 interface RichTextEditorProps {
@@ -58,8 +58,8 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({ note, ydoc, pro
   
   const [title, setTitle] = useState(note.title);
   const [isSaving, setIsSaving] = useState(false);
-  const [saveTimeout, setSaveTimeout] = useState<NodeJS.Timeout | null>(null);
-  const [contentSaveTimeout, setContentSaveTimeout] = useState<NodeJS.Timeout | null>(null);
+  const [saveTimeout, setSaveTimeout] = useState<any | null>(null);
+  const [contentSaveTimeout, setContentSaveTimeout] = useState<any | null>(null);
   
   const [showBoardModal, setShowBoardModal] = useState(false);
   const [selectedText, setSelectedText] = useState('');

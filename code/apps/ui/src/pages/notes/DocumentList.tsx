@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Search, MoreVertical, Trash2, Copy, FileText, Calendar } from 'lucide-react';
-import { Note } from './NotesPage';
+import { Note } from '../../../../../packages/shared/src/types/notes.types';
 import { formatDate } from '../../utils/dateUtils';
 
 interface DocumentListProps {

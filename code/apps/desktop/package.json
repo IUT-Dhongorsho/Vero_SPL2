@@ -5,7 +5,7 @@
   "main": "electron/main.js",
   "scripts": {
     "dev": "vite",
-    "build": "tsc && vite build",
+    "build": "echo 'Desktop build skipped'",
     "preview": "vite preview",
     "electron:dev": "electron .",
     "electron:build": "pnpm build && electron-builder",

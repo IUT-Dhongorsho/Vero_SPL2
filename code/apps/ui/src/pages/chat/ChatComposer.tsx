@@ -3,20 +3,20 @@ import { Paperclip, Smile, Send, X, Reply } from 'lucide-react';
 import { useChatStore } from '../../stores/chat.store';
 import { useAuthStore } from '../../stores/auth.store';
 
-export const ChatComposer: React.FC<{ channelId: string }> = ({ channelId }) => {
+export const ChatComposer: React.FC<{ channelId: string; parentId?: string }> = ({ channelId, parentId }) => {
   const { sendMessage, setTyping, activeThreadMessageId, setActiveThread, messages } = useChatStore();
   const user = useAuthStore(state => state.user);
   const [content, setContent] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const typingTimeoutRef = useRef<any | null>(null);
 
-  const replyingToMessage = messages.find(m => m.id === activeThreadMessageId);
+  const replyingToMessage = messages.find(m => m.id === (parentId || activeThreadMessageId));
 
   const handleSend = () => {
     if (!content.trim()) return;
     
-    sendMessage(channelId, content.trim(), user?.id || 'u1', undefined, activeThreadMessageId || undefined);
+    sendMessage(channelId, content.trim(), user?.id || 'u1', undefined, parentId || activeThreadMessageId || undefined);
     setContent('');
     setActiveThread(null); // Clear reply state after sending
     setTyping(channelId, user?.name || 'You', false);

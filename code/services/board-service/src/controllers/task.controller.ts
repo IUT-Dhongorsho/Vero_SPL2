@@ -4,7 +4,7 @@ import { taskService } from '../services/task.service.js';
 export const taskController = {
   async getByProject(req: Request, res: Response) {
     try {
-      const { projectId } = req.params;
+      const projectId = req.params.projectId as string;
       const tasks = await taskService.getTasksByProject(projectId);
       res.json(tasks);
     } catch (error) {
@@ -14,7 +14,7 @@ export const taskController = {
 
   async getById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const task = await taskService.getTaskById(id);
       if (!task) return res.status(404).json({ error: 'Task not found' });
       res.json(task);
@@ -50,7 +50,7 @@ export const taskController = {
 
   async update(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const task = await taskService.updateTask(id, req.body);
       if (!task) return res.status(404).json({ error: 'Task not found' });
       res.json(task);
@@ -61,7 +61,7 @@ export const taskController = {
 
   async delete(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const deleted = await taskService.deleteTask(id);
       if (!deleted) return res.status(404).json({ error: 'Task not found' });
       res.status(204).send();
@@ -72,7 +72,7 @@ export const taskController = {
 
   async move(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const { columnId, order } = req.body;
 
       if (!columnId || order === undefined) {

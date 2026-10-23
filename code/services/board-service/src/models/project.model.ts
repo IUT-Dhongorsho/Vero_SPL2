@@ -1,7 +1,8 @@
 import { pgTable, text, timestamp, varchar } from 'drizzle-orm/pg-core';
+import crypto from 'crypto';
 
 export const projects = pgTable('projects', {
-  id: text('id').primaryKey(),
+  id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
   workspaceId: text('workspace_id'),

@@ -15,8 +15,6 @@ export async function createWebRtcTransport(
     enableTcp: true,
     preferUdp: true,
     initialAvailableOutgoingBitrate: 1_000_000,
-    minimumAvailableOutgoingBitrate: 600_000,
-    maxSctpMessageSize: 262_144,
   });
 
   transport.on('dtlsstatechange', (state) => {

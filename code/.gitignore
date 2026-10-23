@@ -35,3 +35,5 @@ out/
 *.swp
 
 *._
+.turbo/
+.dev-logs/

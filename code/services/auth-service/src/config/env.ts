@@ -1,5 +1,7 @@
-import { z } from 'zod';
+import * as zod from 'zod';
 import dotenv from 'dotenv';
+
+const z = (zod as any).z || zod;
 
 dotenv.config();
 
@@ -11,6 +13,7 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string(),
   BETTER_AUTH_API_KEY: z.string().optional(),
   BETTER_AUTH_URL: z.string().default('http://localhost:8001'),
+  CLIENT_URL: z.string().optional(),
   GITHUB_CLIENT_ID: z.string().optional(),
   GITHUB_CLIENT_SECRET: z.string().optional(),
   GOOGLE_CLIENT_ID: z.string().optional(),

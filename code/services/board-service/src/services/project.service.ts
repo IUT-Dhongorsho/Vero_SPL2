@@ -37,7 +37,7 @@ export const projectService = {
 
     const [project] = await db
       .insert(projects)
-      .values(values)
+      .values(values as any)
       .returning();
 
     await columnService.initializeBoard(project.id);

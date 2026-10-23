@@ -6,6 +6,8 @@ import { toast } from '../components/Providers/ToastProvider';
 
 export interface Participant {
   id: string;
+  peerId?: string;
+  userId?: string;
   name: string;
   avatar: string;
   isMuted: boolean;
@@ -20,6 +22,9 @@ interface MeetState {
   device: mediasoupClient.Device | null;
   sendTransport: mediasoupClient.types.Transport | null;
   recvTransport: mediasoupClient.types.Transport | null;
+  videoProducer: mediasoupClient.types.Producer | null;
+  audioProducer: mediasoupClient.types.Producer | null;
+  screenProducer: mediasoupClient.types.Producer | null;
 
   participants: Record<string, Participant>;
   localVideoTrack: MediaStreamTrack | null;
@@ -33,8 +38,8 @@ interface MeetState {
   // Internal queue for consume events arriving before recv transport is ready
   _consumeQueue: any[];
   _isRecvTransportReady: boolean;
-  // Map of consumerId -> userId for cleanup
-  _consumerMap: Map<string, { userId: string; kind: string }>;
+  // Map of consumerId -> { participantKey, kind } for cleanup
+  _consumerMap: Map<string, { participantKey: string; kind: string }>;
 
   connect: (roomId: string) => Promise<void>;
   disconnect: () => void;
@@ -46,6 +51,9 @@ interface MeetState {
 
   todayMeetings: any[];
   fetchTodayMeetings: () => Promise<void>;
+
+  onDisconnected?: ((reason?: string) => void) | null;
+  setOnDisconnected: (cb: ((reason?: string) => void) | null) => void;
 }
 
 export const useMeetStore = create<MeetState>((set, get) => ({
@@ -53,6 +61,9 @@ export const useMeetStore = create<MeetState>((set, get) => ({
   device: null,
   sendTransport: null,
   recvTransport: null,
+  videoProducer: null,
+  audioProducer: null,
+  screenProducer: null,
 
   participants: {},
   localVideoTrack: null,
@@ -68,6 +79,8 @@ export const useMeetStore = create<MeetState>((set, get) => ({
   _consumerMap: new Map(),
 
   todayMeetings: [],
+  onDisconnected: null,
+  setOnDisconnected: (cb) => set({ onDisconnected: cb }),
   fetchTodayMeetings: async () => {
     set({
       todayMeetings: [
@@ -122,11 +135,14 @@ export const useMeetStore = create<MeetState>((set, get) => ({
       producerId,
       kind,
       rtpParameters,
+      peerId,
       userId,
       userName,
     }: any) => {
-      const { device, recvTransport, _consumerMap } = get();
+      const { device, recvTransport } = get();
       if (!device || !recvTransport) return;
+
+      const participantKey = peerId || userId;
 
       try {
         const consumer = await recvTransport.consume({
@@ -136,14 +152,16 @@ export const useMeetStore = create<MeetState>((set, get) => ({
           rtpParameters,
         });
 
-        // Track consumerId → userId mapping for cleanup
-        const newMap = new Map(_consumerMap);
-        newMap.set(consumerId, { userId, kind });
-
         set((state) => {
-          const existing = state.participants[userId] || {
-            id: userId,
-            name: userName || `User ${userId.substring(0, 4)}`,
+          // Track consumerId → participantKey mapping for cleanup
+          const newMap = new Map(state._consumerMap);
+          newMap.set(consumerId, { participantKey, kind });
+
+          const existing = state.participants[participantKey] || {
+            id: participantKey,
+            peerId: participantKey,
+            userId,
+            name: userName || `User ${userId?.substring(0, 4) || 'Peer'}`,
             avatar: (userName || 'U').charAt(0).toUpperCase(),
             isMuted: true,
             isVideoOff: true,
@@ -160,7 +178,7 @@ export const useMeetStore = create<MeetState>((set, get) => ({
           }
 
           return {
-            participants: { ...state.participants, [userId]: updated },
+            participants: { ...state.participants, [participantKey]: updated },
             _consumerMap: newMap,
           };
         });
@@ -187,13 +205,23 @@ export const useMeetStore = create<MeetState>((set, get) => ({
       toast.error(`Meeting Error: ${error.message}`);
     });
 
-    socket.on('peer-joined', ({ userId, userName }: any) => {
+    socket.on('disconnected-duplicate', ({ message }: any) => {
+      console.warn('⚠️ [MeetStore] Disconnected: joined from another device');
+      toast.error(message || 'You were disconnected because this account joined from another device or window.');
+      get().disconnect();
+      get().onDisconnected?.('duplicate');
+    });
+
+    socket.on('peer-joined', ({ peerId, userId, userName }: any) => {
+      const participantKey = peerId || userId;
       set((state) => ({
         participants: {
           ...state.participants,
-          [userId]: state.participants[userId] || {
-            id: userId,
-            name: userName || `User ${userId.substring(0, 4)}`,
+          [participantKey]: state.participants[participantKey] || {
+            id: participantKey,
+            peerId: participantKey,
+            userId,
+            name: userName || `User ${userId?.substring(0, 4) || 'Peer'}`,
             avatar: (userName || 'U').charAt(0).toUpperCase(),
             isMuted: true,
             isVideoOff: true,
@@ -203,10 +231,14 @@ export const useMeetStore = create<MeetState>((set, get) => ({
       }));
     });
 
-    socket.on('peer-left', ({ userId }: any) => {
+    socket.on('peer-left', ({ peerId, userId }: any) => {
       set((state) => {
         const next = { ...state.participants };
-        delete next[userId];
+        if (peerId && next[peerId]) {
+          delete next[peerId];
+        } else if (userId && next[userId]) {
+          delete next[userId];
+        }
         return { participants: next };
       });
     });
@@ -217,9 +249,12 @@ export const useMeetStore = create<MeetState>((set, get) => ({
         set((state) => {
           const next = { ...state.participants };
           existingPeers.forEach((p: any) => {
-            next[p.userId] = next[p.userId] || {
-              id: p.userId,
-              name: p.userName || `User ${p.userId.substring(0, 4)}`,
+            const participantKey = p.peerId || p.userId;
+            next[participantKey] = next[participantKey] || {
+              id: participantKey,
+              peerId: participantKey,
+              userId: p.userId,
+              name: p.userName || `User ${p.userId?.substring(0, 4) || 'Peer'}`,
               avatar: (p.userName || 'U').charAt(0).toUpperCase(),
               isMuted: true,
               isVideoOff: true,
@@ -256,8 +291,13 @@ export const useMeetStore = create<MeetState>((set, get) => ({
 
       transport.on('connect', async ({ dtlsParameters }, callback, errback) => {
         try {
-          socket.emit('connect-transport', { roomId, transportId: transport.id, dtlsParameters });
-          callback();
+          socket.emit(
+            'connect-transport',
+            { roomId, transportId: transport.id, dtlsParameters },
+            () => {
+              callback();
+            }
+          );
         } catch (e: any) {
           errback(e);
         }
@@ -265,17 +305,22 @@ export const useMeetStore = create<MeetState>((set, get) => ({
 
       transport.on('produce', async (parameters, callback, errback) => {
         try {
-          socket.emit('produce', {
-            roomId,
-            kind: parameters.kind,
-            rtpParameters: parameters.rtpParameters,
-            appData: parameters.appData,
-          });
-          const onProduced = ({ producerId }: any) => {
-            socket.off('produced', onProduced);
-            callback({ id: producerId });
-          };
-          socket.on('produced', onProduced);
+          socket.emit(
+            'produce',
+            {
+              roomId,
+              kind: parameters.kind,
+              rtpParameters: parameters.rtpParameters,
+              appData: parameters.appData,
+            },
+            (response: any) => {
+              if (response?.id) {
+                callback({ id: response.id });
+              } else if (response?.error) {
+                errback(new Error(response.error));
+              }
+            }
+          );
         } catch (e: any) {
           errback(e);
         }
@@ -286,10 +331,24 @@ export const useMeetStore = create<MeetState>((set, get) => ({
       // Produce existing local tracks (if user already enabled mic/cam before connect)
       const { localVideoTrack, localAudioTrack } = get();
       if (localVideoTrack) {
-        try { await transport.produce({ track: localVideoTrack }); } catch (_) {}
+        try {
+          const vp = await transport.produce({
+            track: localVideoTrack,
+            encodings: [
+              { maxBitrate: 800_000, scaleResolutionDownBy: 1 },
+            ],
+            codecOptions: {
+              videoGoogleStartBitrate: 500,
+            },
+          });
+          set({ videoProducer: vp });
+        } catch (_) {}
       }
       if (localAudioTrack) {
-        try { await transport.produce({ track: localAudioTrack }); } catch (_) {}
+        try {
+          const ap = await transport.produce({ track: localAudioTrack });
+          set({ audioProducer: ap });
+        } catch (_) {}
       }
     });
 
@@ -301,8 +360,13 @@ export const useMeetStore = create<MeetState>((set, get) => ({
 
       transport.on('connect', async ({ dtlsParameters }, callback, errback) => {
         try {
-          socket.emit('connect-transport', { roomId, transportId: transport.id, dtlsParameters });
-          callback();
+          socket.emit(
+            'connect-transport',
+            { roomId, transportId: transport.id, dtlsParameters },
+            () => {
+              callback();
+            }
+          );
         } catch (e: any) {
           errback(e);
         }
@@ -332,7 +396,7 @@ export const useMeetStore = create<MeetState>((set, get) => ({
       newMap.delete(consumerId);
 
       set((state) => {
-        const participant = state.participants[entry.userId];
+        const participant = state.participants[entry.participantKey];
         if (!participant) return { _consumerMap: newMap };
 
         const updated = { ...participant };
@@ -341,17 +405,20 @@ export const useMeetStore = create<MeetState>((set, get) => ({
 
         return {
           _consumerMap: newMap,
-          participants: { ...state.participants, [entry.userId]: updated },
+          participants: { ...state.participants, [entry.participantKey]: updated },
         };
       });
     });
   },
 
   disconnect: () => {
-    const { socket, localVideoTrack, localAudioTrack, localScreenTrack } = get();
+    const { socket, localVideoTrack, localAudioTrack, localScreenTrack, videoProducer, audioProducer, screenProducer } = get();
     localVideoTrack?.stop();
     localAudioTrack?.stop();
     localScreenTrack?.stop();
+    try { videoProducer?.close(); } catch (_) {}
+    try { audioProducer?.close(); } catch (_) {}
+    try { screenProducer?.close(); } catch (_) {}
     socket?.disconnect();
 
     set({
@@ -359,6 +426,9 @@ export const useMeetStore = create<MeetState>((set, get) => ({
       device: null,
       sendTransport: null,
       recvTransport: null,
+      videoProducer: null,
+      audioProducer: null,
+      screenProducer: null,
       participants: {},
       localVideoTrack: null,
       localAudioTrack: null,
@@ -373,19 +443,48 @@ export const useMeetStore = create<MeetState>((set, get) => ({
   },
 
   toggleVideo: async () => {
-    const { sendTransport, localVideoTrack, isVideoOff } = get();
+    const { sendTransport, localVideoTrack, isVideoOff, videoProducer } = get();
 
     if (!isVideoOff && localVideoTrack) {
+      // Turn camera OFF: stop media track so hardware detaches, close producer
       localVideoTrack.stop();
-      set({ localVideoTrack: null, isVideoOff: true });
+      if (videoProducer) {
+        try { videoProducer.close(); } catch (_) {}
+      }
+      set({ localVideoTrack: null, videoProducer: null, isVideoOff: true });
     } else {
+      // Turn camera ON: request camera device from navigator.mediaDevices with mobile-friendly constraints
       try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            width: { ideal: 640, max: 1280 },
+            height: { ideal: 480, max: 720 },
+            frameRate: { ideal: 24, max: 30 },
+            facingMode: 'user',
+          },
+        });
         const track = stream.getVideoTracks()[0];
-        set({ localVideoTrack: track, isVideoOff: false });
+        track.onended = () => {
+          get().toggleVideo();
+        };
+
+        let newProducer: mediasoupClient.types.Producer | null = null;
         if (sendTransport) {
-          await sendTransport.produce({ track });
+          try {
+            newProducer = await sendTransport.produce({
+              track,
+              encodings: [
+                { maxBitrate: 800_000, scaleResolutionDownBy: 1 },
+              ],
+              codecOptions: {
+                videoGoogleStartBitrate: 500,
+              },
+            });
+          } catch (e) {
+            console.error('[MeetStore] Failed to produce video track:', e);
+          }
         }
+        set({ localVideoTrack: track, videoProducer: newProducer, isVideoOff: false });
       } catch {
         toast.error('Could not access camera');
       }
@@ -393,19 +492,33 @@ export const useMeetStore = create<MeetState>((set, get) => ({
   },
 
   toggleMute: async () => {
-    const { sendTransport, localAudioTrack, isMuted } = get();
+    const { sendTransport, localAudioTrack, isMuted, audioProducer } = get();
 
     if (!isMuted && localAudioTrack) {
+      // Turn mic OFF: stop media track so microphone hardware detaches, close producer
       localAudioTrack.stop();
-      set({ localAudioTrack: null, isMuted: true });
+      if (audioProducer) {
+        try { audioProducer.close(); } catch (_) {}
+      }
+      set({ localAudioTrack: null, audioProducer: null, isMuted: true });
     } else {
+      // Turn mic ON: request microphone from navigator.mediaDevices
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         const track = stream.getAudioTracks()[0];
-        set({ localAudioTrack: track, isMuted: false });
+        track.onended = () => {
+          get().toggleMute();
+        };
+
+        let newProducer: mediasoupClient.types.Producer | null = null;
         if (sendTransport) {
-          await sendTransport.produce({ track });
+          try {
+            newProducer = await sendTransport.produce({ track });
+          } catch (e) {
+            console.error('[MeetStore] Failed to produce audio track:', e);
+          }
         }
+        set({ localAudioTrack: track, audioProducer: newProducer, isMuted: false });
       } catch {
         toast.error('Could not access microphone');
       }
@@ -413,20 +526,29 @@ export const useMeetStore = create<MeetState>((set, get) => ({
   },
 
   toggleScreenShare: async () => {
-    const { sendTransport, localScreenTrack, isScreenSharing } = get();
+    const { sendTransport, localScreenTrack, isScreenSharing, screenProducer } = get();
 
     if (isScreenSharing && localScreenTrack) {
       localScreenTrack.stop();
-      set({ localScreenTrack: null, isScreenSharing: false });
+      if (screenProducer) {
+        try { screenProducer.close(); } catch (_) {}
+      }
+      set({ localScreenTrack: null, screenProducer: null, isScreenSharing: false });
     } else {
       try {
         const stream = await navigator.mediaDevices.getDisplayMedia({ video: true });
         const track = stream.getVideoTracks()[0];
-        track.onended = () => set({ localScreenTrack: null, isScreenSharing: false });
-        set({ localScreenTrack: track, isScreenSharing: true });
+        track.onended = () => set({ localScreenTrack: null, screenProducer: null, isScreenSharing: false });
+
+        let newProducer: mediasoupClient.types.Producer | null = null;
         if (sendTransport) {
-          await sendTransport.produce({ track, appData: { type: 'screen' } });
+          try {
+            newProducer = await sendTransport.produce({ track, appData: { type: 'screen' } });
+          } catch (e) {
+            console.error('[MeetStore] Failed to produce screen track:', e);
+          }
         }
+        set({ localScreenTrack: track, screenProducer: newProducer, isScreenSharing: true });
       } catch {
         toast.error('Could not access screen share');
       }

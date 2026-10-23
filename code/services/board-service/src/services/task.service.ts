@@ -103,7 +103,7 @@ export const taskService = {
     if (input.priority !== undefined) updateData.priority = input.priority;
     if (input.assigneeId !== undefined) updateData.assigneeId = input.assigneeId;
     if (input.dueDate !== undefined) updateData.dueDate = input.dueDate ? new Date(input.dueDate) : null;
-    if (input.labels !== undefined) updateData.labels = input.labels;
+    if (input.labels !== undefined) updateData.labels = (input.labels || []).join(',');
 
     const [task] = await db
       .update(tasks)

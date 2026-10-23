@@ -1,16 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components/Layout/PageContainer';
-import { Users, FolderKanban, Video, FileText, MessageSquare, ArrowLeft, ShieldCheck } from 'lucide-react';
+import { Users, FolderKanban, Video, FileText, MessageSquare, ArrowLeft, ShieldCheck, Radio } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { motion } from 'framer-motion';
 import { useModuleStore } from '../stores/module.store';
-import { useEffect } from 'react';
+import { meetService, RoomStatus } from '../services/meetService';
 
 export const ModuleHubPage: React.FC = () => {
   const { workspaceId, projectId, moduleId } = useParams();
   const navigate = useNavigate();
   const { modules, fetchModules } = useModuleStore();
+  const [roomStatus, setRoomStatus] = useState<RoomStatus | null>(null);
 
   useEffect(() => {
     if (projectId && modules.length === 0) {
@@ -18,9 +19,34 @@ export const ModuleHubPage: React.FC = () => {
     }
   }, [projectId, modules.length, fetchModules]);
 
+  // Poll meeting status for this module so ongoing meetings are recognized immediately
+  useEffect(() => {
+    if (!moduleId) return;
+    let isMounted = true;
+
+    const checkMeetStatus = async () => {
+      try {
+        const res = await meetService.getRoomStatus(moduleId);
+        if (isMounted) setRoomStatus(res);
+      } catch {
+        // Meet service unreachable or no active room
+      }
+    };
+
+    checkMeetStatus();
+    const interval = setInterval(checkMeetStatus, 4000);
+    return () => {
+      isMounted = false;
+      clearInterval(interval);
+    };
+  }, [moduleId]);
+
   const module = modules.find(m => m.id === moduleId);
   const moduleName = module?.name || 'Module Hub';
   const moduleDescription = module?.description || 'Select a tool to start collaborating.';
+
+  const isMeetLive = roomStatus?.status === 'active' && (roomStatus?.livePeerCount ?? 0) > 0;
+  const liveCount = roomStatus?.livePeerCount ?? 0;
 
   const tools = [
     { 
@@ -30,7 +56,8 @@ export const ModuleHubPage: React.FC = () => {
       color: 'text-foreground', 
       bg: 'bg-muted',
       description: 'Track tasks specific to this module',
-      route: `/project/${projectId}/module/${moduleId}/board` 
+      route: `/project/${projectId}/module/${moduleId}/board`,
+      isLive: false,
     },
     { 
       id: 'notes', 
@@ -39,7 +66,8 @@ export const ModuleHubPage: React.FC = () => {
       color: 'text-foreground', 
       bg: 'bg-muted',
       description: 'Module documentation and specs',
-      route: `/project/${projectId}/module/${moduleId}/notes` 
+      route: `/project/${projectId}/module/${moduleId}/notes`,
+      isLive: false,
     },
     { 
       id: 'chat', 
@@ -48,16 +76,21 @@ export const ModuleHubPage: React.FC = () => {
       color: 'text-foreground', 
       bg: 'bg-muted',
       description: 'Private channel for module members',
-      route: `/project/${projectId}/module/${moduleId}/chat` 
+      route: `/project/${projectId}/module/${moduleId}/chat`,
+      isLive: false,
     },
     { 
       id: 'meet', 
       name: 'Meet', 
       icon: Video, 
-      color: 'text-foreground', 
-      bg: 'bg-muted',
-      description: 'Sync with the module team',
-      route: `/project/${projectId}/module/${moduleId}/meet` 
+      color: isMeetLive ? 'text-emerald-500' : 'text-foreground', 
+      bg: isMeetLive ? 'bg-emerald-500/10' : 'bg-muted',
+      description: isMeetLive
+        ? `Meeting in progress with ${liveCount} participant${liveCount !== 1 ? 's' : ''} — Click to join`
+        : 'Sync with the module team',
+      route: `/project/${projectId}/module/${moduleId}/meet`,
+      isLive: isMeetLive,
+      liveCount,
     }
   ];
 
@@ -107,14 +140,31 @@ export const ModuleHubPage: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 onClick={() => navigate(tool.route)}
-                className="group relative bg-card border border-border rounded-2xl p-6 cursor-pointer overflow-hidden shadow-sm hover:shadow-md transition-all duration-300"
+                className={`group relative bg-card border ${
+                  tool.isLive
+                    ? 'border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/30'
+                    : 'border-border shadow-sm'
+                } rounded-2xl p-6 cursor-pointer overflow-hidden hover:shadow-md transition-all duration-300`}
               >
+                {/* Live meeting badge */}
+                {tool.isLive && (
+                  <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 text-xs font-semibold animate-pulse">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                    <span>Live ({tool.liveCount})</span>
+                  </div>
+                )}
+
                 <div className={`absolute top-0 right-0 w-32 h-32 ${tool.bg} rounded-full blur-3xl -mr-10 -mt-10 opacity-50 group-hover:opacity-100 transition-opacity`} />
                 <div className="relative z-10">
                   <div className={`w-12 h-12 rounded-xl ${tool.bg} ${tool.color} flex items-center justify-center mb-5`}>
                     <tool.icon className="w-6 h-6" />
                   </div>
-                  <h3 className="text-xl font-bold text-foreground mb-2">{tool.name}</h3>
+                  <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
+                    {tool.name}
+                    {tool.isLive && (
+                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
+                    )}
+                  </h3>
                   <p className="text-muted-foreground">{tool.description}</p>
                 </div>
               </motion.div>

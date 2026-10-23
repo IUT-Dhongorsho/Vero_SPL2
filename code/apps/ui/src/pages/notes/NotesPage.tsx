@@ -9,7 +9,7 @@ import { toast } from '../../components/Providers/ToastProvider';
 import { useNotesStore } from '../../stores/notes.store';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../../components/ui/Dialog';
 import { Button } from '../../components/ui/Button';
-import type { NoteListItem, NoteVisibility, NoteEditPermission } from '../../../../packages/shared/src/types/notes.types';
+import type { NoteListItem, NoteVisibility, NoteEditPermission } from '../../../../../packages/shared/src/types/notes.types';
 
 export const NotesPage: React.FC = () => {
   const { workspaceId, projectId, moduleId } = useParams();

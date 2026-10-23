@@ -7,7 +7,7 @@ import { handleConnection } from './handlers/connection.handler.js';
 export const initSocketServer = (server) => {
     const io = new Server(server, {
         cors: {
-            origin: 'http://localhost:3000',
+            origin: true,
             methods: ['GET', 'POST'],
             credentials: true
         },

@@ -5,7 +5,7 @@ import { projectService } from '../services/project.service.js';
 export const boardController = {
   async initialize(req: Request, res: Response) {
     try {
-      const { projectId } = req.params;
+      const projectId = req.params.projectId as string;
 
       // Auto-create project stub in board_db if it doesn't exist
       // (projects are created in project-service, but board-service has its own DB)
@@ -13,7 +13,7 @@ export const boardController = {
       if (!existing) {
         await projectService.createProject({
           id: projectId,
-          name: req.body?.name || 'Project',
+          name: (req.body?.name as string) || 'Project',
           description: req.body?.description || '',
           ownerId: req.body?.ownerId || 'system',
         });

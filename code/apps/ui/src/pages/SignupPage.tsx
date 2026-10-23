@@ -48,7 +48,7 @@ export const SignupPage: React.FC = () => {
     setLoading(true);
     
     try {
-      const { user, token } = await authService.signup({ name, email, password, githubHandle });
+      const { user, token } = await authService.signup({ name, email, password });
       authService.setToken(token);
       authService.setUser(user);
       navigate('/dashboard');

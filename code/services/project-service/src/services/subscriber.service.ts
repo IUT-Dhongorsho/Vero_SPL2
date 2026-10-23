@@ -7,6 +7,12 @@ import { eq } from 'drizzle-orm';
 
 export const subClient = new Redis(env.REDIS_URL);
 
+function safeDate(val: any, fallback: Date = new Date()): Date {
+  if (!val) return fallback;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? fallback : d;
+}
+
 export class SubscriberService {
   async init() {
     await subClient.subscribe('user_events');
@@ -76,19 +82,22 @@ export class SubscriberService {
             name: 'User',
           }).onConflictDoNothing();
 
+          const expiresAt = safeDate(data.expiresAt, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+          const createdAt = safeDate(data.createdAt, new Date());
+
           await db.insert(sessions).values({
             id: data.id,
             token: data.token,
             userId: data.userId,
-            expiresAt: new Date(data.expiresAt),
-            createdAt: new Date(data.createdAt),
+            expiresAt,
+            createdAt,
             authToken: data.authToken,
             refreshToken: data.refreshToken,
           }).onConflictDoUpdate({
             target: sessions.id,
             set: {
               token: data.token,
-              expiresAt: new Date(data.expiresAt),
+              expiresAt,
               authToken: data.authToken,
               refreshToken: data.refreshToken,
             }

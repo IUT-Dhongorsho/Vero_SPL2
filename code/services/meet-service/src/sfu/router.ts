@@ -6,11 +6,13 @@ const mediaCodecs: mediasoupTypes.RtpCodecCapability[] = [
     mimeType: 'audio/opus',
     clockRate: 48000,
     channels: 2,
+    preferredPayloadType: 111,
   },
   {
     kind: 'video',
     mimeType: 'video/VP8',
     clockRate: 90000,
+    preferredPayloadType: 96,
     parameters: {
       'x-google-start-bitrate': 1000,
     },
@@ -19,6 +21,7 @@ const mediaCodecs: mediasoupTypes.RtpCodecCapability[] = [
     kind: 'video',
     mimeType: 'video/VP9',
     clockRate: 90000,
+    preferredPayloadType: 98,
     parameters: {
       'profile-id': 0,
       'x-google-start-bitrate': 1000,
@@ -29,6 +32,7 @@ const mediaCodecs: mediasoupTypes.RtpCodecCapability[] = [
     kind: 'video',
     mimeType: 'video/H264',
     clockRate: 90000,
+    preferredPayloadType: 102,
     parameters: {
       'packetization-mode': 1,
       'profile-level-id': '42e01f', // Baseline Level 3.1
@@ -41,6 +45,7 @@ const mediaCodecs: mediasoupTypes.RtpCodecCapability[] = [
     kind: 'video',
     mimeType: 'video/H264',
     clockRate: 90000,
+    preferredPayloadType: 104,
     parameters: {
       'packetization-mode': 1,
       'profile-level-id': '4d0032', // Main Level 5.0

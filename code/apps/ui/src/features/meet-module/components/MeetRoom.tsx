@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useAuth } from '../../../hooks/useAuth'; // Assumes a global useAuth exists, adjust as needed
+import { useAuthStore } from '../../../stores/auth.store';
 import { useMeetSocket } from '../hooks/useMeetSocket';
 import { useMediasoup } from '../hooks/useMediasoup';
 import { useSFUStore } from '../store/useSFUStore';
@@ -12,7 +12,7 @@ interface MeetRoomProps {
 }
 
 export const MeetRoom: React.FC<MeetRoomProps> = ({ moduleId }) => {
-  const { session } = useAuth(); // or grab token from Zustand store
+  const { token } = useAuthStore();
   const [hasPermissions, setHasPermissions] = useState(false);
   const [permissionError, setPermissionError] = useState('');
   
@@ -46,23 +46,25 @@ export const MeetRoom: React.FC<MeetRoomProps> = ({ moduleId }) => {
     getMedia();
 
     return () => {
-      clearState();
-      // Stop local tracks on unmount
-      if (localStream) {
-        localStream.getTracks().forEach(t => t.stop());
+      // Stop local tracks and clean up state on unmount
+      const stream = useSFUStore.getState().localStream;
+      if (stream) {
+        stream.getTracks().forEach((t) => t.stop());
       }
+      clearState();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // 2. Initialize Socket and Mediasoup once permissions are granted
-  const token = session?.token || ''; // Use your actual auth token here
-  const socketRef = useMeetSocket(hasPermissions ? token : '', moduleId);
+  const authToken = token || ''; // Use your actual auth token here
+  const socketRef = useMeetSocket(hasPermissions ? authToken : '', moduleId);
   useMediasoup(socketRef, hasPermissions ? moduleId : '');
 
   const handleLeave = () => {
-    if (localStream) {
-      localStream.getTracks().forEach(t => t.stop());
+    const stream = useSFUStore.getState().localStream;
+    if (stream) {
+      stream.getTracks().forEach((t) => t.stop());
     }
     clearState();
     // In a real app, you'd navigate back to the module page or dashboard here

@@ -2,8 +2,8 @@ import { useEffect, useRef } from 'react';
 import { io, Socket } from 'socket.io-client';
 import { useSFUStore } from '../store/useSFUStore';
 
-// Assuming the API base URL is stored in env, falling back to localhost
-const MEET_SERVICE_URL = import.meta.env.VITE_MEET_SERVICE_URL || 'http://localhost:8007';
+// In dev and tunneled setups, connect through the Vite proxy relative path
+const MEET_SERVICE_URL = import.meta.env.VITE_MEET_SERVICE_URL || (typeof window !== 'undefined' ? window.location.origin : 'http://localhost:8007');
 
 export function useMeetSocket(authToken: string, moduleId: string) {
   const socketRef = useRef<Socket | null>(null);
@@ -14,6 +14,7 @@ export function useMeetSocket(authToken: string, moduleId: string) {
     if (!authToken || !moduleId) return;
 
     const socket = io(MEET_SERVICE_URL, {
+      path: '/api/meet/socket.io/',
       auth: { token: authToken },
       transports: ['websocket'],
     });
@@ -32,6 +33,12 @@ export function useMeetSocket(authToken: string, moduleId: string) {
     socket.on('sfu-error', ({ message, code }) => {
       console.error(`[MeetSocket] SFU Error (${code}):`, message);
       setErrorMessage(message);
+    });
+
+    socket.on('disconnected-duplicate', ({ message }: any) => {
+      console.warn('[MeetSocket] Disconnected because connected from another device');
+      setErrorMessage(message || 'You were disconnected because this account joined from another device or window.');
+      useSFUStore.getState().clearState();
     });
 
     socket.on('peer-left', ({ userId }) => {

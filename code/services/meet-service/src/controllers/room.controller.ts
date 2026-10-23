@@ -6,8 +6,7 @@ import { roomService } from '../services/room.service.js';
 
 export const roomController = {
   async getRoomStatus(req: Request, res: Response): Promise<void> {
-    const { roomId } = req.params;
-
+    const roomId = req.params.roomId as string;
     try {
       const activeMeeting = await db.query.meetings.findFirst({
         where: and(eq(meetings.roomId, roomId), isNull(meetings.endedAt)),
@@ -23,7 +22,14 @@ export const roomController = {
 
       const livePeerCount = roomService.getRoom(roomId)?.peers.size ?? 0;
 
-      if (!activeMeeting) {
+      if (!activeMeeting || livePeerCount === 0) {
+        if (activeMeeting && livePeerCount === 0) {
+          // Clean up stale meeting left from previous server crash/restart
+          await db
+            .update(meetings)
+            .set({ endedAt: new Date(), status: 'ended' })
+            .where(eq(meetings.id, activeMeeting.id));
+        }
         res.json({ roomId, status: 'idle', livePeerCount: 0, meeting: null });
         return;
       }
@@ -50,7 +56,7 @@ export const roomController = {
   },
 
   async getRoomHistory(req: Request, res: Response): Promise<void> {
-    const { roomId } = req.params;
+    const roomId = req.params.roomId as string;
     try {
       const history = await db.query.meetings.findMany({
         where: and(eq(meetings.roomId, roomId)),

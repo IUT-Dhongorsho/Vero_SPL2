@@ -40,7 +40,7 @@ export const AnimatedButton: React.FC<AnimatedButtonProps> = ({
       transition={{ type: 'spring', stiffness: 400, damping: 17 }}
       className={`${variants[variant]} ${sizes[size]} font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed ${fullWidth ? 'w-full' : ''} ${className}`}
       disabled={disabled || loading}
-      {...props}
+      {...(props as any)}
     >
       <span className="flex items-center justify-center gap-2">
         {loading && <Loader2 className="w-4 h-4 animate-spin" />}

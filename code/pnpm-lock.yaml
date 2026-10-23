@@ -7,6 +7,10 @@ settings:
 importers:
 
   .:
+    dependencies:
+      '@tailwindcss/oxide-linux-x64-gnu':
+        specifier: ^4.3.3
+        version: 4.3.3
     devDependencies:
       turbo:
         specifier: ^1.13.0
@@ -189,6 +193,9 @@ importers:
       vanta:
         specifier: ^0.5.24
         version: 0.5.24
+      y-protocols:
+        specifier: ^1.0.7
+        version: 1.0.7(yjs@13.6.31)
       y-webrtc:
         specifier: ^10.3.0
         version: 10.3.0(yjs@13.6.31)
@@ -3652,10 +3659,16 @@ packages:
     engines: {node: '>= 20'}
     cpu: [x64]
     os: [linux]
-    libc: [glibc]
     requiresBuild: true
     dev: true
     optional: true
+
+  /@tailwindcss/oxide-linux-x64-gnu@4.3.3:
+    resolution: {integrity: sha512-tx7us1muwOKAKWao2v/GaafFeQboE6aj88vC6ziN2NCGcRm8gWUhwjzg+YdVB1e4boAtdtma4L43onunI6NS4w==}
+    engines: {node: '>= 20'}
+    cpu: [x64]
+    os: [linux]
+    dev: false
 
   /@tailwindcss/oxide-linux-x64-musl@4.3.0:
     resolution: {integrity: sha512-Z0IADbDo8bh6I7h2IQMx601AdXBLfFpEdUotft86evd/8ZPflZe9COPO8Q1vw+pfLWIUo9zN/JGZvwuAJqduqg==}

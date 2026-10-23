@@ -19,9 +19,9 @@ export function registerSignalHandlers(io: Server, socket: AuthSocket): void {
   socket.on('get-rtp-capabilities', (data) => {
     signalService.handleGetRtpCapabilities(socket, data);
   });
-  socket.on('set-rtp-capabilities', (data) => {
-    signalService.handleSetRtpCapabilities(socket, data);
-  });
+  socket.on('set-rtp-capabilities', (data) =>
+    wrap(() => signalService.handleSetRtpCapabilities(io, socket, data))
+  );
 
   socket.on('create-send-transport', (data) =>
     wrap(() => signalService.handleCreateSendTransport(socket, data))
@@ -29,12 +29,22 @@ export function registerSignalHandlers(io: Server, socket: AuthSocket): void {
   socket.on('create-recv-transport', (data) =>
     wrap(() => signalService.handleCreateRecvTransport(io, socket, data))
   );
-  socket.on('connect-transport', (data) =>
-    wrap(() => signalService.handleConnectTransport(socket, data))
+  socket.on('connect-transport', (data, callback) =>
+    wrap(async () => {
+      await signalService.handleConnectTransport(socket, data);
+      if (typeof callback === 'function') {
+        callback({ connected: true });
+      }
+    })
   );
 
-  socket.on('produce', (data) =>
-    wrap(() => signalService.handleProduce(io, socket, data))
+  socket.on('produce', (data, callback) =>
+    wrap(async () => {
+      const producerId = await signalService.handleProduce(io, socket, data);
+      if (typeof callback === 'function') {
+        callback({ id: producerId });
+      }
+    })
   );
   socket.on('resume-consumer', (data) =>
     wrap(() => signalService.handleResumeConsumer(socket, data))

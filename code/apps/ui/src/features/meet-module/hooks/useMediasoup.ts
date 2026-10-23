@@ -1,15 +1,15 @@
 import { useEffect, useRef } from 'react';
 import type { Socket } from 'socket.io-client';
 import { Device } from 'mediasoup-client';
-import type { Transport, Producer, Consumer } from 'mediasoup-client/lib/types';
+import type { types } from 'mediasoup-client';
 import { useSFUStore } from '../store/useSFUStore';
 
 export function useMediasoup(socketRef: React.MutableRefObject<Socket | null>, moduleId: string) {
   const deviceRef = useRef<Device | null>(null);
-  const sendTransportRef = useRef<Transport | null>(null);
-  const recvTransportRef = useRef<Transport | null>(null);
-  const producersRef = useRef<Map<string, Producer>>(new Map());
-  const consumersRef = useRef<Map<string, Consumer>>(new Map());
+  const sendTransportRef = useRef<types.Transport | null>(null);
+  const recvTransportRef = useRef<types.Transport | null>(null);
+  const producersRef = useRef<Map<string, types.Producer>>(new Map());
+  const consumersRef = useRef<Map<string, types.Consumer>>(new Map());
 
   const {
     localStream,
@@ -39,7 +39,7 @@ export function useMediasoup(socketRef: React.MutableRefObject<Socket | null>, m
       }
     };
 
-    const handleConsume = async ({ consumerId, producerId, kind, rtpParameters, userId }: any) => {
+    const handleConsume = async ({ consumerId, producerId, kind, rtpParameters, peerId, userId }: any) => {
       if (cancelled || !recvTransportRef.current) return;
       
       try {
@@ -51,7 +51,8 @@ export function useMediasoup(socketRef: React.MutableRefObject<Socket | null>, m
         });
 
         consumersRef.current.set(consumerId, consumer);
-        addPeerTrack(userId, consumer.track);
+        const participantKey = peerId || userId;
+        addPeerTrack(participantKey, consumer.track);
 
         // Tell server to start sending media
         socket.emit('resume-consumer', { roomId: moduleId, consumerId });
@@ -144,14 +145,14 @@ export function useMediasoup(socketRef: React.MutableRefObject<Socket | null>, m
       processConsumeQueue();
 
       // Step E: Publish Local Media
-      for (const track of localStream!.getTracks()) {
+      for (const track of (localStream?.getTracks() || [])) {
         const producer = await sendTransport.produce({ 
           track,
           encodings: track.kind === 'video' 
             ? [{ maxBitrate: 100_000 }, { maxBitrate: 300_000 }, { maxBitrate: 900_000 }]
             : undefined,
         });
-        producersRef.current.set(producer.id, producer);
+        producersRef.current.set(track.kind, producer);
       }
 
       setConnectionState('connected');
@@ -168,9 +169,50 @@ export function useMediasoup(socketRef: React.MutableRefObject<Socket | null>, m
       socket.off('consumer-closed', onConsumerClosed);
       
       producersRef.current.forEach(p => p.close());
+      producersRef.current.clear();
       consumersRef.current.forEach(c => c.close());
+      consumersRef.current.clear();
       sendTransportRef.current?.close();
+      sendTransportRef.current = null;
       recvTransportRef.current?.close();
+      recvTransportRef.current = null;
     };
-  }, [socketRef, moduleId, localStream, addPeerTrack, removePeerTrack, setConnectionState]);
+  }, [socketRef, moduleId, addPeerTrack, removePeerTrack, setConnectionState]);
+
+  // Synchronize local media tracks with Mediasoup producers when tracks are toggled
+  useEffect(() => {
+    const sendTransport = sendTransportRef.current;
+    if (!sendTransport || !localStream) return;
+
+    const currentTracks = localStream.getTracks();
+    const activeKinds = new Set(currentTracks.map((t) => t.kind));
+
+    // Close producers for stopped/removed tracks
+    for (const [kind, producer] of Array.from(producersRef.current.entries())) {
+      if (!activeKinds.has(kind)) {
+        producer.close();
+        producersRef.current.delete(kind);
+      }
+    }
+
+    // Produce new tracks
+    for (const track of currentTracks) {
+      if (!producersRef.current.has(track.kind)) {
+        sendTransport
+          .produce({
+            track,
+            encodings:
+              track.kind === 'video'
+                ? [{ maxBitrate: 100_000 }, { maxBitrate: 300_000 }, { maxBitrate: 900_000 }]
+                : undefined,
+          })
+          .then((producer) => {
+            producersRef.current.set(track.kind, producer);
+          })
+          .catch((err) => {
+            console.error(`[Mediasoup] Error producing ${track.kind} track:`, err);
+          });
+      }
+    }
+  }, [localStream]);
 }

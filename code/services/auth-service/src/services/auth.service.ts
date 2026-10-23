@@ -11,14 +11,35 @@ import { eq } from "drizzle-orm";
 
 import { publisherService } from "./publisher.service.js";
 
+// Derive basePath from BETTER_AUTH_URL if provided, otherwise default to '/api/better-auth'
+export const getDerivedBasePath = (urlStr: string) => {
+    try {
+        const parsed = new URL(urlStr);
+        const path = parsed.pathname.replace(/\/$/, "");
+        return path && path !== "/" ? path : "/api/better-auth";
+    } catch {
+        return "/api/better-auth";
+    }
+};
+
+export const derivedBasePath = getDerivedBasePath(env.BETTER_AUTH_URL);
+
 export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,
+    basePath: derivedBasePath,
     secret: env.BETTER_AUTH_SECRET,
     trustedOrigins: [
-        process.env.CLIENT_URL || "http://localhost:3000",
+        env.CLIENT_URL || process.env.CLIENT_URL || "http://localhost:3000",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5174",
+        "https://dash.better-auth.com",
+        "*.better-auth.com",
+        "*.ngrok-free.app",
+        "*.ngrok.io",
+        "*.nip.io",
+        "*.trycloudflare.com",
+        "*.loca.lt",
     ],
     database: drizzleAdapter(db, {
         provider: "pg",
@@ -135,8 +156,10 @@ export const auth = betterAuth({
         bearer(), // Enable bearer token support for headers
         username(), // Enable username support
         dash({
-            apiKey: env.BETTER_AUTH_API_KEY
-        }), // Enable BetterAuth Dashboard support
+            apiKey: env.BETTER_AUTH_API_KEY || process.env.BETTER_AUTH_API_KEY,
+            apiTimeout: 15000,
+            kvTimeout: 10000,
+        } as any), // Enable BetterAuth Dashboard support
         admin(), // Enable Admin management
         {
             id: "custom-tokens",

@@ -4,7 +4,7 @@ import { columnService } from '../services/column.service.js';
 export const columnController = {
   async getByProject(req: Request, res: Response) {
     try {
-      const { projectId } = req.params;
+      const projectId = req.params.projectId as string;
       const cols = await columnService.getColumnsByProject(projectId);
       res.json(cols);
     } catch (error) {
@@ -14,7 +14,7 @@ export const columnController = {
 
   async getById(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const col = await columnService.getColumnById(id);
       if (!col) return res.status(404).json({ error: 'Column not found' });
       res.json(col);
@@ -38,7 +38,7 @@ export const columnController = {
 
   async update(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const col = await columnService.updateColumn(id, req.body);
       if (!col) return res.status(404).json({ error: 'Column not found' });
       res.json(col);
@@ -49,7 +49,7 @@ export const columnController = {
 
   async delete(req: Request, res: Response) {
     try {
-      const { id } = req.params;
+      const id = req.params.id as string;
       const deleted = await columnService.deleteColumn(id);
       if (!deleted) return res.status(404).json({ error: 'Column not found' });
       res.status(204).send();

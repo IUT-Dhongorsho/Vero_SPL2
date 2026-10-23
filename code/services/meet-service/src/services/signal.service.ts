@@ -41,22 +41,44 @@ export const signalService = {
   ): Promise<void> {
     const { roomId } = data;
     const userId = socket.user!.id;
+    const userName = socket.user?.name || `User ${userId.substring(0, 4)}`;
+    const peerId = socket.id;
 
     const room = await roomService.getOrCreateRoom(roomId);
 
-    if (roomService.getPeer(roomId, userId)) {
-      roomService.removePeer(roomId, userId);
+    // If an older device with the same userId is already in the room, disconnect the older device cleanly
+    const existingUserPeers = roomService.getPeersByUserId(roomId, userId);
+    for (const oldPeer of existingUserPeers) {
+      if (oldPeer.socketId !== socket.id) {
+        console.log(`⚠️ [Signal] User ${userId} joined from a new device (${socket.id}). Disconnecting older device (${oldPeer.socketId})...`);
+        
+        io.to(oldPeer.socketId).emit('disconnected-duplicate', {
+          message: 'You were disconnected because this account joined the meeting from another device or window.',
+        });
+
+        const oldSocket = io.sockets.sockets.get(oldPeer.socketId);
+        if (oldSocket) {
+          oldSocket.data.isDuplicateKicked = true;
+          oldSocket.leave(roomId);
+        }
+
+        io.in(oldPeer.socketId).disconnectSockets(true);
+        roomService.removePeer(roomId, oldPeer.id, true);
+        socket.to(roomId).emit('peer-left', { peerId: oldPeer.id, userId: oldPeer.userId });
+      }
     }
 
-    roomService.addPeer(roomId, userId, socket.id);
+    // If this specific socket was already registered, remove old peer
+    if (roomService.getPeer(roomId, peerId)) {
+      roomService.removePeer(roomId, peerId);
+    }
+
+    roomService.addPeer(roomId, peerId, userId, socket.id, userName);
     socket.join(roomId);
     socket.data.roomId = roomId;
+    socket.data.peerId = peerId;
 
-    const existingProducers = roomService.getAllProducersInRoom(roomId, userId).map(p => {
-      // Find the user name from db or socket.user? Wait, room.peers has socketId.
-      const pSocket = io.sockets.sockets.get(room.peers.get(p.userId)?.socketId || '');
-      return { ...p, userName: (pSocket as AuthSocket)?.user?.name || `User ${p.userId.substring(0,4)}` };
-    });
+    const existingProducers = roomService.getAllProducersInRoom(roomId, peerId);
 
     let activeMeeting = await db.query.meetings.findFirst({
       where: and(eq(meetings.roomId, roomId), isNull(meetings.endedAt)),
@@ -83,12 +105,23 @@ export const signalService = {
       });
     }
 
-    await db.insert(meetingParticipants).values({
-      id: randomUUID(),
-      meetingId: activeMeeting.id,
-      userId,
-      joinedAt: new Date(),
+    // Insert participant if this user hasn't joined this meeting yet
+    const existingParticipant = await db.query.meetingParticipants.findFirst({
+      where: and(
+        eq(meetingParticipants.meetingId, activeMeeting.id),
+        eq(meetingParticipants.userId, userId),
+        isNull(meetingParticipants.leftAt)
+      ),
     });
+
+    if (!existingParticipant) {
+      await db.insert(meetingParticipants).values({
+        id: randomUUID(),
+        meetingId: activeMeeting.id,
+        userId,
+        joinedAt: new Date(),
+      });
+    }
 
     await publisherService.publish('peer.joined', {
       meetingId: activeMeeting.id,
@@ -96,19 +129,17 @@ export const signalService = {
     });
 
     const existingPeersList = Array.from(room.peers.entries())
-      .filter(([pId]) => pId !== userId)
-      .map(([pId, peerObj]) => {
-        const pSocket = io.sockets.sockets.get(peerObj.socketId);
-        return {
-          userId: pId,
-          userName: (pSocket as AuthSocket)?.user?.name || `User ${pId.substring(0, 4)}`,
-        };
-      });
+      .filter(([pId]) => pId !== peerId)
+      .map(([pId, peerObj]) => ({
+        peerId: pId,
+        userId: peerObj.userId,
+        userName: peerObj.userName || `User ${peerObj.userId.substring(0, 4)}`,
+      }));
 
-    socket.to(roomId).emit('peer-joined', { userId, userName: socket.user?.name });
+    socket.to(roomId).emit('peer-joined', { peerId, userId, userName });
     socket.emit('room-joined', { existingProducers, existingPeers: existingPeersList });
     console.log(
-      `✅ [Signal] ${userId} joined room "${roomId}" — ${room.peers.size} peers, ${existingProducers.length} existing producers`
+      `✅ [Signal] ${userId} (${peerId}) joined room "${roomId}" — ${room.peers.size} peers, ${existingProducers.length} existing producers`
     );
   },
 
@@ -124,16 +155,23 @@ export const signalService = {
     socket.emit('rtp-capabilities', { rtpCapabilities: room.router.rtpCapabilities });
   },
 
-  handleSetRtpCapabilities(
+  async handleSetRtpCapabilities(
+    io: Server,
     socket: AuthSocket,
     data: { roomId: string; rtpCapabilities: mediasoupTypes.RtpCapabilities }
-  ): void {
-    const peer = roomService.getPeer(data.roomId, socket.user!.id);
-    if (!peer) {
+  ): Promise<void> {
+    const room = roomService.getRoom(data.roomId);
+    const peer = roomService.getPeer(data.roomId, socket.id);
+    if (!room || !peer) {
       socket.emit('sfu-error', { message: 'Peer not in room', code: 'PEER_NOT_FOUND' });
       return;
     }
     peer.rtpCapabilities = data.rtpCapabilities;
+
+    // If recvTransport already exists, push existing producers now!
+    if (peer.recvTransport) {
+      await this._pushExistingConsumers(io, socket, room, peer, data.roomId);
+    }
   },
 
   async handleCreateSendTransport(
@@ -141,7 +179,7 @@ export const signalService = {
     data: { roomId: string }
   ): Promise<void> {
     const room = roomService.getRoom(data.roomId);
-    const peer = roomService.getPeer(data.roomId, socket.user!.id);
+    const peer = roomService.getPeer(data.roomId, socket.id);
     if (!room || !peer) {
       socket.emit('sfu-error', { message: 'Room or peer not found', code: 'STATE_ERROR' });
       return;
@@ -169,7 +207,7 @@ export const signalService = {
     data: { roomId: string }
   ): Promise<void> {
     const room = roomService.getRoom(data.roomId);
-    const peer = roomService.getPeer(data.roomId, socket.user!.id);
+    const peer = roomService.getPeer(data.roomId, socket.id);
     if (!room || !peer) {
       socket.emit('sfu-error', { message: 'Room or peer not found', code: 'STATE_ERROR' });
       return;
@@ -202,12 +240,18 @@ export const signalService = {
     peer: Peer,
     roomId: string
   ): Promise<void> {
-    const existing = roomService.getAllProducersInRoom(roomId, socket.user!.id);
+    const existing = roomService.getAllProducersInRoom(roomId, peer.id);
 
-    for (const { userId: producerUserId, producerId } of existing) {
-      const producerPeer = roomService.getPeer(roomId, producerUserId);
+    for (const { peerId: producerPeerId, userId: producerUserId, userName: producerUserName, producerId } of existing) {
+      const producerPeer = roomService.getPeer(roomId, producerPeerId);
       const producer = producerPeer?.producers.get(producerId);
       if (!producer || producer.closed) continue;
+
+      // Avoid creating duplicate consumers for the same producer
+      const alreadyConsuming = Array.from(peer.consumers.values()).some(
+        (c) => c.producerId === producer.id && !c.closed
+      );
+      if (alreadyConsuming) continue;
 
       const consumer = await createConsumer(
         room.router,
@@ -219,24 +263,24 @@ export const signalService = {
 
       peer.consumers.set(consumer.id, consumer);
 
-      consumer.on('transportclose', () => {
-        peer.consumers.delete(consumer.id);
+      const capturedPeer = peer;
+      const capturedConsumer = consumer;
+      capturedConsumer.on('transportclose', () => {
+        capturedPeer.consumers.delete(capturedConsumer.id);
       });
-      consumer.on('producerclose', () => {
-        peer.consumers.delete(consumer.id);
-        socket.emit('consumer-closed', { consumerId: consumer.id });
+      capturedConsumer.on('producerclose', () => {
+        capturedPeer.consumers.delete(capturedConsumer.id);
+        socket.emit('consumer-closed', { consumerId: capturedConsumer.id });
       });
 
-      const producerSocket = producerPeer
-        ? io.sockets.sockets.get(producerPeer.socketId)
-        : undefined;
       socket.emit('consume', {
         consumerId: consumer.id,
         producerId,
         kind: consumer.kind,
         rtpParameters: consumer.rtpParameters,
+        peerId: producerPeerId,
         userId: producerUserId,
-        userName: (producerSocket as AuthSocket)?.user?.name || `User ${producerUserId.substring(0,4)}`,
+        userName: producerUserName || `User ${producerUserId.substring(0, 4)}`,
       });
     }
   },
@@ -249,7 +293,7 @@ export const signalService = {
       dtlsParameters: mediasoupTypes.DtlsParameters;
     }
   ): Promise<void> {
-    const peer = roomService.getPeer(data.roomId, socket.user!.id);
+    const peer = roomService.getPeer(data.roomId, socket.id);
     if (!peer) {
       socket.emit('sfu-error', { message: 'Peer not found', code: 'PEER_NOT_FOUND' });
       return;
@@ -267,7 +311,12 @@ export const signalService = {
       return;
     }
 
-    await transport.connect({ dtlsParameters: data.dtlsParameters });
+    try {
+      await transport.connect({ dtlsParameters: data.dtlsParameters });
+    } catch (err: any) {
+      if (err.message?.includes('already called')) return;
+      throw err;
+    }
   },
 
   async handleProduce(
@@ -279,18 +328,18 @@ export const signalService = {
       rtpParameters: mediasoupTypes.RtpParameters;
       appData?: Record<string, unknown>;
     }
-  ): Promise<void> {
+  ): Promise<string | undefined> {
     const { roomId, kind, rtpParameters, appData } = data;
-    const userId = socket.user!.id;
+    const peerId = socket.id;
     const room = roomService.getRoom(roomId);
-    const peer = roomService.getPeer(roomId, userId);
+    const peer = roomService.getPeer(roomId, peerId);
 
     if (!room || !peer?.sendTransport) {
       socket.emit('sfu-error', {
         message: 'Cannot produce: send transport not initialised',
         code: 'NO_SEND_TRANSPORT',
       });
-      return;
+      return undefined;
     }
 
     const producer = await peer.sendTransport.produce({
@@ -300,16 +349,41 @@ export const signalService = {
     });
     peer.producers.set(producer.id, producer);
 
+    if (kind === 'video') {
+      console.log(
+        `🎥 [Meet:SFU] Video feed turned ON — User ID: "${peer.userId}" (name: "${peer.userName || 'Unknown'}", socketId: ${socket.id}, producerId: ${producer.id}, mime: ${producer.rtpParameters.codecs[0]?.mimeType || 'unknown'}) in room "${roomId}"`
+      );
+    } else if (kind === 'audio') {
+      console.log(
+        `🎙️ [Meet:SFU] Audio feed turned ON — User ID: "${peer.userId}" (name: "${peer.userName || 'Unknown'}", socketId: ${socket.id}, producerId: ${producer.id}) in room "${roomId}"`
+      );
+    }
+
     producer.on('transportclose', () => {
+      if (kind === 'video') {
+        console.log(
+          `⏹️ [Meet:SFU] Video feed turned OFF — User ID: "${peer.userId}" in room "${roomId}" (producerId: ${producer.id})`
+        );
+      }
       peer.producers.delete(producer.id);
     });
 
     socket.emit('produced', { producerId: producer.id });
-    socket.to(roomId).emit('new-producer', { userId, producerId: producer.id, kind });
+    socket.to(roomId).emit('new-producer', {
+      peerId,
+      userId: peer.userId,
+      producerId: producer.id,
+      kind,
+    });
 
-    for (const [otherUserId, otherPeer] of room.peers) {
-      if (otherUserId === userId) continue;
+    for (const [otherPeerId, otherPeer] of room.peers) {
+      if (otherPeerId === peerId) continue;
       if (!otherPeer.recvTransport || !otherPeer.rtpCapabilities) continue;
+
+      const alreadyConsuming = Array.from(otherPeer.consumers.values()).some(
+        (c) => c.producerId === producer.id && !c.closed
+      );
+      if (alreadyConsuming) continue;
 
       const consumer = await createConsumer(
         room.router,
@@ -328,33 +402,46 @@ export const signalService = {
       });
       capturedConsumer.on('producerclose', () => {
         capturedPeer.consumers.delete(capturedConsumer.id);
-        const otherSocket = io.sockets.sockets.get(capturedPeer.socketId);
-        otherSocket?.emit('consumer-closed', { consumerId: capturedConsumer.id });
+        io.to(capturedPeer.socketId).emit('consumer-closed', { consumerId: capturedConsumer.id });
       });
 
-      const otherSocket = io.sockets.sockets.get(otherPeer.socketId);
-      otherSocket?.emit('consume', {
+      io.to(otherPeer.socketId).emit('consume', {
         consumerId: consumer.id,
         producerId: producer.id,
         kind: consumer.kind,
         rtpParameters: consumer.rtpParameters,
-        userId,
-        userName: socket.user?.name || `User ${userId.substring(0,4)}`,
+        peerId,
+        userId: peer.userId,
+        userName: peer.userName || `User ${peer.userId.substring(0, 4)}`,
       });
     }
+
+    return producer.id;
   },
 
   async handleResumeConsumer(
     socket: AuthSocket,
     data: { roomId: string; consumerId: string }
   ): Promise<void> {
-    const peer = roomService.getPeer(data.roomId, socket.user!.id);
+    const peer = roomService.getPeer(data.roomId, socket.id);
     if (!peer) return;
 
     const consumer = peer.consumers.get(data.consumerId);
     if (!consumer || consumer.closed) return;
 
     await consumer.resume();
+    if (consumer.kind === 'video') {
+      try {
+        await consumer.requestKeyFrame();
+      } catch (err) {
+        console.warn(`[Signal] Failed to request keyframe for consumer ${consumer.id}:`, err);
+      }
+      setTimeout(async () => {
+        try {
+          if (!consumer.closed) await consumer.requestKeyFrame();
+        } catch (_) {}
+      }, 600);
+    }
   },
 
   async handleLeaveRoom(
@@ -362,42 +449,50 @@ export const signalService = {
     socket: AuthSocket,
     data: { roomId: string }
   ): Promise<void> {
-    await this._cleanupPeer(io, socket, data.roomId, socket.user!.id);
+    await this._cleanupPeer(io, socket, data.roomId, socket.id);
   },
 
   async handleDisconnect(io: Server, socket: AuthSocket): Promise<void> {
+    if (socket.data.isDuplicateKicked) {
+      console.log(`[Signal] Ignoring disconnect for duplicate-kicked socket ${socket.id}`);
+      return;
+    }
     const roomId = socket.data.roomId as string | undefined;
-    if (!roomId || !socket.user) return;
-    await this._cleanupPeer(io, socket, roomId, socket.user.id);
+    if (!roomId) return;
+    await this._cleanupPeer(io, socket, roomId, socket.id);
   },
 
   async _cleanupPeer(
     io: Server,
     socket: AuthSocket,
     roomId: string,
-    userId: string
+    peerId: string
   ): Promise<void> {
-    const peer = roomService.getPeer(roomId, userId);
+    const peer = roomService.getPeer(roomId, peerId);
     if (!peer) return;
 
     const producerIds = Array.from(peer.producers.keys());
+    const userId = peer.userId;
 
-    socket.to(roomId).emit('peer-left', { userId, producerIds });
+    socket.to(roomId).emit('peer-left', { peerId, userId, producerIds });
 
-    roomService.removePeer(roomId, userId);
+    roomService.removePeer(roomId, peerId);
     socket.leave(roomId);
     socket.data.roomId = undefined;
+    socket.data.peerId = undefined;
 
     try {
-      await db
-        .update(meetingParticipants)
-        .set({ leftAt: new Date() })
-        .where(
-          and(
-            eq(meetingParticipants.userId, userId),
-            isNull(meetingParticipants.leftAt)
-          )
-        );
+      if (!roomService.hasUserInRoom(roomId, userId)) {
+        await db
+          .update(meetingParticipants)
+          .set({ leftAt: new Date() })
+          .where(
+            and(
+              eq(meetingParticipants.userId, userId),
+              isNull(meetingParticipants.leftAt)
+            )
+          );
+      }
 
       if (!roomService.getRoom(roomId)) {
         const activeMeeting = await db.query.meetings.findFirst({
@@ -420,11 +515,11 @@ export const signalService = {
         }
       }
 
-      await publisherService.publish('peer.left', { userId, roomId });
+      await publisherService.publish('peer.left', { peerId, userId, roomId });
     } catch (err) {
-      console.error(`[Signal] DB cleanup error for user ${userId}:`, err);
+      console.error(`[Signal] DB cleanup error for peer ${peerId} (user ${userId}):`, err);
     }
 
-    console.log(`👋 [Signal] User ${userId} left room "${roomId}"`);
+    console.log(`👋 [Signal] Peer ${peerId} (user ${userId}) left room "${roomId}"`);
   },
 };

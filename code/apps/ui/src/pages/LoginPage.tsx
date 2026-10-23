@@ -59,6 +59,34 @@ export const LoginPage: React.FC = () => {
     }
   };
 
+  const handleDemoLogin = async () => {
+    setError('');
+    setLoading(true);
+    try {
+      try {
+        await authService.signup({
+          name: 'Demo User',
+          email: 'demo@vero.com',
+          password: 'password123',
+        });
+      } catch (signupErr) {
+        console.log('Demo user already registered, logging in directly.');
+      }
+      
+      const { user, token } = await authService.login({
+        email: 'demo@vero.com',
+        password: 'password123',
+      });
+      authService.setToken(token);
+      authService.setUser(user);
+      navigate('/dashboard');
+    } catch (err: any) {
+      setError(err.message || 'Demo login failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-blue-600 flex items-center justify-center p-4">
       <div className="max-w-md w-full bg-white rounded-2xl p-8 shadow-xl">
@@ -108,6 +136,21 @@ export const LoginPage: React.FC = () => {
             Sign In
           </AnimatedButton>
         </form>
+
+        <div className="mt-4 p-4 rounded-xl bg-blue-50 border border-blue-200 text-sm text-blue-800 flex justify-between items-center">
+          <div>
+            <span className="font-semibold block">Local testing?</span>
+            <span className="text-xs text-blue-600">No OAuth setup is required.</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleDemoLogin}
+            className="px-3 py-1.5 rounded-lg bg-blue-600 text-white font-medium hover:bg-blue-700 transition-colors text-xs"
+            disabled={loading}
+          >
+            Demo Login
+          </button>
+        </div>
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">

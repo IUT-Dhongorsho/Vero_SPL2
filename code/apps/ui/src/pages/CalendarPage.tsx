@@ -72,9 +72,9 @@ export const CalendarPage: React.FC = () => {
       <div className="max-w-6xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <div className="flex items-center gap-3">
-            <AnimatedButton variant="ghost" size="sm" onClick={() => changeMonth(-1)}><ChevronLeft className="w-4 h-4" /></AnimatedButton>
+            <AnimatedButton variant="outline" size="sm" onClick={() => changeMonth(-1)}><ChevronLeft className="w-4 h-4" /></AnimatedButton>
             <h2 className="text-2xl font-bold">{currentDate.toLocaleString('default', { month: 'long' })} {year}</h2>
-            <AnimatedButton variant="ghost" size="sm" onClick={() => changeMonth(1)}><ChevronRight className="w-4 h-4" /></AnimatedButton>
+            <AnimatedButton variant="outline" size="sm" onClick={() => changeMonth(1)}><ChevronRight className="w-4 h-4" /></AnimatedButton>
           </div>
           <AnimatedButton variant="outline" size="sm" onClick={goToToday}>Today</AnimatedButton>
         </div>

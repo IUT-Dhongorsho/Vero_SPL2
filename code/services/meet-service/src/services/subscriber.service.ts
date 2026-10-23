@@ -6,6 +6,12 @@ import { eq } from 'drizzle-orm';
 
 const SUBSCRIBED_CHANNELS = ['user_events'];
 
+function safeDate(val: any, fallback: Date = new Date()): Date {
+  if (!val) return fallback;
+  const d = new Date(val);
+  return isNaN(d.getTime()) ? fallback : d;
+}
+
 class SubscriberService {
   private subscriber: Redis | null = null;
 
@@ -68,14 +74,17 @@ class SubscriberService {
             name: 'User',
           }).onConflictDoNothing();
 
+          const expiresAt = safeDate(data.expiresAt, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
+          const createdAt = safeDate(data.createdAt, new Date());
+
           await db
             .insert(sessions)
             .values({
               id: data.id,
               token: data.token,
               userId: data.userId,
-              expiresAt: new Date(data.expiresAt),
-              createdAt: new Date(data.createdAt),
+              expiresAt,
+              createdAt,
               authToken: data.authToken || null,
               refreshToken: data.refreshToken || null,
             })
@@ -83,7 +92,7 @@ class SubscriberService {
               target: sessions.id,
               set: {
                 token: data.token,
-                expiresAt: new Date(data.expiresAt),
+                expiresAt,
                 authToken: data.authToken || null,
                 refreshToken: data.refreshToken || null,
               },

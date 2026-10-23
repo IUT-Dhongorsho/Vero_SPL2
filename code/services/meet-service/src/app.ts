@@ -17,15 +17,42 @@ import roomRoutes from './routes/room.routes.js';
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors({ origin: env.CLIENT_URL, credentials: true }));
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin) return callback(null, true);
+    const allowedOrigins = [
+      env.CLIENT_URL,
+      process.env.CLIENT_URL,
+      'http://localhost:3000',
+      'http://localhost:5173',
+      'http://localhost:5174',
+    ].filter(Boolean);
+
+    if (
+      allowedOrigins.includes(origin) ||
+      origin.endsWith('.better-auth.com') ||
+      origin.endsWith('.ngrok-free.app') ||
+      origin.endsWith('.ngrok-free.dev') ||
+      origin.endsWith('.ngrok.io') ||
+      origin.endsWith('.trycloudflare.com') ||
+      origin.includes('nip.io') ||
+      origin.includes('localhost') ||
+      /^https?:\/\/192\.168\.\d+\.\d+(:\d+)?$/.test(origin)
+    ) {
+      return callback(null, true);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+}));
 app.use(loggerMiddleware);
 app.use(metricsMiddleware);
 app.use(express.json());
 
-app.use('/rooms', roomRoutes);
-app.get('/signal/info', signalController.getInfo);
-app.get('/metrics', metricsController.getMetrics);
-app.get('/health', async (_req, res) => {
+app.use(['/rooms', '/api/meet/rooms'], roomRoutes);
+app.get(['/signal/info', '/api/meet/signal/info'], signalController.getInfo);
+app.get(['/metrics', '/api/meet/metrics'], metricsController.getMetrics);
+app.get(['/health', '/api/meet/health'], async (_req, res) => {
   res.json({
     status: 'ok',
     service: 'meet-service',

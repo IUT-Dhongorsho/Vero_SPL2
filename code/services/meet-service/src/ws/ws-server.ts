@@ -51,7 +51,7 @@ const authMiddleware = async (
 export function initSocketServer(server: import('http').Server): Server {
   const io = new Server(server, {
     cors: {
-      origin: env.CLIENT_URL,
+      origin: (origin, callback) => callback(null, true),
       methods: ['GET', 'POST'],
       credentials: true,
     },

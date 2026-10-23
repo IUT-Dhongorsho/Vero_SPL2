@@ -32,7 +32,7 @@ export const WorkspacePage: React.FC = () => {
             <p className="text-muted-foreground text-lg">All initiatives you are a member of.</p>
           </div>
           <div className="flex items-center gap-3">
-            <AnimatedButton variant="ghost" onClick={() => setIsJoinModalOpen(true)}>
+            <AnimatedButton variant="outline" onClick={() => setIsJoinModalOpen(true)}>
               Join via Code
             </AnimatedButton>
             <AnimatedButton variant="primary" onClick={() => setIsModalOpen(true)}>
