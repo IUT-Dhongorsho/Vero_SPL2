@@ -18,7 +18,13 @@ export const user = pgTable("user", {
 	department: varchar("department", { length: 255 }),
 	phoneNumber: varchar("phoneNumber", { length: 50 }),
 	location: varchar("location", { length: 255 }),
-	
+
+	// Social / public presence
+	linkedinUrl: varchar("linkedinUrl", { length: 512 }),
+	githubUsername: varchar("githubUsername", { length: 255 }),
+	websiteUrl: varchar("websiteUrl", { length: 512 }),
+	skills: text("skills"), // comma-separated list
+
 	// Preferences
 	onboardingCompleted: boolean("onboardingCompleted").default(false).notNull(),
 	theme: varchar("theme", { length: 20 }).default("system").notNull(), // light, dark, system

@@ -11,6 +11,34 @@ export interface CreateProjectInput {
 }
 
 export const projectService = {
+  /**
+   * board-service keeps a thin replica of projects so `columns.project_id` has
+   * something to point at. Projects are owned by project-service, so the first
+   * time a board is opened we materialise the row here instead of failing on
+   * the foreign key.
+   */
+  async ensureProjectReplica(id: string, input: { name?: string; ownerId?: string } = {}) {
+    const [existing] = await db.select().from(projects).where(eq(projects.id, id));
+    if (existing) return existing;
+
+    const [created] = await db
+      .insert(projects)
+      .values({
+        id,
+        name: input.name?.slice(0, 255) || 'Project',
+        description: '',
+        ownerId: input.ownerId || 'unknown',
+      })
+      .onConflictDoNothing()
+      .returning();
+
+    if (created) return created;
+
+    // Lost a race with a concurrent initialise — re-read.
+    const [raced] = await db.select().from(projects).where(eq(projects.id, id));
+    return raced ?? null;
+  },
+
   async getProjectsByWorkspace(workspaceId: string) {
     return db
       .select()

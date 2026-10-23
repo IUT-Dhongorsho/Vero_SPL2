@@ -1,249 +1,280 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { useParams } from 'react-router-dom';
+import React, { useMemo, useState } from 'react';
 import {
   DndContext,
-  DragEndEvent,
-  DragOverEvent,
-  DragStartEvent,
   DragOverlay,
   PointerSensor,
+  KeyboardSensor,
+  closestCorners,
+  useDroppable,
   useSensor,
   useSensors,
-  closestCorners,
+  type DragEndEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core';
-import { useBoardStore } from '../../stores/board.store';
-import { useAuthStore } from '../../stores/auth.store';
-import { useProjectStore } from '../../stores/project.store';
-import { KanbanColumn } from './KanbanColumn';
-import { TaskCard } from './TaskCard';
-import { Plus, Loader2 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { toast } from '../Providers/ToastProvider';
-import type { Task } from '../../services/taskService';
+import { SortableContext, verticalListSortingStrategy, useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { AnimatePresence, motion } from 'framer-motion';
+import { CalendarClock, GripVertical, Plus } from 'lucide-react';
+import { Badge, PriorityBadge } from '../ui/Badge';
+import { cn } from '../../utils/cn';
+import { EASE_OUT } from '../../lib/motion';
 
-export const KanbanBoard: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
-  const { columns, tasks, loading, initialized, fetchBoard, createColumn, moveTask } = useBoardStore();
-  const { user } = useAuthStore();
-  const { projects, fetchProjects } = useProjectStore();
-  const [isAddingColumn, setIsAddingColumn] = useState(false);
-  const [newColumnName, setNewColumnName] = useState('');
-  const [activeTask, setActiveTask] = useState<Task | null>(null);
+export interface KanbanCard {
+  id: string;
+  title: string;
+  description?: string | null;
+  status: string;
+  priority?: string | null;
+  dueDate?: string | null;
+  labels?: string[];
+  /** Small context line, e.g. the project a task belongs to. */
+  context?: string | null;
+  /** Cards that cannot be dragged. */
+  locked?: boolean;
+}
+
+export interface KanbanColumnDef {
+  id: string;
+  label: string;
+}
+
+interface KanbanBoardProps {
+  columns: KanbanColumnDef[];
+  cards: KanbanCard[];
+  onMove: (cardId: string, toStatus: string) => void;
+  onCardClick?: (card: KanbanCard) => void;
+  onAdd?: (status: string) => void;
+  emptyHint?: string;
+}
+
+export function dueMeta(dueDate?: string | null) {
+  if (!dueDate) return null;
+
+  const due = new Date(dueDate);
+  if (Number.isNaN(due.getTime())) return null;
+
+  const startOfToday = new Date();
+  startOfToday.setHours(0, 0, 0, 0);
+  // Floor, not round: a deadline at 12:00 today is 0.5 days away and must read
+  // as "today", and yesterday at 12:00 must read as overdue. This has to match
+  // the bucketing on the Tasks page or a row lands under the wrong heading.
+  const days = Math.floor((due.getTime() - startOfToday.getTime()) / 86_400_000);
+
+  if (days < 0) return { label: `${Math.abs(days)}d overdue`, tone: 'danger' as const };
+  if (days === 0) return { label: 'Due today', tone: 'warning' as const };
+  if (days === 1) return { label: 'Due tomorrow', tone: 'warning' as const };
+  if (days <= 7) return { label: `Due in ${days}d`, tone: 'neutral' as const };
+  return {
+    label: due.toLocaleDateString(undefined, { month: 'short', day: 'numeric' }),
+    tone: 'neutral' as const,
+  };
+}
+
+const Card: React.FC<{ card: KanbanCard; onClick?: () => void; dragging?: boolean }> = ({
+  card,
+  onClick,
+  dragging,
+}) => {
+  const due = dueMeta(card.dueDate);
+
+  return (
+    <div
+      onClick={onClick}
+      className={cn(
+        'group surface rounded-xl p-4 select-none',
+        onClick && 'cursor-pointer',
+        dragging && 'shadow-lifted rotate-1'
+      )}
+    >
+      <div className="flex items-start gap-2">
+        <p className="flex-1 font-medium text-foreground leading-snug">{card.title}</p>
+        {!card.locked && (
+          <GripVertical className="w-4 h-4 text-subtle-foreground opacity-0 group-hover:opacity-100 transition-opacity shrink-0 mt-0.5" />
+        )}
+      </div>
+
+      {card.description && (
+        <p className="mt-2 text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+          {card.description}
+        </p>
+      )}
+
+      <div className="mt-3.5 flex flex-wrap items-center gap-2">
+        <PriorityBadge priority={card.priority} />
+        {due && (
+          <Badge tone={due.tone}>
+            <CalendarClock className="w-3 h-3" />
+            {due.label}
+          </Badge>
+        )}
+        {card.labels?.slice(0, 2).map((label) => (
+          <Badge key={label} tone="neutral">
+            {label}
+          </Badge>
+        ))}
+      </div>
+
+      {card.context && (
+        <p className="mt-3 pt-3 border-t border-border text-xs text-subtle-foreground truncate">
+          {card.context}
+        </p>
+      )}
+    </div>
+  );
+};
+
+const SortableCard: React.FC<{ card: KanbanCard; onClick?: () => void }> = ({ card, onClick }) => {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: card.id,
+    disabled: card.locked,
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Translate.toString(transform), transition }}
+      className={cn(isDragging && 'opacity-40')}
+      {...attributes}
+      {...listeners}
+    >
+      <Card card={card} onClick={onClick} />
+    </div>
+  );
+};
+
+const Column: React.FC<{
+  column: KanbanColumnDef;
+  cards: KanbanCard[];
+  onCardClick?: (card: KanbanCard) => void;
+  onAdd?: (status: string) => void;
+  emptyHint?: string;
+}> = ({ column, cards, onCardClick, onAdd, emptyHint }) => {
+  const { setNodeRef, isOver } = useDroppable({ id: column.id });
+
+  return (
+    <div className="flex flex-col min-w-[290px] w-[290px] shrink-0">
+      <div className="flex items-center justify-between px-1 pb-3">
+        <div className="flex items-center gap-2">
+          <h3 className="font-semibold text-foreground">{column.label}</h3>
+          <span className="text-xs font-medium text-muted-foreground bg-muted rounded-full px-2 py-0.5 tabular-nums">
+            {cards.length}
+          </span>
+        </div>
+        {onAdd && (
+          <button
+            onClick={() => onAdd(column.id)}
+            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors cursor-pointer"
+            aria-label={`Add a task to ${column.label}`}
+          >
+            <Plus className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+
+      <div
+        ref={setNodeRef}
+        className={cn(
+          'flex-1 rounded-2xl p-2.5 space-y-2.5 min-h-[180px] transition-colors duration-200 border border-dashed',
+          isOver ? 'bg-accent-soft border-accent' : 'bg-muted/40 border-transparent'
+        )}
+      >
+        <SortableContext items={cards.map((c) => c.id)} strategy={verticalListSortingStrategy}>
+          <AnimatePresence initial={false}>
+            {cards.map((card) => (
+              <motion.div
+                key={card.id}
+                layout
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.96 }}
+                transition={{ duration: 0.2, ease: EASE_OUT }}
+              >
+                <SortableCard card={card} onClick={onCardClick ? () => onCardClick(card) : undefined} />
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </SortableContext>
+
+        {cards.length === 0 && (
+          <p className="text-xs text-subtle-foreground text-center py-8 px-3 leading-relaxed">
+            {emptyHint ?? 'Drop a card here'}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export const KanbanBoard: React.FC<KanbanBoardProps> = ({
+  columns,
+  cards,
+  onMove,
+  onCardClick,
+  onAdd,
+  emptyHint,
+}) => {
+  const [activeId, setActiveId] = useState<string | null>(null);
 
   const sensors = useSensors(
-    useSensor(PointerSensor, {
-      activationConstraint: { distance: 8 },
-    })
+    // A small threshold keeps click-to-open working alongside drag.
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(KeyboardSensor)
   );
 
-  useEffect(() => {
-    if (projects.length === 0) fetchProjects();
-  }, [projects.length, fetchProjects]);
-
-  useEffect(() => {
-    if (projectId) {
-      const project = projects.find(p => p.id === projectId);
-      fetchBoard(projectId, project ? { name: project.name, description: project.description, ownerId: user?.id } : undefined);
+  const byColumn = useMemo(() => {
+    const map = new Map<string, KanbanCard[]>(columns.map((c) => [c.id, []]));
+    for (const card of cards) {
+      const bucket = map.get(card.status) ?? map.get(columns[0]?.id ?? '');
+      bucket?.push(card);
     }
-  }, [projectId, fetchBoard, projects, user?.id]);
+    return map;
+  }, [cards, columns]);
 
-  const handleAddColumn = async () => {
-    if (!newColumnName.trim() || !projectId) return;
-    try {
-      await createColumn(newColumnName.trim(), projectId);
-      setNewColumnName('');
-      setIsAddingColumn(false);
-      toast.success('Column created');
-    } catch (e) {
-      toast.error('Failed to create column');
-    }
-  };
+  const activeCard = cards.find((c) => c.id === activeId) ?? null;
 
-  const findColumnByTaskId = (taskId: string) => {
-    return columns.find(col =>
-      tasks.some(t => t.id === taskId && t.columnId === col.id)
-    );
-  };
-
-  const handleDragStart = useCallback((event: DragStartEvent) => {
-    const { active } = event;
-    const task = tasks.find(t => t.id === active.id);
-    if (task) setActiveTask(task);
-  }, [tasks]);
-
-  const handleDragOver = useCallback((event: DragOverEvent) => {
+  const handleDragEnd = (event: DragEndEvent) => {
+    setActiveId(null);
     const { active, over } = event;
     if (!over) return;
 
-    const activeId = active.id as string;
-    const overId = over.id as string;
+    const cardId = String(active.id);
+    const card = cards.find((c) => c.id === cardId);
+    if (!card) return;
 
-    const activeColumn = findColumnByTaskId(activeId);
-    // over could be a task or a column
-    let overColumn = columns.find(c => c.id === overId);
-    if (!overColumn) {
-      overColumn = findColumnByTaskId(overId);
+    // `over` is either a column droppable or another card — resolve both.
+    const overId = String(over.id);
+    const targetStatus = columns.some((c) => c.id === overId)
+      ? overId
+      : cards.find((c) => c.id === overId)?.status;
+
+    if (targetStatus && targetStatus !== card.status) {
+      onMove(cardId, targetStatus);
     }
-
-    if (!activeColumn || !overColumn || activeColumn.id === overColumn.id) return;
-
-    // Move task to the new column optimistically
-    const task = tasks.find(t => t.id === activeId);
-    if (!task) return;
-
-    const colTasks = tasks.filter(t => t.columnId === overColumn!.id);
-    const newOrder = colTasks.length;
-
-    const store = useBoardStore.getState();
-    const prevTasks = store.tasks;
-    const updated = prevTasks.map(t =>
-      t.id === activeId ? { ...t, columnId: overColumn!.id, order: newOrder } : t
-    );
-    useBoardStore.setState({ tasks: updated });
-  }, [columns, tasks]);
-
-  const handleDragEnd = useCallback(async (event: DragEndEvent) => {
-    const { active, over } = event;
-    setActiveTask(null);
-
-    if (!over) return;
-
-    const activeId = active.id as string;
-    const overId = over.id as string;
-
-    const task = tasks.find(t => t.id === activeId);
-    if (!task) return;
-
-    let targetColumnId = task.columnId;
-    let targetOrder = task.order;
-
-    // If dropped on another task, put it at that task's position
-    const overTask = tasks.find(t => t.id === overId);
-    if (overTask) {
-      targetColumnId = overTask.columnId;
-      targetOrder = overTask.order;
-    } else {
-      // Dropped on a column directly
-      const overColumn = columns.find(c => c.id === overId);
-      if (overColumn) {
-        targetColumnId = overColumn.id;
-        const colTasks = tasks.filter(t => t.columnId === overColumn.id && t.id !== activeId);
-        targetOrder = colTasks.length;
-      }
-    }
-
-    // If nothing changed, skip
-    if (task.columnId === targetColumnId && task.order === targetOrder) return;
-
-    try {
-      await moveTask(activeId, { columnId: targetColumnId, order: targetOrder });
-    } catch (e) {
-      toast.error('Failed to move task');
-    }
-  }, [tasks, columns, moveTask]);
-
-  if (loading && !initialized) {
-    return (
-      <div className="flex items-center justify-center py-32">
-        <div className="flex flex-col items-center gap-3">
-          <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          <p className="text-muted-foreground text-sm">Loading board...</p>
-        </div>
-      </div>
-    );
-  }
+  };
 
   return (
     <DndContext
       sensors={sensors}
       collisionDetection={closestCorners}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
+      onDragStart={(event: DragStartEvent) => setActiveId(String(event.active.id))}
       onDragEnd={handleDragEnd}
+      onDragCancel={() => setActiveId(null)}
     >
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        className="flex gap-5 overflow-x-auto pb-4 min-h-[calc(100vh-12rem)] items-start"
-      >
-        {columns
-          .sort((a, b) => a.order - b.order)
-          .map((column) => (
-            <KanbanColumn
-              key={column.id}
-              column={column}
-              tasks={tasks
-                .filter((t) => t.columnId === column.id)
-                .sort((a, b) => a.order - b.order)}
-              userId={user?.id || ''}
-            />
-          ))}
+      <div className="flex gap-4 overflow-x-auto pb-4 -mx-1 px-1">
+        {columns.map((column) => (
+          <Column
+            key={column.id}
+            column={column}
+            cards={byColumn.get(column.id) ?? []}
+            onCardClick={onCardClick}
+            onAdd={onAdd}
+            emptyHint={emptyHint}
+          />
+        ))}
+      </div>
 
-        {/* Add Column */}
-        <div className="flex-shrink-0 w-72">
-          <AnimatePresence mode="wait">
-            {isAddingColumn ? (
-              <motion.div
-                key="input"
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="bg-card border border-border rounded-xl p-3.5 shadow-sm"
-              >
-                <input
-                  autoFocus
-                  value={newColumnName}
-                  onChange={(e) => setNewColumnName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter') handleAddColumn();
-                    if (e.key === 'Escape') {
-                      setNewColumnName('');
-                      setIsAddingColumn(false);
-                    }
-                  }}
-                  placeholder="Column name..."
-                  className="w-full text-sm font-medium text-foreground bg-transparent focus:outline-none placeholder:text-muted-foreground mb-3"
-                />
-                <div className="flex gap-2">
-                  <button
-                    onClick={handleAddColumn}
-                    disabled={!newColumnName.trim()}
-                    className="flex-1 text-xs font-medium bg-primary text-primary-foreground px-3 py-1.5 rounded-lg hover:bg-primary/90 transition-colors disabled:opacity-40"
-                  >
-                    Add Column
-                  </button>
-                  <button
-                    onClick={() => {
-                      setNewColumnName('');
-                      setIsAddingColumn(false);
-                    }}
-                    className="text-xs font-medium text-muted-foreground hover:text-foreground px-3 py-1.5 rounded-lg hover:bg-muted transition-colors"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </motion.div>
-            ) : (
-              <motion.button
-                key="button"
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                onClick={() => setIsAddingColumn(true)}
-                className="w-full flex items-center justify-center gap-2 py-8 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/50 rounded-xl border border-dashed border-border transition-all"
-              >
-                <Plus className="w-4 h-4" /> Add Column
-              </motion.button>
-            )}
-          </AnimatePresence>
-        </div>
-      </motion.div>
-
-      <DragOverlay>
-        {activeTask ? (
-          <div className="opacity-90 rotate-3 scale-105">
-            <TaskCard task={activeTask} isDragOverlay />
-          </div>
-        ) : null}
+      <DragOverlay dropAnimation={{ duration: 180, easing: 'cubic-bezier(0.16, 1, 0.3, 1)' }}>
+        {activeCard ? <Card card={activeCard} dragging /> : null}
       </DragOverlay>
     </DndContext>
   );

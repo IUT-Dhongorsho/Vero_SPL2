@@ -7,6 +7,7 @@ const router = Router();
 router.use(authMiddleware);
 
 router.post('/', channelController.createChannel);
+router.post('/direct', channelController.openDirectChannel);
 router.get('/', channelController.getUserChannels);
 router.get('/:id', channelController.getChannelById);
 

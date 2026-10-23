@@ -10,26 +10,20 @@ import { generateJWT, generateRefreshToken } from "../utils/jwt.util.js";
 import { eq } from "drizzle-orm";
 
 import { publisherService } from "./publisher.service.js";
-
-// Derive basePath from BETTER_AUTH_URL if provided, otherwise default to '/api/better-auth'
-export const getDerivedBasePath = (urlStr: string) => {
-    try {
-        const parsed = new URL(urlStr);
-        const path = parsed.pathname.replace(/\/$/, "");
-        return path && path !== "/" ? path : "/api/better-auth";
-    } catch {
-        return "/api/better-auth";
-    }
-};
-
-export const derivedBasePath = getDerivedBasePath(env.BETTER_AUTH_URL);
+import { GMAIL_SCOPES } from "./gmail.service.js";
 
 export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,
-    basePath: derivedBasePath,
+    // Better Auth defaults this to `/api/auth`, but every caller — the Express
+    // route below, the nginx rule and the browser client — uses
+    // `/api/better-auth`, so without this every auth request 404s.
+    basePath: "/api/better-auth",
     secret: env.BETTER_AUTH_SECRET,
+    // The Vite dev server runs on :3000; :5173 stays for anyone on the Vite
+    // default. Extra origins can be added with a comma-separated CLIENT_URL.
     trustedOrigins: [
-        env.CLIENT_URL || process.env.CLIENT_URL || "http://localhost:3000",
+        ...(process.env.CLIENT_URL?.split(",").map((origin) => origin.trim()).filter(Boolean) ?? []),
+        env.CLIENT_URL || "http://localhost:3000",
         "http://localhost:3000",
         "http://localhost:5173",
         "http://localhost:5174",
@@ -129,6 +123,11 @@ export const auth = betterAuth({
         google: {
             clientId: env.GOOGLE_CLIENT_ID || "",
             clientSecret: env.GOOGLE_CLIENT_SECRET || "",
+            // Gmail read + send powers the dashboard mail widget. `offline` access
+            // is what gets us a refresh token so the widget keeps working.
+            scope: GMAIL_SCOPES,
+            accessType: "offline",
+            prompt: "consent",
             getUserInfo: async (token: any) => {
                 const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                     headers: { Authorization: `Bearer ${token.accessToken}` },
@@ -156,10 +155,8 @@ export const auth = betterAuth({
         bearer(), // Enable bearer token support for headers
         username(), // Enable username support
         dash({
-            apiKey: env.BETTER_AUTH_API_KEY || process.env.BETTER_AUTH_API_KEY,
-            apiTimeout: 15000,
-            kvTimeout: 10000,
-        } as any), // Enable BetterAuth Dashboard support
+            apiKey: env.BETTER_AUTH_API_KEY
+        }), // Enable BetterAuth Dashboard support
         admin(), // Enable Admin management
         {
             id: "custom-tokens",

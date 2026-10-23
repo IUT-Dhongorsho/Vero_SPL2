@@ -13,7 +13,11 @@ export default defineConfig({
   server: {
     port: 3000,
     allowedHosts: true,
+    // Mirrors infra/nginx/nginx.conf: services that mount their routes at the
+    // root need the `/api` prefix stripped; board and notes mount `/api/...`
+    // themselves and are passed through untouched.
     proxy: {
+      // Better Auth handles both `/api/better-auth/*` and `/better-auth/*`
       '/api/better-auth': {
         target: 'http://localhost:8001',
         changeOrigin: true,
@@ -23,6 +27,31 @@ export default defineConfig({
         target: 'http://localhost:8001',
         changeOrigin: true,
         secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/api/user': {
+        target: 'http://localhost:8001',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/api/users': {
+        target: 'http://localhost:8001',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/api/mail': {
+        target: 'http://localhost:8001',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
+      },
+      '/api/internal': {
+        target: 'http://localhost:8001',
+        changeOrigin: true,
+        secure: false,
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/api/board': {
         target: 'http://localhost:8002',
@@ -33,17 +62,20 @@ export default defineConfig({
         target: 'http://localhost:8003',
         changeOrigin: true,
         secure: false,
+        ws: true,
       },
       '/api/project': {
         target: 'http://localhost:8004',
         changeOrigin: true,
         secure: false,
-        rewrite: (path) => path.replace(/^\/api\/project/, '/project'),
+        rewrite: (path) => path.replace(/^\/api/, ''),
       },
       '/api/chat': {
         target: 'http://localhost:8005',
         changeOrigin: true,
         secure: false,
+        ws: true,
+        rewrite: (path) => path.replace(/^\/api\/chat/, ''),
       },
       '/api/notifications': {
         target: 'http://localhost:8006',

@@ -5,7 +5,7 @@ export const workspaces = pgTable('workspaces', {
   id: text('id').primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: varchar('name', { length: 255 }).notNull(),
   description: text('description'),
-  ownerId: text('owner_id').notNull(),
+  ownerId: text('owner_id').notNull(), // Better Auth ids are opaque strings, not UUIDs
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

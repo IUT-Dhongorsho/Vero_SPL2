@@ -1,65 +1,90 @@
 import React, { useEffect } from 'react';
-import { Search, ChevronDown } from 'lucide-react';
+import { Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useAuthStore } from '../../stores/auth.store';
 import { useNotificationStore } from '../../stores/notification.store';
 import { useNavigationStore } from '../../stores/navigationStore';
-import { useNavigate } from 'react-router-dom';
+import { Avatar } from '../ui/Avatar';
+import { ThemeToggle } from '../ui/ThemeToggle';
+import { cn } from '../../utils/cn';
 
 export interface TopBarProps {
   title: string;
+  subtitle?: string;
   actions?: React.ReactNode;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ title, actions }) => {
+export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, actions }) => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const isHydrated = useAuthStore((state) => state._hasHydrated);
-  
+
   const connectSocket = useNotificationStore((state) => state.connectSocket);
   const disconnectSocket = useNotificationStore((state) => state.disconnectSocket);
   const { isSidebarCollapsed } = useNavigationStore();
 
   useEffect(() => {
-    if (user?.id) {
-      connectSocket(user.id);
-    }
-    return () => {
-      disconnectSocket();
-    };
+    if (user?.id) connectSocket(user.id);
+    return () => disconnectSocket();
   }, [user?.id, connectSocket, disconnectSocket]);
+
+  const openSearch = () => {
+    window.dispatchEvent(new CustomEvent('vero:open-search'));
+  };
+
   return (
-    <header className={`fixed top-0 right-0 h-16 bg-card/80 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:px-8 z-40 transition-all duration-300 left-0 ${isSidebarCollapsed ? 'md:left-16' : 'md:left-64'}`}>
-      
-      {/* Breadcrumb / Title — offset on mobile to clear the hamburger button */}
-      <div className="flex items-center gap-2 cursor-pointer group rounded-md hover:bg-muted p-1 -ml-1 transition-colors pl-10 md:pl-0">
-        <h2 className="text-lg font-semibold text-foreground group-hover:text-primary transition-colors truncate max-w-[150px] md:max-w-none">{title}</h2>
-        <ChevronDown className="w-4 h-4 text-muted-foreground group-hover:text-primary transition-colors shrink-0" />
+    <header
+      className={cn(
+        'fixed top-0 right-0 left-0 h-16 z-40 flex items-center justify-between gap-4 px-4 md:px-8',
+        'bg-background/80 backdrop-blur-xl border-b border-border transition-[left] duration-300',
+        isSidebarCollapsed ? 'md:left-[68px]' : 'md:left-[264px]'
+      )}
+    >
+      <div className="min-w-0 pl-12 md:pl-0">
+        <h1 className="text-lg font-semibold tracking-tight text-foreground truncate leading-tight">
+          {title}
+        </h1>
+        {subtitle && (
+          <p className="text-xs text-muted-foreground truncate hidden sm:block">{subtitle}</p>
+        )}
       </div>
-      
-      <div className="flex items-center gap-2 md:gap-4">
-        {/* Global Search Trigger */}
-        <button className="flex items-center gap-2 px-3 py-1.5 md:px-4 md:py-2 bg-muted hover:bg-muted/80 text-muted-foreground rounded-full text-sm transition-colors ring-1 ring-border cursor-pointer">
+
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          onClick={openSearch}
+          className="hidden sm:flex items-center gap-2.5 h-10 pl-3.5 pr-2.5 rounded-xl bg-muted hover:bg-secondary text-muted-foreground border border-border transition-colors cursor-pointer"
+        >
           <Search className="w-4 h-4 shrink-0" />
-          <span className="hidden md:inline">Search...</span>
-          <span className="hidden md:inline text-xs border border-border rounded px-1 ml-2 bg-background">⌘K</span>
+          <span className="text-sm">Search</span>
+          <kbd className="text-2xs font-medium border border-border rounded-md px-1.5 py-0.5 bg-background text-subtle-foreground">
+            ⌘K
+          </kbd>
+        </button>
+
+        <button
+          onClick={openSearch}
+          className="sm:hidden w-10 h-10 rounded-xl border border-border bg-card text-muted-foreground hover:text-foreground hover:bg-muted transition-colors grid place-items-center"
+          aria-label="Search"
+        >
+          <Search className="w-[18px] h-[18px]" />
         </button>
 
         {actions}
-        
+
+        <ThemeToggle />
         <NotificationDropdown />
 
         <button
-          onClick={() => navigate('/settings')}
-          title="Account Settings"
-          className="w-8 h-8 rounded-full border border-border flex items-center justify-center bg-muted overflow-hidden hover:opacity-85 transition-opacity cursor-pointer focus:outline-none shrink-0"
+          onClick={() => navigate('/profile')}
+          title="Your profile"
+          aria-label="Your profile"
+          className="rounded-full hover:opacity-85 transition-opacity cursor-pointer shrink-0"
         >
           {!isHydrated ? (
-            <div className="w-full h-full bg-muted animate-pulse" />
-          ) : user?.avatar ? (
-            <img src={user.avatar} alt={user.name} className="w-full h-full object-cover" />
+            <span className="w-9 h-9 rounded-full skeleton-shimmer block" />
           ) : (
-            <span className="text-xs">{user?.name ? user.name.charAt(0).toUpperCase() : '👤'}</span>
+            <Avatar name={user?.name} src={user?.avatar} size="sm" />
           )}
         </button>
       </div>

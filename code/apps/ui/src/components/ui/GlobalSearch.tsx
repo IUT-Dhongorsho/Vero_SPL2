@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Search, FolderKanban, LayoutDashboard, Settings, FileText, CheckSquare, CalendarDays, MessageSquare, Video } from 'lucide-react';
+import { Search, FolderKanban, LayoutDashboard, Settings, FileText, CheckSquare, CalendarDays, MessageSquare } from 'lucide-react';
+import { useProjectStore } from '../../stores/project.store';
 
 interface SearchResult {
   id: string;
@@ -18,6 +19,7 @@ export const GlobalSearch: React.FC = () => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const projects = useProjectStore((state) => state.projects);
 
   // Toggle on Cmd+K or Ctrl+K
   useEffect(() => {
@@ -30,8 +32,15 @@ export const GlobalSearch: React.FC = () => {
         setIsOpen(false);
       }
     };
+    // The TopBar search button dispatches this so both entry points share state.
+    const openFromUi = () => setIsOpen(true);
+
     window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener('vero:open-search', openFromUi);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('vero:open-search', openFromUi);
+    };
   }, []);
 
   // Focus input when opened
@@ -44,20 +53,25 @@ export const GlobalSearch: React.FC = () => {
   }, [isOpen]);
 
   const allItems: SearchResult[] = [
-    { id: 'nav-dashboard', title: 'Dashboard', icon: <LayoutDashboard />, route: '/dashboard', category: 'Navigation' },
-    { id: 'nav-projects', title: 'Projects', icon: <FolderKanban />, route: '/projects', category: 'Navigation' },
-    { id: 'nav-tasks', title: 'My Tasks', icon: <CheckSquare />, route: '/tasks', category: 'Navigation' },
+    { id: 'nav-dashboard', title: 'Home', icon: <LayoutDashboard />, route: '/dashboard', category: 'Navigation' },
+    { id: 'nav-inbox', title: 'Inbox', subtitle: 'Direct messages', icon: <MessageSquare />, route: '/inbox', category: 'Navigation' },
     { id: 'nav-calendar', title: 'Calendar', icon: <CalendarDays />, route: '/calendar', category: 'Navigation' },
+    { id: 'nav-tasks', title: 'Tasks', icon: <CheckSquare />, route: '/tasks', category: 'Navigation' },
+    { id: 'nav-progress', title: 'Progress', subtitle: 'Your personal board', icon: <CheckSquare />, route: '/progress', category: 'Navigation' },
+    { id: 'nav-projects', title: 'Projects', icon: <FolderKanban />, route: '/projects', category: 'Navigation' },
+    { id: 'nav-profile', title: 'Profile', icon: <Settings />, route: '/profile', category: 'Navigation' },
     { id: 'nav-files', title: 'Files', icon: <FileText />, route: '/files', category: 'Navigation' },
     { id: 'nav-settings', title: 'Settings', icon: <Settings />, route: '/settings', category: 'Navigation' },
-    
-    // Some mock projects/modules for wow-factor
-    { id: 'proj-1', title: 'Vero SPL2', subtitle: 'Project', icon: <FolderKanban />, route: '/workspace/1/project/2', category: 'Projects' },
-    { id: 'proj-2', title: 'Website Redesign', subtitle: 'Project', icon: <FolderKanban />, route: '/workspace/1/project/1', category: 'Projects' },
-    
-    { id: 'mod-1', title: 'Authentication System', subtitle: 'Module', icon: <FileText />, route: '/workspace/1/project/2/module/m1', category: 'Modules' },
-    { id: 'mod-chat', title: 'Auth System Chat', subtitle: 'Module Chat', icon: <MessageSquare />, route: '/workspace/1/project/2/module/m1/chat', category: 'Modules' },
-    { id: 'mod-meet', title: 'Auth System Meet', subtitle: 'Module Meet', icon: <Video />, route: '/workspace/1/project/2/module/m1/meet', category: 'Modules' },
+
+    // Real projects, so the palette actually navigates somewhere useful.
+    ...projects.map((project) => ({
+      id: `proj-${project.id}`,
+      title: project.name,
+      subtitle: project.description || 'Project',
+      icon: <FolderKanban />,
+      route: `/project/${project.id}`,
+      category: 'Projects',
+    })),
   ];
 
   const filteredItems = allItems.filter(item => 

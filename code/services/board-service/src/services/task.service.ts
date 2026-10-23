@@ -1,7 +1,8 @@
 import { db } from '../db/client.js';
 import { tasks } from '../models/task.model.js';
 import { columns } from '../models/column.model.js';
-import { eq, asc, count, and, sql } from 'drizzle-orm';
+import { projects } from '../models/project.model.js';
+import { eq, asc, count, and, inArray, isNotNull, sql } from 'drizzle-orm';
 
 export interface CreateTaskInput {
   title: string;
@@ -20,7 +21,8 @@ export interface UpdateTaskInput {
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   assigneeId?: string | null;
   dueDate?: string | null;
-  labels?: string[];
+  labels?: string[] | string;
+  status?: 'backlog' | 'in_progress' | 'in_review' | 'done';
 }
 
 export interface MoveTaskInput {
@@ -42,8 +44,79 @@ export const taskService = {
     return db
       .select()
       .from(tasks)
-      .where(sql`${tasks.columnId} IN ${columnIds}`)
+      .where(inArray(tasks.columnId, columnIds))
       .orderBy(asc(tasks.order));
+  },
+
+  /**
+   * Every project task assigned to this user, across all boards, enriched with
+   * the column and project it belongs to. Backs the personal Progress board.
+   */
+  async getTasksAssignedTo(userId: string) {
+    const rows = await db
+      .select({
+        id: tasks.id,
+        title: tasks.title,
+        description: tasks.description,
+        status: tasks.status,
+        priority: tasks.priority,
+        dueDate: tasks.dueDate,
+        labels: tasks.labels,
+        order: tasks.order,
+        assigneeId: tasks.assigneeId,
+        creatorId: tasks.creatorId,
+        createdAt: tasks.createdAt,
+        updatedAt: tasks.updatedAt,
+        columnId: tasks.columnId,
+        columnName: columns.name,
+        projectId: columns.projectId,
+        projectName: projects.name,
+      })
+      .from(tasks)
+      .innerJoin(columns, eq(tasks.columnId, columns.id))
+      .leftJoin(projects, eq(columns.projectId, projects.id))
+      .where(eq(tasks.assigneeId, userId))
+      .orderBy(asc(tasks.order));
+
+    return rows.map((row) => ({
+      ...row,
+      source: 'project' as const,
+      labels: row.labels ? row.labels.split(',').filter(Boolean) : [],
+      projectName: row.projectName ?? 'Untitled project',
+    }));
+  },
+
+  /** Aggregate counts for the profile statistics panel. */
+  async getStatsFor(userId: string) {
+    const [assigned] = await db
+      .select({
+        total: sql<number>`count(*)::int`,
+        done: sql<number>`count(*) filter (where ${tasks.status} = 'done')::int`,
+        inProgress: sql<number>`count(*) filter (where ${tasks.status} in ('in_progress','in_review'))::int`,
+        overdue: sql<number>`count(*) filter (where ${tasks.dueDate} < now() and ${tasks.status} <> 'done')::int`,
+      })
+      .from(tasks)
+      .where(eq(tasks.assigneeId, userId));
+
+    const [created] = await db
+      .select({ total: sql<number>`count(*)::int` })
+      .from(tasks)
+      .where(eq(tasks.creatorId, userId));
+
+    const boards = await db
+      .selectDistinct({ projectId: columns.projectId })
+      .from(tasks)
+      .innerJoin(columns, eq(tasks.columnId, columns.id))
+      .where(and(eq(tasks.assigneeId, userId), isNotNull(columns.projectId)));
+
+    return {
+      assignedTotal: assigned?.total ?? 0,
+      assignedDone: assigned?.done ?? 0,
+      assignedInProgress: assigned?.inProgress ?? 0,
+      assignedOverdue: assigned?.overdue ?? 0,
+      createdTotal: created?.total ?? 0,
+      boardsInvolved: boards.length,
+    };
   },
 
   async getTasksByColumn(columnId: string) {
@@ -103,7 +176,11 @@ export const taskService = {
     if (input.priority !== undefined) updateData.priority = input.priority;
     if (input.assigneeId !== undefined) updateData.assigneeId = input.assigneeId;
     if (input.dueDate !== undefined) updateData.dueDate = input.dueDate ? new Date(input.dueDate) : null;
-    if (input.labels !== undefined) updateData.labels = (input.labels || []).join(',');
+    // `labels` is a comma-separated text column, so an array has to be flattened.
+    if (input.labels !== undefined) {
+      updateData.labels = Array.isArray(input.labels) ? input.labels.filter(Boolean).join(',') : input.labels;
+    }
+    if (input.status !== undefined) updateData.status = input.status;
 
     const [task] = await db
       .update(tasks)
@@ -208,7 +285,7 @@ export const taskService = {
         count: count(),
       })
       .from(tasks)
-      .where(sql`${tasks.columnId} IN ${projectColumns.map(c => c.id)}`)
+      .where(inArray(tasks.columnId, projectColumns.map(c => c.id)))
       .groupBy(tasks.columnId);
 
     const result: Record<string, number> = {};

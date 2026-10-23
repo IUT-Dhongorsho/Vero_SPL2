@@ -1,214 +1,278 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  Clock,
+  FolderOpen,
+  Inbox,
+  LayoutGrid,
+  ListTodo,
+  Plus,
+  Timer,
+} from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
-import { LayoutDashboard, CheckSquare, Clock, ArrowRight, FileText, Zap, FolderOpen, MoreHorizontal, Activity } from 'lucide-react';
-import { useMeetStore } from '../stores/meet.store';
+import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { Badge, PriorityBadge } from '../components/ui/Badge';
+import { StatTile } from '../components/ui/StatTile';
+import { MailWidget } from '../components/dashboard/MailWidget';
+import { dueMeta } from '../components/board/KanbanBoard';
 import { useAuthStore } from '../stores/auth.store';
 import { useProjectStore } from '../stores/project.store';
-import { mockTasks } from '../data/mockData';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
-import { motion } from 'framer-motion';
-import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { useWorkStore } from '../stores/work.store';
+import { useInboxStore } from '../stores/inbox.store';
+import { fadeUp, hoverLift, stagger } from '../lib/motion';
+import { cn } from '../utils/cn';
+
+function greeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good morning';
+  if (hour < 18) return 'Good afternoon';
+  return 'Good evening';
+}
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
-  const [tasksLoading] = useState(false);
-  const tasks = mockTasks.map(t => ({
-    ...t,
-    status: t.status === 'in-progress' ? 'progress' : t.status,
-  })) as any[];
-  const { todayMeetings, fetchTodayMeetings } = useMeetStore();
-  const { user } = useAuthStore();
+  const user = useAuthStore((state) => state.user);
   const { projects, fetchProjects } = useProjectStore();
+  const { projectTasks, personalTasks, stats, loading, load, loadStats } = useWorkStore();
+  const incomingRequests = useInboxStore((state) => state.connections.incoming);
+  const unread = useInboxStore((state) => state.totalUnread());
 
   useEffect(() => {
-    fetchTodayMeetings();
-    if (projects.length === 0) {
-      fetchProjects();
-    }
-  }, [fetchTodayMeetings, fetchProjects, projects.length]);
+    fetchProjects();
+    load();
+    loadStats();
+  }, [fetchProjects, load, loadStats]);
 
-  const dueTasks = tasks.filter(t => t.status !== 'done').sort((a, b) => new Date(a.dueDate).getTime() - new Date(b.dueDate).getTime());
-  
-  const chartData = [
-    { name: 'To Do', count: tasks.filter(t => t.status === 'todo').length },
-    { name: 'In Progress', count: tasks.filter(t => t.status === 'progress').length },
-    { name: 'Done', count: tasks.filter(t => t.status === 'done').length },
-  ];
+  const upNext = useMemo(() => {
+    return [...projectTasks, ...personalTasks]
+      .filter((task) => task.status !== 'done')
+      .sort((a, b) => {
+        const dueA = a.dueDate ? new Date(a.dueDate).getTime() : Infinity;
+        const dueB = b.dueDate ? new Date(b.dueDate).getTime() : Infinity;
+        return dueA - dueB;
+      })
+      .slice(0, 5);
+  }, [projectTasks, personalTasks]);
 
-  // Project Velocity mock data
-  const velocityData = [
-    { name: 'Global Rebrand', progress: 85, color: 'var(--foreground)' },
-    { name: 'Backend API', progress: 45, color: 'var(--muted-foreground)' },
-    { name: 'SPL-II Dev', progress: 62, color: 'var(--border)' },
-    { name: 'User Research', progress: 15, color: 'var(--ring)' },
-  ];
-
-  const getGreeting = () => {
-    const hour = new Date().getHours();
-    if (hour < 12) return 'Good morning';
-    if (hour < 18) return 'Good afternoon';
-    return 'Good evening';
-  };
-
-  const stagger = {
-    animate: { transition: { staggerChildren: 0.1 } }
-  };
-  
-  const fadeUp = {
-    initial: { opacity: 0, y: 20 },
-    animate: { opacity: 1, y: 0, transition: { duration: 0.4 } }
-  };
+  const openCount = projectTasks.concat(personalTasks).filter((t) => t.status !== 'done').length;
 
   return (
-    <PageContainer title="Dashboard">
-      <motion.div initial="initial" animate="animate" variants={stagger} className="max-w-7xl mx-auto space-y-8">
-        
-        {/* Header Section */}
-        <motion.div variants={fadeUp} className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-foreground mb-2">
-              {getGreeting()}, {user?.name ? user.name.split(' ')[0] : 'there'}.
-            </h1>
-            <p className="text-muted-foreground text-lg">
-              Here is your command center for today.
-            </p>
-          </div>
+    <PageContainer
+      title="Home"
+      subtitle="Your command centre"
+      topBarActions={
+        <AnimatedButton size="sm" variant="accent" onClick={() => navigate('/tasks')}>
+          <Plus className="w-4 h-4" />
+          <span className="hidden sm:inline">Add task</span>
+        </AnimatedButton>
+      }
+    >
+      <motion.div variants={stagger()} initial="hidden" animate="show" className="space-y-7">
+        <motion.header variants={fadeUp}>
+          <h1 className="text-3xl md:text-4xl font-semibold tracking-tight text-foreground">
+            {greeting()}
+            {user?.name ? `, ${user.name.split(' ')[0]}` : ''}.
+          </h1>
+          <p className="text-muted-foreground text-lg mt-2">
+            {openCount === 0
+              ? 'Nothing is waiting on you right now.'
+              : `You have ${openCount} open ${openCount === 1 ? 'item' : 'items'} across ${
+                  projects.length || 'your'
+                } ${projects.length === 1 ? 'project' : 'projects'}.`}
+          </p>
+        </motion.header>
+
+        {incomingRequests.length > 0 && (
+          <motion.button
+            variants={fadeUp}
+            onClick={() => navigate('/inbox')}
+            className="w-full surface rounded-2xl p-5 flex items-center gap-4 text-left hover:border-border-strong transition-colors cursor-pointer"
+          >
+            <span className="w-11 h-11 rounded-xl bg-accent-soft text-accent grid place-items-center shrink-0">
+              <Inbox className="w-5 h-5" />
+            </span>
+            <span className="flex-1 min-w-0">
+              <span className="block font-medium text-foreground">
+                {incomingRequests.length} connection{' '}
+                {incomingRequests.length === 1 ? 'request' : 'requests'} waiting
+              </span>
+              <span className="block text-sm text-muted-foreground truncate">
+                {incomingRequests.map((c) => c.user.name).join(', ')}
+              </span>
+            </span>
+            <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
+          </motion.button>
+        )}
+
+        <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <StatTile
+            label="Open work"
+            value={openCount}
+            icon={ListTodo}
+            tone="accent"
+            hint={`${projectTasks.length} assigned, ${personalTasks.length} personal.`}
+          />
+          <StatTile
+            label="Completed"
+            value={stats?.assignedDone ?? 0}
+            icon={CheckCircle2}
+            tone="success"
+            hint="Project tasks you have finished."
+          />
+          <StatTile
+            label="Overdue"
+            value={stats?.assignedOverdue ?? 0}
+            icon={AlertTriangle}
+            tone={stats?.assignedOverdue ? 'danger' : 'neutral'}
+            hint="Worth a look today."
+          />
+          <StatTile
+            label="Unread messages"
+            value={unread}
+            icon={Inbox}
+            hint={unread ? 'Head to the Inbox.' : 'All caught up.'}
+          />
         </motion.div>
 
-        {/* Pick up where you left off (Recents) */}
-        <motion.div variants={fadeUp}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-semibold tracking-tight flex items-center gap-2 text-foreground">
-              <Clock className="w-5 h-5 text-primary" /> Pick up where you left off
-            </h2>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {projects.slice(0, 3).map((project, i) => (
-              <div key={project.id} onClick={() => navigate(`/project/${project.id}`)} className="group bg-card hover:bg-muted/50 border border-border rounded-2xl p-5 cursor-pointer transition-all duration-300 shadow-sm hover:shadow-md">
-                <div className="flex justify-between items-start mb-3">
-                  <div className={`p-2 rounded-xl bg-muted text-foreground`}>
-                    <FolderOpen className="w-5 h-5" />
-                  </div>
-                  <MoreHorizontal className="w-5 h-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+        <div className="grid lg:grid-cols-5 gap-6">
+          {/* Up next */}
+          <motion.section variants={fadeUp} className="lg:col-span-2 surface rounded-2xl p-6 flex flex-col">
+            <div className="flex items-center justify-between gap-3 mb-5">
+              <div className="flex items-center gap-3">
+                <span className="w-10 h-10 rounded-xl bg-accent-soft text-accent grid place-items-center">
+                  <Clock className="w-5 h-5" />
+                </span>
+                <div>
+                  <h3 className="text-lg font-semibold tracking-tight text-foreground">Up next</h3>
+                  <p className="text-sm text-muted-foreground">Sorted by due date</p>
                 </div>
-                <h3 className="font-semibold text-foreground mb-1">{project.name}</h3>
-                <p className="text-sm text-muted-foreground">{project.description || 'Project Workspace'}</p>
               </div>
-            ))}
-            {projects.length === 0 && (
-              <div className="col-span-3 text-center py-8 text-muted-foreground text-sm">
-                No recent projects found.
-              </div>
-            )}
-          </div>
-        </motion.div>
-
-        {/* Main Grid */}
-        <div className="grid lg:grid-cols-3 gap-6">
-          
-          {/* Due Tasks & Action Inbox */}
-          <motion.div variants={fadeUp} className="lg:col-span-1 space-y-6">
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-sm h-full">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <CheckSquare className="w-5 h-5 text-foreground" /> Action Inbox
-                </h3>
-                <span className="text-xs font-medium bg-primary/10 text-primary px-2 py-1 rounded-full">{dueTasks.length} Due</span>
-              </div>
-              
-              {tasksLoading ? (
-                <div className="flex justify-center py-8"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
-              ) : dueTasks.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground text-sm">All caught up! No pending actions.</div>
-              ) : (
-                <div className="space-y-4">
-                  {dueTasks.slice(0, 5).map(task => (
-                    <div key={task.id} className="group relative pl-4 border-l-2 border-transparent hover:border-primary transition-colors cursor-pointer" onClick={() => navigate('/tasks')}>
-                      <div className="flex justify-between items-start mb-1">
-                        <h4 className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{task.title}</h4>
-                      </div>
-                      <div className="flex items-center gap-3 text-xs text-muted-foreground">
-                        <span className={`font-semibold ${
-                          task.priority === 'high' ? 'text-red-500' :
-                          task.priority === 'medium' ? 'text-yellow-500' : 'text-green-500'
-                        }`}>
-                          {task.priority.toUpperCase()}
-                        </span>
-                        <span>•</span>
-                        <span>{task.projectName}</span>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
-          </motion.div>
 
-          {/* Project Velocity */}
-          <motion.div variants={fadeUp} className="lg:col-span-1">
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-sm h-full">
-               <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <Activity className="w-5 h-5 text-foreground" /> Project Pulse
-                </h3>
-              </div>
-              <div className="space-y-6">
-                {velocityData.map((project, i) => (
-                  <div key={i}>
-                    <div className="flex justify-between text-sm mb-2">
-                      <span className="font-medium text-foreground">{project.name}</span>
-                      <span className="text-muted-foreground">{project.progress}%</span>
-                    </div>
-                    <div className="h-2 w-full bg-secondary rounded-full overflow-hidden">
-                      <motion.div 
-                        initial={{ width: 0 }}
-                        animate={{ width: `${project.progress}%` }}
-                        transition={{ duration: 1, delay: 0.2 + (i * 0.1) }}
-                        className="h-full rounded-full"
-                        style={{ backgroundColor: project.color }}
-                      />
-                    </div>
-                  </div>
+            {loading && upNext.length === 0 ? (
+              <div className="space-y-2.5">
+                {Array.from({ length: 4 }).map((_, i) => (
+                  <div key={i} className="h-16 rounded-xl skeleton-shimmer" />
                 ))}
               </div>
-            </div>
-          </motion.div>
-
-          {/* Task Overview Chart */}
-          <motion.div variants={fadeUp} className="lg:col-span-1">
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-sm h-full flex flex-col">
-              <div className="flex items-center justify-between mb-6">
-                <h3 className="font-semibold text-foreground flex items-center gap-2">
-                  <LayoutDashboard className="w-5 h-5 text-foreground" /> Task Overview
-                </h3>
+            ) : upNext.length === 0 ? (
+              <div className="flex-1 grid place-items-center py-10 text-center">
+                <div>
+                  <CheckCircle2 className="w-9 h-9 text-success mx-auto mb-3" />
+                  <p className="font-medium text-foreground">All caught up</p>
+                  <p className="text-sm text-muted-foreground mt-1">Nothing is due right now.</p>
+                </div>
               </div>
-              
-              <div className="flex-1 min-h-[200px] w-full">
-                {tasksLoading ? (
-                   <div className="flex justify-center h-full items-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" /></div>
-                ) : (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart data={chartData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-                      <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 12, fill: 'var(--color-muted-foreground)' }} />
-                      <YAxis hide />
-                      <Tooltip 
-                        cursor={{ fill: 'var(--color-secondary)' }} 
-                        contentStyle={{ backgroundColor: 'var(--color-card)', borderColor: 'var(--color-border)', borderRadius: '8px', color: 'var(--color-foreground)' }} 
-                      />
-                      <Bar dataKey="count" radius={[6, 6, 0, 0]}>
-                        {chartData.map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={index === 0 ? 'var(--muted-foreground)' : index === 1 ? 'var(--border)' : 'var(--foreground)'} />
-                        ))}
-                      </Bar>
-                    </BarChart>
-                  </ResponsiveContainer>
-                )}
+            ) : (
+              <div className="space-y-2.5 flex-1">
+                {upNext.map((task) => {
+                  const due = dueMeta(task.dueDate);
+                  return (
+                    <button
+                      key={task.id}
+                      onClick={() => navigate(task.source === 'personal' ? '/tasks' : '/progress')}
+                      className="w-full text-left rounded-xl border border-border p-3.5 hover:border-border-strong hover:bg-muted/40 transition-colors cursor-pointer"
+                    >
+                      <p className="font-medium text-foreground leading-snug line-clamp-1">
+                        {task.title}
+                      </p>
+                      <div className="flex flex-wrap items-center gap-1.5 mt-2.5">
+                        <PriorityBadge priority={task.priority} />
+                        {due && <Badge tone={due.tone}>{due.label}</Badge>}
+                        <Badge tone={task.source === 'project' ? 'info' : 'neutral'}>
+                          {task.source === 'project' ? task.projectName : 'Personal'}
+                        </Badge>
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
-            </div>
-          </motion.div>
+            )}
 
+            <button
+              onClick={() => navigate('/progress')}
+              className="mt-5 text-sm font-medium text-accent hover:underline text-left cursor-pointer"
+            >
+              Open the Progress board →
+            </button>
+          </motion.section>
+
+          {/* Mail */}
+          <motion.div variants={fadeUp} className="lg:col-span-3">
+            <MailWidget />
+          </motion.div>
         </div>
+
+        {/* Projects */}
+        <motion.section variants={fadeUp}>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-3">
+              <span className="w-10 h-10 rounded-xl bg-accent-soft text-accent grid place-items-center">
+                <LayoutGrid className="w-5 h-5" />
+              </span>
+              <div>
+                <h3 className="text-lg font-semibold tracking-tight text-foreground">
+                  Pick up where you left off
+                </h3>
+                <p className="text-sm text-muted-foreground">Your most recent projects</p>
+              </div>
+            </div>
+            <AnimatedButton size="sm" variant="ghost" onClick={() => navigate('/projects')}>
+              See all
+              <ArrowRight className="w-4 h-4" />
+            </AnimatedButton>
+          </div>
+
+          {projects.length === 0 ? (
+            <div className="surface rounded-2xl p-10 text-center">
+              <FolderOpen className="w-9 h-9 text-subtle-foreground mx-auto mb-4" />
+              <p className="font-medium text-foreground mb-1.5">No projects yet</p>
+              <p className="text-sm text-muted-foreground mb-5">
+                Create one to start organising your work.
+              </p>
+              <AnimatedButton variant="primary" onClick={() => navigate('/projects')}>
+                Go to Projects
+              </AnimatedButton>
+            </div>
+          ) : (
+            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+              {projects.slice(0, 3).map((project) => (
+                <motion.button
+                  key={project.id}
+                  {...hoverLift}
+                  onClick={() => navigate(`/project/${project.id}`)}
+                  className={cn(
+                    'group surface rounded-2xl p-5 text-left cursor-pointer hover:border-border-strong transition-colors'
+                  )}
+                >
+                  <span className="w-10 h-10 rounded-xl bg-muted text-foreground grid place-items-center mb-4">
+                    <FolderOpen className="w-5 h-5" />
+                  </span>
+                  <p className="font-semibold text-foreground mb-1.5 line-clamp-1">{project.name}</p>
+                  <p className="text-sm text-muted-foreground line-clamp-2 leading-relaxed">
+                    {project.description || 'No description yet.'}
+                  </p>
+                </motion.button>
+              ))}
+            </div>
+          )}
+        </motion.section>
+
+        <motion.p variants={fadeUp} className="text-xs text-subtle-foreground flex items-center gap-1.5">
+          <Timer className="w-3.5 h-3.5" />
+          Time on site is tracked from presence heartbeats — see the breakdown on your{' '}
+          <button
+            onClick={() => navigate('/profile')}
+            className="underline hover:text-foreground transition-colors cursor-pointer"
+          >
+            profile
+          </button>
+          .
+        </motion.p>
       </motion.div>
     </PageContainer>
   );

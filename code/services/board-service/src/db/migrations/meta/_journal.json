@@ -12,8 +12,15 @@
     {
       "idx": 1,
       "version": "7",
-      "when": 1785161565512,
-      "tag": "0001_whole_elektra",
+      "when": 1785647017323,
+      "tag": "0001_personal_tasks",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785647017324,
+      "tag": "0002_whole_elektra",
       "breakpoints": true
     }
   ]

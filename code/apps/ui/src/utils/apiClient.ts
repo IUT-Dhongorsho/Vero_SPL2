@@ -9,6 +9,10 @@ const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
  */
 export const apiClient = axios.create({
   baseURL,
+  // Better Auth authenticates with an HttpOnly session cookie. Same-origin
+  // requests would send it anyway, but this keeps things working when
+  // VITE_API_URL points at another host.
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },

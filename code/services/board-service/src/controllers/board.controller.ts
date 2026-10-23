@@ -1,28 +1,29 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { columnService } from '../services/column.service.js';
 import { projectService } from '../services/project.service.js';
+import { resolveUser, type AuthedRequest } from '../middleware/auth.js';
 
 export const boardController = {
-  async initialize(req: Request, res: Response) {
+  async initialize(req: AuthedRequest, res: Response) {
     try {
-      const projectId = req.params.projectId as string;
+      const { projectId } = req.params;
 
-      // Auto-create project stub in board_db if it doesn't exist
-      // (projects are created in project-service, but board-service has its own DB)
-      const existing = await projectService.getProjectById(projectId);
-      if (!existing) {
-        await projectService.createProject({
-          id: projectId,
-          name: (req.body?.name as string) || 'Project',
-          description: req.body?.description || '',
-          ownerId: req.body?.ownerId || 'system',
-        });
+      // Projects are owned by project-service; make sure the local replica row
+      // exists before the columns try to reference it.
+      await resolveUser(req);
+      const replica = await projectService.ensureProjectReplica(projectId, {
+        name: req.body?.name,
+        ownerId: req.userId || req.body?.ownerId || 'system',
+      });
+
+      if (!replica) {
+        return res.status(500).json({ error: 'Could not prepare the board for this project' });
       }
 
       const columns = await columnService.initializeBoard(projectId);
       res.json({ projectId, columns });
-    } catch (error: any) {
-      console.error('[BoardController] initialize error:', error.message);
+    } catch (error) {
+      console.error('[board:initialize]', error);
       res.status(500).json({ error: 'Failed to initialize board' });
     }
   },

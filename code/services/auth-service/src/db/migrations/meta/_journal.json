@@ -8,6 +8,13 @@
       "when": 1779632997006,
       "tag": "0000_flashy_synch",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785646650819,
+      "tag": "0001_profile_and_activity",
+      "breakpoints": true
     }
   ]
 }
