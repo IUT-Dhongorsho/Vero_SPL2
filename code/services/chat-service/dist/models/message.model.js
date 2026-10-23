@@ -1,4 +1,4 @@
-import { pgTable, text, timestamp, boolean, varchar } from 'drizzle-orm/pg-core';
+import { pgTable, text, timestamp, boolean, varchar, integer } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import { channels } from './channel.model.js';
 import { users } from './user.model.js';
@@ -7,7 +7,15 @@ export const messages = pgTable('messages', {
     channelId: text('channel_id').references(() => channels.id).notNull(),
     senderId: text('sender_id').references(() => users.id).notNull(),
     content: text('content').notNull(),
+    // text | file | image | action (from /me) | system
+    type: varchar('type', { length: 20 }).default('text').notNull(),
+    attachmentUrl: text('attachment_url'),
+    attachmentName: varchar('attachment_name', { length: 512 }),
+    attachmentMime: varchar('attachment_mime', { length: 255 }),
+    attachmentSize: integer('attachment_size'),
+    replyToId: text('reply_to_id'),
     isEdited: boolean('is_edited').default(false).notNull(),
+    deletedAt: timestamp('deleted_at'),
     createdAt: timestamp('created_at').defaultNow().notNull(),
     updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });

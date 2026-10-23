@@ -41,7 +41,8 @@ export const connectionController = {
 
   async accept(req: Request, res: Response) {
     try {
-      const connection = await connectionService.accept(req.params.id, (req as any).user.id);
+      const id = String(req.params.id);
+      const connection = await connectionService.accept(id, (req as any).user.id);
       res.json(connection);
     } catch (error) {
       fail(res, error, 'Failed to accept connection');
@@ -50,7 +51,8 @@ export const connectionController = {
 
   async decline(req: Request, res: Response) {
     try {
-      const connection = await connectionService.decline(req.params.id, (req as any).user.id);
+      const id = String(req.params.id);
+      const connection = await connectionService.decline(id, (req as any).user.id);
       res.json(connection);
     } catch (error) {
       fail(res, error, 'Failed to decline connection');
@@ -59,7 +61,8 @@ export const connectionController = {
 
   async remove(req: Request, res: Response) {
     try {
-      await connectionService.remove(req.params.id, (req as any).user.id);
+      const id = String(req.params.id);
+      await connectionService.remove(id, (req as any).user.id);
       res.status(204).send();
     } catch (error) {
       fail(res, error, 'Failed to remove connection');

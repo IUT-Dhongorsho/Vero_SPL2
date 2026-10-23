@@ -1,7 +1,9 @@
 import { db } from '../db/client.js';
 import { channels, channelMembers } from '../models/channel.model.js';
+import { connections } from '../models/connection.model.js';
 import { eq, desc, sql } from 'drizzle-orm';
 import { channelService } from '../services/channel.service.js';
+import { connectionService } from '../services/connection.service.js';
 export class ChannelController {
     async createChannel(req, res) {
         try {
@@ -18,6 +20,38 @@ export class ChannelController {
         catch (error) {
             console.error('CreateChannel Error:', error);
             res.status(500).json({ error: error.message || 'Failed to create channel' });
+        }
+    }
+    /**
+     * Opens the direct channel with another user. Requires an accepted
+     * connection — you cannot message someone who has not added you back.
+     */
+    async openDirectChannel(req, res) {
+        try {
+            const userId = req.user.id;
+            const targetId = String(req.body?.userId ?? '').trim();
+            if (!targetId)
+                return res.status(400).json({ error: 'userId is required' });
+            const connection = await connectionService.between(userId, targetId);
+            if (connection?.status !== 'accepted') {
+                return res.status(403).json({
+                    error: 'You can only message people you are connected with',
+                    connectionStatus: connection?.status ?? 'none',
+                });
+            }
+            const channel = await channelService.createChannel({
+                type: 'direct',
+                creatorId: userId,
+                memberIds: [targetId],
+            });
+            if (connection.channelId !== channel.id) {
+                await db.update(connections).set({ channelId: channel.id }).where(eq(connections.id, connection.id));
+            }
+            res.json(channel);
+        }
+        catch (error) {
+            console.error('OpenDirectChannel Error:', error);
+            res.status(500).json({ error: 'Failed to open direct channel' });
         }
     }
     async getUserChannels(req, res) {

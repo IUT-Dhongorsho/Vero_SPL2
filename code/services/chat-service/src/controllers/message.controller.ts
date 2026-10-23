@@ -24,7 +24,8 @@ export class MessageController {
 
   async deleteMessage(req: Request, res: Response) {
     try {
-      const deleted = await messageService.softDelete(req.params.messageId, (req as any).user.id);
+      const messageId = String(req.params.messageId);
+      const deleted = await messageService.softDelete(messageId, (req as any).user.id);
       if (!deleted) return res.status(404).json({ error: 'Message not found' });
       res.json(deleted);
     } catch (error) {

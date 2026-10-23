@@ -209,7 +209,7 @@ export const getUsersByIdsController = async (req: AuthedRequest, res: Response)
 /** Public-facing profile of another user (used when opening someone's card). */
 export const getPublicProfileController = async (req: AuthedRequest, res: Response) => {
     try {
-        const { identifier } = req.params;
+        const identifier = String(req.params.identifier);
         const [found] = await db
             .select({
                 ...DIRECTORY_COLUMNS,

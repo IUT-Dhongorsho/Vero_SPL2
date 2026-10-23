@@ -62,7 +62,8 @@ export const personalTaskController = {
 
   async update(req: AuthedRequest, res: Response) {
     try {
-      const task = await personalTaskService.update(req.params.id, req.userId!, {
+      const id = String(req.params.id);
+      const task = await personalTaskService.update(id, req.userId!, {
         title: req.body?.title,
         description: req.body?.description,
         status: parseStatus(req.body?.status),
@@ -83,7 +84,8 @@ export const personalTaskController = {
 
   async remove(req: AuthedRequest, res: Response) {
     try {
-      const deleted = await personalTaskService.remove(req.params.id, req.userId!);
+      const id = String(req.params.id);
+      const deleted = await personalTaskService.remove(id, req.userId!);
       if (!deleted) return res.status(404).json({ error: 'Task not found' });
       res.status(204).send();
     } catch (error) {

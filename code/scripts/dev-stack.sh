@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Starts every Vero service plus the Vite dev server for local development.
+# Starts every Vero service plus the Vite dev server for local development using bun dev.
 #
 #   ./scripts/dev-stack.sh          start everything (logs in .dev-logs/)
 #   ./scripts/dev-stack.sh stop     stop everything on the Vero ports
@@ -14,15 +14,15 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$ROOT/.dev-logs"
 PORTS=(3000 8001 8002 8003 8004 8005 8006 8007 5005)
 
-# service:port:entrypoint
+# service:port
 SERVICES=(
-  "auth-service:8001:src/app.ts"
-  "board-service:8002:src/app.ts"
-  "notes-service:8003:src/index.ts"
-  "project-service:8004:src/index.ts"
-  "chat-service:8005:src/app.ts"
-  "notification-service:8006:src/app.ts"
-  "meet-service:8007:src/app.ts"
+  "auth-service:8001"
+  "board-service:8002"
+  "notes-service:8003"
+  "project-service:8004"
+  "chat-service:8005"
+  "notification-service:8006"
+  "meet-service:8007"
 )
 
 free_ports() {
@@ -67,30 +67,31 @@ case "${1:-start}" in
     ;;
 esac
 
-command -v psql >/dev/null && psql -lqt >/dev/null 2>&1 || echo "⚠️  PostgreSQL does not look reachable."
+command -v bun >/dev/null 2>&1 || { echo "❌ bun is required but not installed or not found in PATH."; exit 1; }
+command -v psql >/dev/null 2>&1 && psql -lqt >/dev/null 2>&1 || echo "⚠️  PostgreSQL does not look reachable."
 redis-cli ping >/dev/null 2>&1 || echo "⚠️  Redis does not look reachable on :6379."
 
 free_ports
 mkdir -p "$LOG_DIR"
 
-echo "→ Starting services…"
+echo "→ Starting services with bun dev…"
 for entry in "${SERVICES[@]}"; do
-  IFS=: read -r name port entrypoint <<<"$entry"
-  ( cd "$ROOT/services/$name" && npx tsx watch "$entrypoint" >"$LOG_DIR/$name.log" 2>&1 & )
+  IFS=: read -r name port <<<"$entry"
+  ( cd "$ROOT/services/$name" && bun dev >"$LOG_DIR/$name.log" 2>&1 & )
   echo "   $name → :$port"
 done
 
-echo "→ Starting the web app…"
-( cd "$ROOT/apps/ui" && npx vite --host >"$LOG_DIR/ui.log" 2>&1 & )
+echo "→ Starting the web app with bun dev…"
+( cd "$ROOT/apps/ui" && bun dev --host >"$LOG_DIR/ui.log" 2>&1 & )
 
 echo "→ Waiting for health checks…"
 for _ in {1..30}; do
   ready=0
   for entry in "${SERVICES[@]}"; do
-    IFS=: read -r _ port _ <<<"$entry"
+    IFS=: read -r _ port <<<"$entry"
     curl -sf -m 1 "http://localhost:$port/health" >/dev/null 2>&1 && ready=$((ready + 1))
   done
-  [[ $ready -ge 6 ]] && break
+  [[ $ready -ge ${#SERVICES[@]} ]] && break
   sleep 2
 done
 

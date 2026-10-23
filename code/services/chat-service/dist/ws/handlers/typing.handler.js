@@ -6,6 +6,7 @@ export const registerTypingHandlers = (io, socket) => {
         // Broadcast to others in the channel
         socket.to(payload.channelId).emit(SocketEvents.TYPING, {
             userId,
+            userName: socket.user?.name,
             isTyping: payload.isTyping,
             channelId: payload.channelId,
         });

@@ -19,9 +19,14 @@ export const registerMessageHandlers = (io, socket) => {
             console.log(`💾 [WS:Message] Message persisted to DB with ID: ${savedMessage.id}`);
             // Increment metric
             messagesSentTotal.inc();
-            // 3. Broadcast
+            // 3. Broadcast. `clientId` lets the sender swap its optimistic bubble for
+            //    the persisted row instead of rendering the message twice.
             console.log(`📡 [WS:Message] Broadcasting message to room: ${payload.channelId}`);
-            io.to(payload.channelId).emit(SocketEvents.MESSAGE, savedMessage);
+            io.to(payload.channelId).emit(SocketEvents.MESSAGE, {
+                ...savedMessage,
+                sender: socket.user,
+                clientId: payload.clientId,
+            });
             console.log(`✅ [WS:Message] Broadcast complete`);
         }
         catch (error) {

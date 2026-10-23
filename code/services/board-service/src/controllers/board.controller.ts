@@ -6,7 +6,7 @@ import { resolveUser, type AuthedRequest } from '../middleware/auth.js';
 export const boardController = {
   async initialize(req: AuthedRequest, res: Response) {
     try {
-      const { projectId } = req.params;
+      const projectId = String(req.params.projectId);
 
       // Projects are owned by project-service; make sure the local replica row
       // exists before the columns try to reference it.

@@ -17,15 +17,15 @@ import { channelService } from '../services/channel.service.js';
 
 ensureUploadRoot();
 
-const storage = multer.diskStorage({
-  destination: (_req, _file, cb) => cb(null, UPLOAD_ROOT),
-  filename: (_req, file, cb) => cb(null, safeStoredName(file.originalname)),
+const storage = (multer as any).diskStorage({
+  destination: (_req: any, _file: any, cb: any) => cb(null, UPLOAD_ROOT),
+  filename: (_req: any, file: any, cb: any) => cb(null, safeStoredName(file.originalname)),
 });
 
-export const uploadMiddleware = multer({
+export const uploadMiddleware = (multer as any)({
   storage,
   limits: { fileSize: MAX_UPLOAD_BYTES, files: 1 },
-  fileFilter: (_req, file, cb) => {
+  fileFilter: (_req: any, file: any, cb: any) => {
     if (!isAllowedFilename(file.originalname)) {
       return cb(new Error('That file type is not allowed'));
     }
@@ -40,7 +40,7 @@ export const fileController = {
    * does not block the socket.
    */
   async upload(req: Request, res: Response) {
-    const file = (req as any).file as Express.Multer.File | undefined;
+    const file = (req as any).file as any;
     if (!file) return res.status(400).json({ error: 'No file received' });
 
     const channelId = String(req.body?.channelId ?? '');
@@ -63,7 +63,7 @@ export const fileController = {
 
   /** Streams a stored attachment back. Membership is enforced on upload. */
   download(req: Request, res: Response) {
-    const resolved = resolveStoredPath(req.params.storedName);
+    const resolved = resolveStoredPath(String(req.params.storedName));
     if (!resolved) return res.status(404).json({ error: 'File not found' });
 
     let stat: fs.Stats;

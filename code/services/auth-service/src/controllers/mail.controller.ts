@@ -29,7 +29,7 @@ export const mailInboxController = async (req: AuthedRequest, res: Response) => 
 	try {
 		const status = await getConnectionStatus(req.userId!);
 		if (!status.connected) {
-			return res.json({ connected: false, ...status, messages: [] });
+			return res.json({ ...status, connected: false, messages: [] });
 		}
 		const limit = Math.min(Math.max(Number(req.query.limit) || 5, 1), 20);
 		const messages = await listRecentInbox(req.userId!, limit);
@@ -41,7 +41,8 @@ export const mailInboxController = async (req: AuthedRequest, res: Response) => 
 
 export const mailMessageController = async (req: AuthedRequest, res: Response) => {
 	try {
-		res.json(await getMessage(req.userId!, req.params.id));
+		const id = String(req.params.id);
+		res.json(await getMessage(req.userId!, id));
 	} catch (error) {
 		handleError(error, res, "Failed to load message");
 	}
@@ -53,7 +54,8 @@ export const mailReplyController = async (req: AuthedRequest, res: Response) => 
 		const body = String(req.body?.body ?? "").trim();
 		if (!body) return res.status(400).json({ error: "Reply body is required" });
 
-		const sent = await replyToMessage(req.userId!, { messageId: req.params.id, body });
+		const id = String(req.params.id);
+		const sent = await replyToMessage(req.userId!, { messageId: id, body });
 		res.json({ success: true, id: sent.id, threadId: sent.threadId });
 	} catch (error) {
 		handleError(error, res, "Failed to send reply");
