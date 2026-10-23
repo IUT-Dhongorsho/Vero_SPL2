@@ -1,8 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { ThemeProvider } from '@repo/ui/src/components/Providers/ThemeProvider';
-import App from '@repo/ui/src/App';
+import { App, ThemeProvider } from '@repo/ui';
 import '@repo/ui/src/styles/globals.css';
 
 // Force remove dark class on initial load

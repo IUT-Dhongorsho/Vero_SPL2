@@ -7,6 +7,7 @@
     "dev": "turbo dev --concurrency=20",
     "dev:ui": "pnpm run --filter @repo/ui dev",
     "dev:web": "pnpm run --filter web dev",
+    "dev:desktop": "pnpm run --filter desktop dev",
     "build": "turbo build",
     "clean": "turbo clean && rm -rf node_modules"
   },

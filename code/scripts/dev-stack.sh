@@ -82,7 +82,7 @@ for entry in "${SERVICES[@]}"; do
 done
 
 echo "→ Starting the web app with bun dev…"
-( cd "$ROOT/apps/ui" && bun dev --host >"$LOG_DIR/ui.log" 2>&1 & )
+( cd "$ROOT/apps/web" && bun dev --host >"$LOG_DIR/web.log" 2>&1 & )
 
 echo "→ Waiting for health checks…"
 for _ in {1..30}; do

@@ -17,7 +17,8 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Badge, PriorityBadge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { TaskEditorModal } from '../components/tasks/TaskEditorModal';
-import { KanbanBoard, dueMeta } from '../components/board/KanbanBoard';
+import { dueMeta } from '../components/board/KanbanBoard';
+import { BoardPage } from './BoardPage';
 import { toast } from '../components/Providers/ToastProvider';
 import { useWorkStore } from '../stores/work.store';
 import type { WorkItem } from '../services/workService';
@@ -148,13 +149,7 @@ export const TasksPage: React.FC = () => {
   const { projectId, moduleId } = useParams<{ projectId?: string; moduleId?: string }>();
 
   if (projectId && moduleId) {
-    return (
-      <PageContainer title="Kanban Board">
-        <div className="max-w-full mx-auto">
-          <KanbanBoard />
-        </div>
-      </PageContainer>
-    );
+    return <BoardPage />;
   }
 
   return <PersonalTaskList />;
@@ -213,7 +208,7 @@ const PersonalTaskList: React.FC = () => {
   return (
     <PageContainer
       title="Tasks"
-      description="Everything on your plate across projects and your own list."
+      subtitle="Everything on your plate across projects and your own list."
       topBarActions={
         <AnimatedButton
           size="sm"
@@ -228,7 +223,7 @@ const PersonalTaskList: React.FC = () => {
         </AnimatedButton>
       }
     >
-      <motion.div initial="initial" animate="animate" variants={stagger} className="space-y-6">
+      <motion.div initial="initial" animate="animate" variants={stagger()} className="space-y-6">
         {/* Controls */}
         <motion.div
           variants={fadeUp}
