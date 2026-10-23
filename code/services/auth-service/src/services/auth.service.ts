@@ -10,7 +10,6 @@ import { generateJWT, generateRefreshToken } from "../utils/jwt.util.js";
 import { eq } from "drizzle-orm";
 
 import { publisherService } from "./publisher.service.js";
-import { GMAIL_SCOPES } from "./gmail.service.js";
 
 export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,
@@ -123,11 +122,8 @@ export const auth = betterAuth({
         google: {
             clientId: env.GOOGLE_CLIENT_ID || "",
             clientSecret: env.GOOGLE_CLIENT_SECRET || "",
-            // Gmail read + send powers the dashboard mail widget. `offline` access
-            // is what gets us a refresh token so the widget keeps working.
-            scope: GMAIL_SCOPES,
-            accessType: "offline",
-            prompt: "consent",
+            scope: ["openid", "email", "profile"],
+            prompt: "select_account",
             getUserInfo: async (token: any) => {
                 const res = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
                     headers: { Authorization: `Bearer ${token.accessToken}` },
