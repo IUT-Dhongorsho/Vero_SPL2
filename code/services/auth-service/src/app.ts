@@ -94,6 +94,14 @@ app.get("/health", (req, res) => {
     res.json({ status: "ok", service: "auth-service" });
 });
 
+// Centralized Express error-handling middleware
+app.use((err: any, req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    console.error(`❌ [Express Error] ${req.method} ${req.url}:`, err);
+    res.status(err.status || 500).json({
+        error: err.message || "Internal server error",
+    });
+});
+
 app.listen(env.PORT, () => {
     console.log(`🚀 Auth service running on port ${env.PORT}`);
 });
