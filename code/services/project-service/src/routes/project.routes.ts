@@ -26,6 +26,7 @@ router.delete('/projects/:projectId/members/:userId', memberController.remove);
 // ── Module Routes ───────────────────────────────────────────
 router.get('/projects/:projectId/modules',  moduleController.getProjectModules);
 router.post('/modules',                     moduleController.createModule);
+router.get('/modules/mine',                 moduleController.mine);
 router.get('/modules/:moduleId',            moduleController.getModule);
 router.patch('/modules/:moduleId',          moduleController.updateModule);
 router.delete('/modules/:moduleId',         moduleController.deleteModule);

@@ -252,3 +252,16 @@ describe('modules', () => {
     expect(members.body).toHaveLength(1);
   });
 });
+
+describe('modules/mine', () => {
+  it('lists every module the caller can reach, with their role', async () => {
+    const res = await request(app).get('/project/modules/mine').set(owner.auth);
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual([
+      expect.objectContaining({ name: 'Launch', projectId, projectName: 'Apollo', role: 'admin' }),
+    ]);
+
+    const none = await request(app).get('/project/modules/mine').set(outsider.auth);
+    expect(none.body).toEqual([]);
+  });
+});

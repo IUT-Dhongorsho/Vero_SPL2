@@ -118,6 +118,34 @@ export class ModuleController {
     }
   }
 
+  /**
+   * GET /modules/mine — every module in every project the caller is on, with
+   * their role. Other services use it to scope cross-module features (notes
+   * search) to what the caller may see.
+   */
+  async mine(req: Request, res: Response) {
+    try {
+      const memberships = await db.query.projectMembers.findMany({
+        where: eq(projectMembers.userId, userIdOf(req)),
+        with: { project: { with: { modules: { columns: { id: true, name: true } } } } },
+      });
+
+      res.json(
+        memberships.flatMap((m) =>
+          m.project.modules.map((mod) => ({
+            id: mod.id,
+            name: mod.name,
+            projectId: m.project.id,
+            projectName: m.project.name,
+            role: m.role,
+          }))
+        )
+      );
+    } catch (error) {
+      sendError(res, error, 'Failed to list modules');
+    }
+  }
+
   /** GET /modules/:moduleId — the module, its members and the caller's standing. */
   async getModule(req: Request, res: Response) {
     try {
