@@ -6,6 +6,8 @@ import { users, sessions } from '../../src/models/user.model.js';
 // Mock DB
 vi.mock('../../src/db/client.js', () => ({
   db: {
+    // SESSION_CREATED makes sure the session's user exists first.
+    query: { users: { findFirst: vi.fn().mockResolvedValue({ id: 'u-123' }) } },
     insert: vi.fn().mockReturnThis(),
     values: vi.fn().mockReturnThis(),
     onConflictDoUpdate: vi.fn().mockResolvedValue({}),

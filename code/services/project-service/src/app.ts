@@ -11,10 +11,14 @@ app.use(loggerMiddleware);
 app.use(metricsMiddleware);
 app.use(express.json());
 
-// Routes
-app.use('/project', projectRoutes);
-
-app.get('/metrics', metricsController.getMetrics);
+// Health & metrics (unauthenticated)
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'project-service' });
 });
+app.get('/project/health', (req, res) => {
+    res.json({ status: 'ok', service: 'project-service' });
+});
+app.get('/metrics', metricsController.getMetrics);
+
+// Routes
+app.use('/project', projectRoutes);

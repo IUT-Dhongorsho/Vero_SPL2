@@ -12,6 +12,8 @@ const envSchema = z.object({
   AUTH_SERVICE_URL: z.string().default('http://localhost:8001'),
   /** Module membership and roles are decided by project-service. */
   PROJECT_SERVICE_URL: z.string().default('http://localhost:8004'),
+  /** Separates AI queues sharing one Redis (tests, several checkouts). Must match ai-worker. */
+  AI_NAMESPACE: z.string().default(''),
 });
 
 const _env = envSchema.safeParse(process.env);

@@ -119,13 +119,23 @@ export const auth = betterAuth({
                             .where(eq(schema.session.id, session.id))
                             .returning();
 
+                        const userPayload = {
+                            id: user.id,
+                            name: user.name,
+                            email: user.email,
+                            image: user.image
+                        };
+
+                        // Ensure downstream services have the latest user record before session creation
+                        await publisherService.publishUserEvent('USER_UPDATED', user);
+
                         if (updatedSession) {
                             console.log(`💾 [AuthService:Hook] Custom tokens persisted to DB`);
-                            await publisherService.publishUserEvent('SESSION_CREATED' as any, updatedSession);
+                            await publisherService.publishUserEvent('SESSION_CREATED' as any, { ...updatedSession, user: userPayload });
                         } else {
                             console.error(`❌ [AuthService:Hook] Failed to persist custom tokens to DB!`);
                             // Fallback to publishing with generated tokens anyway
-                            await publisherService.publishUserEvent('SESSION_CREATED' as any, { ...session, authToken, refreshToken });
+                            await publisherService.publishUserEvent('SESSION_CREATED' as any, { ...session, authToken, refreshToken, user: userPayload });
                         }
                     } else {
                         console.warn(`⚠️ [AuthService:Hook] User not found during session creation after!`);

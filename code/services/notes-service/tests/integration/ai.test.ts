@@ -11,7 +11,15 @@ import { env } from '../../src/config/env.js';
 import { users, sessions } from '../../src/models/user.model.js';
 import { documents } from '../../src/models/document.model.js';
 
-// The real queue, on local Redis, with a stand-in for ai-worker.
+// The real queue, on local Redis, with a stand-in for ai-worker — in its own
+// namespace so a running dev ai-worker can neither take the jobs nor
+// overwrite the heartbeat.
+const NS = vi.hoisted(() => {
+  const ns = `test-${process.pid}-${Date.now()}`;
+  process.env.AI_NAMESPACE = ns;
+  return ns;
+});
+const STATUS = `${NS}:ai-worker:status`;
 const MOD = `mod-ai-${Date.now()}`;
 const me = { id: `ai-user-${Date.now()}`, token: crypto.randomBytes(16).toString('hex') };
 const auth = { Authorization: `Bearer ${me.token}` };
@@ -40,14 +48,14 @@ beforeAll(async () => {
       seen.push({ name: job.name, data: job.data });
       return { ok: true, result: { summary: 'Shipping.', keyPoints: [], actionItems: [{ title: 'Email press', detail: '', priority: 'high' }] } };
     },
-    { connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null }) }
+    { prefix: `bull:${NS}`, connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null }) }
   );
 });
 
 afterAll(async () => {
   globalThis.fetch = realFetch;
   await worker.close();
-  await redis.del('ai-worker:status');
+  await redis.del(STATUS);
   redis.disconnect();
   await db.delete(documents).where(eq(documents.id, noteId));
   await db.delete(users).where(eq(users.id, me.id));
@@ -55,18 +63,18 @@ afterAll(async () => {
 
 describe('AI digest', () => {
   it('reports the worker offline when there is no heartbeat', async () => {
-    await redis.del('ai-worker:status');
+    await redis.del(STATUS);
     expect((await request(app).get('/ai/status').set(auth)).body).toMatchObject({ available: false, reason: 'worker_offline' });
     expect((await request(app).post(`/documents/${noteId}/digest`).set(auth)).status).toBe(503);
   });
 
   it('reports a worker without a key as not configured', async () => {
-    await redis.set('ai-worker:status', JSON.stringify({ configured: false, model: null }), 'EX', 30);
+    await redis.set(STATUS, JSON.stringify({ configured: false, model: null }), 'EX', 30);
     expect((await request(app).get('/ai/status').set(auth)).body.reason).toBe('not_configured');
   });
 
   it('queues the note and returns the worker’s digest', async () => {
-    await redis.set('ai-worker:status', JSON.stringify({ configured: true, model: 'gemini-test' }), 'EX', 30);
+    await redis.set(STATUS, JSON.stringify({ configured: true, model: 'gemini-test' }), 'EX', 30);
 
     const res = await request(app).post(`/documents/${noteId}/digest`).set(auth);
     expect(res.status).toBe(200);

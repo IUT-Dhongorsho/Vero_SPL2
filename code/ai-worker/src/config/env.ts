@@ -10,6 +10,8 @@ const envSchema = z.object({
   GEMINI_MODEL: z.string().optional(),
   GEMINI_API_BASE: z.string().default('https://generativelanguage.googleapis.com/v1beta'),
   AI_CONCURRENCY: z.string().default('2').transform(Number),
+  /** Separates AI queues sharing one Redis (tests, several checkouts). Must match notes-service. */
+  AI_NAMESPACE: z.string().default(''),
 });
 
 const _env = envSchema.safeParse(process.env);

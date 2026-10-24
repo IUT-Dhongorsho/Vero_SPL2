@@ -67,6 +67,31 @@ export class SubscriberService {
           await db.delete(users).where(eq(users.id, data.id));
           console.log(`🗑️ User DELETED: Data cleaned up in Notification Service for ${data.id}`);
           break;
+
+        case 'SESSION_CREATED':
+          const existingUser = await db.query.users.findFirst({ where: eq(users.id, data.userId) });
+          if (!existingUser) {
+            let name = data.user?.name;
+            let email = data.user?.email || `${data.userId}@placeholder.com`;
+            let avatarUrl = data.user?.image || null;
+            if (!name && data.authToken) {
+              try {
+                const parts = data.authToken.split('.');
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                name = payload.name;
+                email = payload.email || email;
+              } catch (_) {}
+            }
+            name = name || 'User';
+            await db.insert(users).values({
+              id: data.userId,
+              name,
+              email,
+              avatarUrl,
+            }).onConflictDoNothing();
+            console.log(`👤 User auto-synced on SESSION_CREATED: ${data.userId}`);
+          }
+          break;
       }
     } catch (error) {
       console.error(`❌ Failed to sync user ${type}:`, error);

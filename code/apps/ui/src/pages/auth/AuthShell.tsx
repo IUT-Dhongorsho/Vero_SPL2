@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { CalendarDays, Inbox, LayoutGrid, Sparkles } from 'lucide-react';
 import { ThemeToggle } from '../../components/ui/ThemeToggle';
+import { VeroLogo } from '../../components/ui/VeroLogo';
 import { EASE_OUT, fadeUp, stagger } from '../../lib/motion';
 
 const HIGHLIGHTS = [
@@ -35,9 +36,7 @@ export const AuthShell: React.FC<{
         className="relative z-10 flex flex-col justify-between p-12 xl:p-16 w-full"
       >
         <motion.div variants={fadeUp} className="flex items-center gap-3">
-          <span className="w-10 h-10 rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold">
-            V
-          </span>
+          <VeroLogo variant="symbol-bg" size="md" className="rounded-xl shadow-xs" />
           <span className="text-lg font-semibold tracking-tight text-foreground">Vero</span>
         </motion.div>
 
@@ -79,9 +78,7 @@ export const AuthShell: React.FC<{
     <main className="flex-1 flex flex-col">
       <div className="flex items-center justify-between p-5 lg:justify-end">
         <Link to="/" className="lg:hidden flex items-center gap-2.5">
-          <span className="w-9 h-9 rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold text-sm">
-            V
-          </span>
+          <VeroLogo variant="symbol-bg" size="sm" className="rounded-xl shadow-xs" />
           <span className="font-semibold tracking-tight text-foreground">Vero</span>
         </Link>
         <ThemeToggle />

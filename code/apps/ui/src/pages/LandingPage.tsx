@@ -2,6 +2,7 @@ import React from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { VeroLogo } from '../components/ui/VeroLogo';
 import { VantaBackground } from '../components/Vanta/VantaBackground';
 import { Video, FileText, Columns, Zap, CheckCircle2, ArrowRight, Layers, Lock, Sparkles } from 'lucide-react';
 import { useAuthStore } from '../stores/auth.store';
@@ -23,9 +24,7 @@ export const LandingPage: React.FC = () => {
       <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-6 pointer-events-none">
         <nav className="w-full max-w-6xl flex items-center justify-between px-6 py-3 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.3)] pointer-events-auto">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-purple-500/30">
-              <Layers className="w-5 h-5 text-white" />
-            </div>
+            <VeroLogo variant="symbol-bg" size="md" className="rounded-2xl shadow-lg shadow-purple-500/20" />
             <span className="text-xl font-bold tracking-tight">Vero</span>
           </div>
           <div className="flex items-center gap-6">
@@ -233,7 +232,7 @@ export const LandingPage: React.FC = () => {
       <footer className="relative z-10 border-t border-white/10 py-12 px-8 bg-black/50">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2">
-            <Layers className="w-5 h-5 text-white/50" />
+            <VeroLogo variant="white-bg" size="xs" className="rounded-md opacity-80" />
             <span className="font-semibold text-white/50">Vero App © {new Date().getFullYear()}</span>
           </div>
           <div className="flex gap-6 text-sm text-white/50">

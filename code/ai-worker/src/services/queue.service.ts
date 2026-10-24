@@ -6,7 +6,8 @@ import { geminiService, GeminiError } from './gemini.service.js';
 import { summarizeNote } from '../jobs/summarize.job.js';
 
 /** Key other services read to know whether AI features can be offered. */
-export const STATUS_KEY = 'ai-worker:status';
+export const STATUS_KEY = `${env.AI_NAMESPACE ? `${env.AI_NAMESPACE}:` : ''}ai-worker:status`;
+const QUEUE_PREFIX = env.AI_NAMESPACE ? `bull:${env.AI_NAMESPACE}` : 'bull';
 const HEARTBEAT_MS = 10_000;
 
 export async function processAiJob(job: Pick<Job, 'name' | 'data'>) {
@@ -32,6 +33,7 @@ export function startAiWorker() {
 
   const worker = new Worker(QUEUES.AI_JOBS, processAiJob, {
     connection,
+    prefix: QUEUE_PREFIX,
     concurrency: env.AI_CONCURRENCY,
   });
 

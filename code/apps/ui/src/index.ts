@@ -6,4 +6,6 @@ export { AnimatedButton } from './components/ui/AnimatedButton';
 export { PageContainer } from './components/Layout/PageContainer';
 export { Sidebar } from './components/Layout/Sidebar';
 export { TopBar } from './components/Layout/TopBar';
+export { VeroLogo } from './components/ui/VeroLogo';
+export type { VeroLogoProps, LogoVariant, LogoSize } from './components/ui/VeroLogo';
 

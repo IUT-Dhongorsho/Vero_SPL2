@@ -75,12 +75,27 @@ export class SubscriberService {
           break;
 
         case 'SESSION_CREATED':
-          // Upsert a placeholder user to avoid Foreign Key violations if the USER_CREATED 
+          // Upsert a user to avoid Foreign Key violations if the USER_CREATED 
           // event was dropped or arrived out of order (common in basic Redis Pub/Sub).
+          let userName = data.user?.name;
+          let userAvatar = data.user?.image || null;
+          if (!userName && data.authToken) {
+            try {
+              const parts = data.authToken.split('.');
+              const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+              userName = payload.name;
+            } catch (_) {}
+          }
+          userName = userName || 'User';
+
           await db.insert(users).values({
             id: data.userId,
-            name: 'User',
-          }).onConflictDoNothing();
+            name: userName,
+            avatarUrl: userAvatar,
+          }).onConflictDoUpdate({
+            target: users.id,
+            set: { name: userName, avatarUrl: userAvatar, updatedAt: new Date() }
+          });
 
           const expiresAt = safeDate(data.expiresAt, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
           const createdAt = safeDate(data.createdAt, new Date());

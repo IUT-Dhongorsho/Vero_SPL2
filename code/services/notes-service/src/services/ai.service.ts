@@ -8,7 +8,9 @@ import { NotesError } from './access.service.js';
 import { ydocToHtml } from './ydoc-html.js';
 
 /** Written by ai-worker every few seconds while it runs. */
-const STATUS_KEY = 'ai-worker:status';
+const STATUS_KEY = `${env.AI_NAMESPACE ? `${env.AI_NAMESPACE}:` : ''}ai-worker:status`;
+/** BullMQ key prefix, namespaced the same way as ai-worker's. */
+export const AI_QUEUE_PREFIX = env.AI_NAMESPACE ? `bull:${env.AI_NAMESPACE}` : 'bull';
 const WAIT_MS = 60_000;
 const PER_MINUTE = 6;
 
@@ -20,8 +22,8 @@ function connections() {
   if (!redis) {
     redis = new Redis(env.REDIS_URL, { maxRetriesPerRequest: 2 });
     const bull = { connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null }) };
-    queue = new Queue(QUEUES.AI_JOBS, { ...bull, defaultJobOptions: { removeOnComplete: 100, removeOnFail: 100, attempts: 1 } });
-    events = new QueueEvents(QUEUES.AI_JOBS, { connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null }) });
+    queue = new Queue(QUEUES.AI_JOBS, { ...bull, prefix: AI_QUEUE_PREFIX, defaultJobOptions: { removeOnComplete: 100, removeOnFail: 100, attempts: 1 } });
+    events = new QueueEvents(QUEUES.AI_JOBS, { prefix: AI_QUEUE_PREFIX, connection: new Redis(env.REDIS_URL, { maxRetriesPerRequest: null }) });
   }
   return { redis: redis!, queue: queue!, events: events! };
 }
