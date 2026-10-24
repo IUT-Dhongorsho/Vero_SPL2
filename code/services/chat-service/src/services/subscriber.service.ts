@@ -63,6 +63,31 @@ export class SubscriberService {
           } else {
               console.error(`❌ [SubscriberService] CRITICAL: Received SESSION_CREATED but authToken is MISSING in data!`);
           }
+
+          // Ensure user exists before inserting session to avoid foreign key violation
+          const existingUser = await db.query.users.findFirst({ where: eq(users.id, data.userId) });
+          if (!existingUser) {
+            let name = data.user?.name;
+            let avatarUrl = data.user?.image || null;
+            if (!name && data.authToken) {
+              try {
+                const parts = data.authToken.split('.');
+                const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+                name = payload.name;
+              } catch (_) {}
+            }
+            name = name || 'User';
+            await db.insert(users).values({
+              id: data.userId,
+              name,
+              avatarUrl,
+            }).onConflictDoUpdate({
+              target: users.id,
+              set: { name, avatarUrl, updatedAt: new Date() }
+            });
+            console.log(`👤 [SubscriberService] Auto-replicated user ${data.userId} for session`);
+          }
+
           const expiresAt = safeDate(data.expiresAt, new Date(Date.now() + 7 * 24 * 60 * 60 * 1000));
           const createdAt = safeDate(data.createdAt, new Date());
           await db.insert(sessions).values({

@@ -24,10 +24,10 @@ app.use((req, res, next) => {
   next();
 });
 
-app.use('/api/notes', documentRouter);
-app.use('/', documentRouter);
-
-app.get('/metrics', metricsController.getMetrics);
 app.get('/health', (req, res) => {
     res.json({ status: 'ok', service: 'notes-service' });
 });
+app.get('/metrics', metricsController.getMetrics);
+
+app.use('/api/notes', documentRouter);
+app.use('/', documentRouter);

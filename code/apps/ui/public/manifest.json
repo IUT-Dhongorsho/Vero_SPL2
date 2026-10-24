@@ -1,0 +1,75 @@
+{
+  "name": "Vero - Unified Collaboration Workspace",
+  "short_name": "Vero",
+  "description": "One workspace for meetings, docs, and tasks — no more app-switching",
+  "start_url": "/dashboard",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#09090b",
+  "theme_color": "#09090b",
+  "categories": ["productivity", "collaboration", "business"],
+  "icons": [
+    {
+      "src": "/icons/BlackBG/favicon-16x16.png",
+      "sizes": "16x16",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/BlackBG/favicon-32x32.png",
+      "sizes": "32x32",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/BlackBG/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/icons/BlackBG/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/BlackBG/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/WhiteBG/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/WhiteBG/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "url": "/dashboard",
+      "description": "Open your command centre"
+    },
+    {
+      "name": "Inbox",
+      "url": "/inbox",
+      "description": "Open direct messages and connections"
+    },
+    {
+      "name": "Tasks",
+      "url": "/tasks",
+      "description": "View and manage tasks"
+    },
+    {
+      "name": "Projects",
+      "url": "/projects",
+      "description": "View all projects"
+    }
+  ]
+}

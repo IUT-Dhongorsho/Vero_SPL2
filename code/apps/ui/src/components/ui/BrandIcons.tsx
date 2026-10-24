@@ -1,3 +1,6 @@
+export { VeroLogo } from './VeroLogo';
+export type { VeroLogoProps, LogoVariant, LogoSize } from './VeroLogo';
+
 import React from 'react';
 
 /**

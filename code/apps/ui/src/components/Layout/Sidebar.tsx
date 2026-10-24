@@ -25,6 +25,7 @@ import { useNavigationStore } from '../../stores/navigationStore';
 import { useInboxStore } from '../../stores/inbox.store';
 import { authClient } from '../../lib/auth-client';
 import { Avatar } from '../ui/Avatar';
+import { VeroLogo } from '../ui/VeroLogo';
 import { springSoft } from '../../lib/motion';
 import { cn } from '../../utils/cn';
 
@@ -246,9 +247,7 @@ export const Sidebar: React.FC = () => {
         >
           {!isSidebarCollapsed && (
             <div className="flex items-center gap-2.5 min-w-0">
-              <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold text-sm shrink-0">
-                V
-              </span>
+              <VeroLogo variant="symbol-bg" size="sm" className="rounded-xl shadow-xs" />
               <span className="font-semibold tracking-tight truncate text-foreground">Vero</span>
             </div>
           )}
@@ -324,9 +323,7 @@ const MobileSidebar: React.FC<{
             >
               <div className="h-16 flex items-center justify-between px-4 border-b border-border shrink-0">
                 <div className="flex items-center gap-2.5">
-                  <span className="w-8 h-8 rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold text-sm">
-                    V
-                  </span>
+                  <VeroLogo variant="symbol-bg" size="sm" className="rounded-xl shadow-xs" />
                   <span className="font-semibold tracking-tight text-foreground">Vero</span>
                 </div>
                 <button

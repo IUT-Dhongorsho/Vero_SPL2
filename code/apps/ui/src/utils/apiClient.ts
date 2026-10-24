@@ -1,8 +1,8 @@
 import axios from 'axios';
 import { useAuthStore } from '../stores/auth.store';
 
-// Get the API base URL from env variables, fallback to local development port
-const baseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+// Get the API base URL from env variables, fallback to same-origin /api
+const baseURL = import.meta.env.VITE_API_URL || '/api';
 
 /**
  * Singleton Axios instance for making authenticated API requests.
@@ -15,6 +15,7 @@ export const apiClient = axios.create({
   withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
   },
 });
 
@@ -38,25 +39,25 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Response Interceptor: Handle auth failures (e.g. 401 Unauthorized) globally
+// Response Interceptor: Handle auth failures (e.g. 401 Unauthorized)
 apiClient.interceptors.response.use(
   (response) => {
     return response;
   },
   async (error) => {
-    // Check if the server responded with 401 Unauthorized
+    // Only kick out the user if the primary auth endpoint itself returned 401
     if (error.response && error.response.status === 401) {
-      console.warn('⚠️ [apiClient] Request returned 401 Unauthorized. Clearing local auth state...');
-      
-      // Clean up local authentication state via Zustand store
-      useAuthStore.getState().clearAuth();
-      
-      // Optionally redirect user to the login page
-      if (typeof window !== 'undefined') {
-        const loginUrl = '/login';
-        if (window.location.pathname !== loginUrl) {
-          window.location.href = loginUrl;
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/better-auth') || url.includes('/auth/session') || url.includes('/auth/me');
+
+      if (isAuthEndpoint) {
+        console.warn('⚠️ [apiClient] Primary auth session returned 401. Clearing local auth state...');
+        useAuthStore.getState().clearAuth();
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
         }
+      } else {
+        console.warn(`⚠️ [apiClient] Request to ${url} returned 401 Unauthorized. Preserving active session.`);
       }
     }
     

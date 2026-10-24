@@ -4,6 +4,7 @@ import { AnimatePresence } from 'framer-motion';
 import { PageTransition } from './components/ui/PageTransition';
 import { ToastProvider } from './components/Providers/ToastProvider';
 import { GlobalSearch } from './components/ui/GlobalSearch';
+import { VeroLogo } from './components/ui/VeroLogo';
 import { LandingPage } from './pages/LandingPage';
 import { LoginPage } from './pages/LoginPage';
 import { SignupPage } from './pages/SignupPage';
@@ -26,6 +27,7 @@ import { ChatPage } from './pages/chat/ChatPage';
 import { MeetPage } from './pages/meet/MeetPage';
 import { authService } from './services/authService';
 import { authClient } from './lib/auth-client';
+import { apiClient } from './utils/apiClient';
 import { useAuthStore } from './stores/auth.store';
 import { useInboxStore } from './stores/inbox.store';
 import { useActivityTracker } from './hooks/useActivityTracker';
@@ -119,10 +121,37 @@ function App() {
             (data.session as any)?.authToken || data.session?.token || 'session-active'
           );
         } else {
+          // Fallback: If Better-Auth session cookie was absent (e.g. desktop app or cross-origin),
+          // verify any persisted token in localStorage via /internal/verify
+          const currentToken = useAuthStore.getState().token;
+          if (currentToken) {
+            try {
+              const verifyRes = await apiClient.get('/internal/verify');
+              if (verifyRes.data?.user) {
+                setAuth(
+                  {
+                    id: verifyRes.data.user.id,
+                    name: verifyRes.data.user.name,
+                    email: verifyRes.data.user.email,
+                    avatar: verifyRes.data.user.image || undefined,
+                  },
+                  verifyRes.data.session?.authToken || currentToken
+                );
+                return;
+              }
+            } catch (verifyErr: any) {
+              if (verifyErr?.response?.status === 401) {
+                clearAuth();
+              }
+            }
+          } else {
+            clearAuth();
+          }
+        }
+      } catch (err: any) {
+        if (err?.response?.status === 401) {
           clearAuth();
         }
-      } catch {
-        clearAuth();
       } finally {
         setIsReady(true);
       }
@@ -133,9 +162,7 @@ function App() {
   if (!isReady) {
     return (
       <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
-        <div className="w-10 h-10 rounded-xl bg-primary text-primary-foreground grid place-items-center font-bold animate-pulse">
-          V
-        </div>
+        <VeroLogo variant="symbol-bg" size="lg" className="rounded-2xl animate-pulse shadow-md" />
         <div className="h-1 w-32 rounded-full skeleton-shimmer" />
       </div>
     );

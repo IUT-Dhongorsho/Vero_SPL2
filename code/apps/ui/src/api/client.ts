@@ -4,9 +4,10 @@ import { authService } from '../services/authService';
 import { Import } from 'lucide-react';
 
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8080/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
+    'ngrok-skip-browser-warning': 'true',
   },
 });
 
@@ -27,9 +28,18 @@ api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid – log out
-      authService.removeToken();
-      window.location.href = '/login';
+      const url = error.config?.url || '';
+      const isAuthEndpoint = url.includes('/better-auth') || url.includes('/auth/session') || url.includes('/auth/me');
+
+      if (isAuthEndpoint) {
+        console.warn('⚠️ [api] Primary auth session returned 401. Logging out...');
+        authService.removeToken();
+        if (typeof window !== 'undefined' && window.location.pathname !== '/login') {
+          window.location.href = '/login';
+        }
+      } else {
+        console.warn(`⚠️ [api] Request to ${url} returned 401 Unauthorized. Preserving active session.`);
+      }
     }
     return Promise.reject(error);
   }
