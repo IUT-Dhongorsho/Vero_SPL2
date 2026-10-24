@@ -6,7 +6,6 @@ import { useAuthStore } from '../../stores/auth.store';
 import { useNotificationStore } from '../../stores/notification.store';
 import { useNavigationStore } from '../../stores/navigationStore';
 import { Avatar } from '../ui/Avatar';
-import { ThemeToggle } from '../ui/ThemeToggle';
 import { cn } from '../../utils/cn';
 
 export interface TopBarProps {
@@ -72,7 +71,6 @@ export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, actions }) => {
 
         {actions}
 
-        <ThemeToggle />
         <NotificationDropdown />
 
         <button

@@ -1,8 +1,12 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { Search, FolderKanban, LayoutDashboard, Settings, FileText, CheckSquare, CalendarDays, MessageSquare } from 'lucide-react';
+import { Search, FolderKanban, LayoutDashboard, Settings, FileText, CheckSquare, CalendarDays, MessageSquare, Layers, File, Loader2 } from 'lucide-react';
 import { useProjectStore } from '../../stores/project.store';
+import { useAuthStore } from '../../stores/auth.store';
+import { moduleService, type ModuleRef } from '../../services/moduleService';
+import { notesService } from '../../services/notesService';
+import { fileService } from '../../services/fileService';
 
 interface SearchResult {
   id: string;
@@ -20,6 +24,55 @@ export const GlobalSearch: React.FC = () => {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
   const projects = useProjectStore((state) => state.projects);
+  const fetchProjects = useProjectStore((state) => state.fetchProjects);
+  const signedIn = useAuthStore((state) => state.isAuthenticated);
+  const [modules, setModules] = useState<ModuleRef[]>([]);
+  const [remote, setRemote] = useState<SearchResult[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // Projects and modules are small enough to filter locally; load them on open.
+  useEffect(() => {
+    if (!isOpen || !signedIn) return;
+    if (projects.length === 0) fetchProjects();
+    moduleService.mine().then(setModules).catch(() => setModules([]));
+  }, [isOpen, signedIn]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Notes and files are searched on the server once the query is meaningful.
+  useEffect(() => {
+    const term = query.trim();
+    if (!isOpen || !signedIn || term.length < 2) {
+      setRemote([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const timer = setTimeout(async () => {
+      const [notes, files] = await Promise.all([
+        notesService.search(term).catch(() => []),
+        fileService.recent({ q: term, limit: 8 }).catch(() => []),
+      ]);
+      setRemote([
+        ...notes.map((note) => ({
+          id: `note-${note.id}`,
+          title: note.title,
+          subtitle: `${note.projectName} / ${note.moduleName}${note.snippet ? ` — ${note.snippet}` : ''}`,
+          icon: <FileText />,
+          route: `/project/${note.projectId}/module/${note.moduleId}/notes?note=${note.id}`,
+          category: 'Notes',
+        })),
+        ...files.map((file) => ({
+          id: `file-${file.id}`,
+          title: file.name,
+          subtitle: `${file.project?.name ?? 'Project'}${file.folder ? ` / ${file.folder.name}` : ''}`,
+          icon: <File />,
+          route: `/project/${file.projectId}?tab=files${file.folderId ? `&folder=${file.folderId}` : ''}`,
+          category: 'Files',
+        })),
+      ]);
+      setSearching(false);
+    }, 220);
+    return () => clearTimeout(timer);
+  }, [query, isOpen, signedIn]);
 
   // Toggle on Cmd+K or Ctrl+K
   useEffect(() => {
@@ -72,13 +125,25 @@ export const GlobalSearch: React.FC = () => {
       route: `/project/${project.id}`,
       category: 'Projects',
     })),
+    ...modules.map((mod) => ({
+      id: `mod-${mod.id}`,
+      title: mod.name,
+      subtitle: mod.projectName,
+      icon: <Layers />,
+      route: `/project/${mod.projectId}/module/${mod.id}`,
+      category: 'Modules',
+    })),
   ];
 
-  const filteredItems = allItems.filter(item => 
-    item.title.toLowerCase().includes(query.toLowerCase()) || 
-    item.subtitle?.toLowerCase().includes(query.toLowerCase()) ||
-    item.category.toLowerCase().includes(query.toLowerCase())
-  );
+  const filteredItems = [
+    ...allItems.filter(item =>
+      item.title.toLowerCase().includes(query.toLowerCase()) ||
+      item.subtitle?.toLowerCase().includes(query.toLowerCase()) ||
+      item.category.toLowerCase().includes(query.toLowerCase())
+    ),
+    // The server already matched these against the query.
+    ...remote,
+  ];
 
   // Group items by category
   const groupedItems = filteredItems.reduce((acc, item) => {
@@ -140,7 +205,8 @@ export const GlobalSearch: React.FC = () => {
               value={query}
               onChange={e => setQuery(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Search tasks, projects, notes, or type a command..."
+              placeholder="Search pages, projects, modules, notes and files"
+              aria-label="Search"
               className="flex-1 bg-transparent border-none outline-none px-4 py-4 text-foreground placeholder:text-muted-foreground text-lg"
             />
             <div className="flex items-center gap-1 text-xs text-muted-foreground font-medium bg-muted px-2 py-1 rounded-md shrink-0">
@@ -152,12 +218,16 @@ export const GlobalSearch: React.FC = () => {
           <div className="max-h-[60vh] overflow-y-auto p-2">
             {flatItems.length === 0 ? (
               <div className="p-8 text-center text-muted-foreground">
-                <p>No results found for "{query}"</p>
+                {searching ? (
+                  <p className="inline-flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" /> Searching notes and files…</p>
+                ) : (
+                  <p>Nothing matches “{query}”.</p>
+                )}
               </div>
             ) : (
               Object.entries(groupedItems).map(([category, items]) => (
                 <div key={category} className="mb-4 last:mb-0">
-                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                  <div className="px-3 py-2 text-xs font-semibold text-muted-foreground">
                     {category}
                   </div>
                   {items.map((item) => {
@@ -178,10 +248,10 @@ export const GlobalSearch: React.FC = () => {
                         <div className={`flex items-center justify-center w-8 h-8 rounded-lg ${isSelected ? 'bg-primary-foreground/20' : 'bg-muted text-muted-foreground'}`}>
                           {React.cloneElement(item.icon as React.ReactElement, { className: 'w-4 h-4' })}
                         </div>
-                        <div className="flex flex-col">
-                          <span className="font-medium text-sm">{item.title}</span>
+                        <div className="flex flex-col min-w-0">
+                          <span className="font-medium text-sm truncate">{item.title}</span>
                           {item.subtitle && (
-                            <span className={`text-xs ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                            <span className={`text-xs truncate ${isSelected ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
                               {item.subtitle}
                             </span>
                           )}

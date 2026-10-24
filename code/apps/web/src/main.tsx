@@ -1,19 +1,10 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
-import { App, ThemeProvider } from '@repo/ui';
+import { App, ThemeProvider, applyStoredTheme } from '@repo/ui';
 import '@repo/ui/src/styles/globals.css';
 
-// Force remove dark class on initial load
-document.documentElement.classList.remove('dark');
-
-// Check localStorage and re-apply if needed
-const savedTheme = localStorage.getItem('theme');
-if (savedTheme === 'dark') {
-  document.documentElement.classList.add('dark');
-} else {
-  document.documentElement.classList.remove('dark');
-}
+applyStoredTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

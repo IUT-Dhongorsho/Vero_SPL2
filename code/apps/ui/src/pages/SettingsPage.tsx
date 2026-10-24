@@ -1,84 +1,64 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { User, Building2, Users, CreditCard, AlertTriangle, LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, Files } from 'lucide-react';
+import React from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { Bell, KeyRound, Palette, Trash2, UserRound } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
-import { ThemeToggle } from '../components/ui/ThemeToggle';
-import { ProfileTab } from './settings/ProfileTab';
-import { WorkspaceTab } from './settings/WorkspaceTab';
-import { MembersTab } from './settings/MembersTab';
-import { BillingTab } from './settings/BillingTab';
-import { DangerZoneTab } from './settings/DangerZoneTab';
-import { toast } from '../components/Providers/ToastProvider';
+import { springSoft } from '../lib/motion';
+import { cn } from '../utils/cn';
+import { AccountSettings } from './settings/AccountSettings';
+import { SecuritySettings } from './settings/SecuritySettings';
+import { NotificationSettings } from './settings/NotificationSettings';
+import { AppearanceSettings } from './settings/AppearanceSettings';
+import { DeleteAccountSettings } from './settings/DeleteAccountSettings';
 
-type Tab = 'profile' | 'workspace' | 'members' | 'billing' | 'danger';
+type Section = 'account' | 'security' | 'notifications' | 'appearance' | 'delete';
 
-const tabs: { id: Tab; label: string; icon: React.ReactNode }[] = [
-  { id: 'profile', label: 'Profile', icon: <User className="w-4 h-4" /> },
-  { id: 'workspace', label: 'Workspace', icon: <Building2 className="w-4 h-4" /> },
-  { id: 'members', label: 'Members', icon: <Users className="w-4 h-4" /> },
-  { id: 'billing', label: 'Billing', icon: <CreditCard className="w-4 h-4" /> },
-  { id: 'danger', label: 'Danger Zone', icon: <AlertTriangle className="w-4 h-4" /> },
+const SECTIONS: { id: Section; label: string; icon: typeof UserRound; component: React.FC }[] = [
+  { id: 'account', label: 'Account', icon: UserRound, component: AccountSettings },
+  { id: 'security', label: 'Password & sessions', icon: KeyRound, component: SecuritySettings },
+  { id: 'notifications', label: 'Notifications', icon: Bell, component: NotificationSettings },
+  { id: 'appearance', label: 'Appearance', icon: Palette, component: AppearanceSettings },
+  { id: 'delete', label: 'Delete account', icon: Trash2, component: DeleteAccountSettings },
 ];
 
-const tabComponents = {
-  profile: ProfileTab,
-  workspace: WorkspaceTab,
-  members: MembersTab,
-  billing: BillingTab,
-  danger: DangerZoneTab,
-};
-
 export const SettingsPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<Tab>('profile');
-  const ActiveComponent = tabComponents[activeTab];
-
-  const sidebarItems = [
-    { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard' },
-    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
-    { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks' },
-    { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
-    { icon: <Files className="w-4 h-4" />, label: 'Files', href: '/files' },
-  ];
+  const [params, setParams] = useSearchParams();
+  const active = SECTIONS.find((s) => s.id === params.get('section')) ?? SECTIONS[0];
+  const Active = active.component;
 
   return (
-    <PageContainer title="Settings" sidebarItems={sidebarItems} topBarActions={<ThemeToggle />}>
-      <div className="max-w-6xl mx-auto flex flex-col md:flex-row gap-8">
-        
-        {/* Settings Sidebar */}
-        <div className="w-full md:w-64 shrink-0 space-y-1">
-          {tabs.map((tab) => {
-            const isActive = activeTab === tab.id;
-            return (
-              <button 
-                key={tab.id} 
-                onClick={() => setActiveTab(tab.id)} 
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
-                  isActive 
-                    ? 'bg-primary text-primary-foreground shadow-sm' 
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-                }`}
-              >
-                {tab.icon} {tab.label}
-              </button>
-            );
-          })}
-        </div>
+    <PageContainer title="Settings" subtitle="Your account on Vero">
+      <div className="flex flex-col md:flex-row gap-6 md:gap-8">
+        <nav aria-label="Settings" className="md:w-56 shrink-0">
+          <ul className="flex md:flex-col gap-1 overflow-x-auto no-scrollbar -mx-4 px-4 md:mx-0 md:px-0">
+            {SECTIONS.map(({ id, label, icon: Icon }) => {
+              const on = active.id === id;
+              return (
+                <li key={id} className="shrink-0">
+                  <button
+                    onClick={() => setParams(id === 'account' ? {} : { section: id }, { replace: true })}
+                    aria-current={on ? 'page' : undefined}
+                    className={cn(
+                      'relative w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-colors whitespace-nowrap',
+                      on ? 'text-foreground' : 'text-muted-foreground hover:text-foreground hover:bg-muted',
+                      id === 'delete' && !on && 'hover:text-danger'
+                    )}
+                  >
+                    {on && (
+                      <motion.span layoutId="settings-active" transition={springSoft} className="absolute inset-0 rounded-xl bg-muted border border-border" />
+                    )}
+                    <Icon className="relative w-4 h-4" strokeWidth={on ? 2.2 : 1.9} />
+                    <span className="relative">{label}</span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        </nav>
 
-        {/* Settings Content */}
         <div className="flex-1 min-w-0">
-          <AnimatePresence mode="wait">
-            <motion.div 
-              key={activeTab} 
-              initial={{ opacity: 0, x: 20 }} 
-              animate={{ opacity: 1, x: 0 }} 
-              exit={{ opacity: 0, x: -20 }} 
-              transition={{ duration: 0.2 }}
-            >
-              <ActiveComponent />
-            </motion.div>
-          </AnimatePresence>
+          <Active />
         </div>
-
       </div>
     </PageContainer>
   );

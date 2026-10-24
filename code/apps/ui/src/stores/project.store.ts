@@ -5,7 +5,7 @@ interface ProjectState {
   projects: Project[];
   loading: boolean;
   fetchProjects: () => Promise<void>;
-  createProject: (data: CreateProjectData) => Promise<void>;
+  createProject: (data: CreateProjectData) => Promise<Project>;
   joinProject: (inviteCode: string) => Promise<{ projectId: string }>;
   generateInviteCode: (id: string) => Promise<void>;
   deleteProject: (id: string) => Promise<void>;
@@ -27,7 +27,8 @@ export const useProjectStore = create<ProjectState>((set, get) => ({
 
   createProject: async (data) => {
     const newProj = await projectService.createProject(data);
-    set({ projects: [...get().projects, newProj] });
+    set({ projects: [newProj, ...get().projects] });
+    return newProj;
   },
 
   joinProject: async (inviteCode) => {

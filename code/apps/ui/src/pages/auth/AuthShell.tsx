@@ -115,13 +115,18 @@ export const AuthField: React.FC<{
   autoComplete?: string;
   required?: boolean;
   trailing?: React.ReactNode;
-}> = ({ label, type = 'text', value, onChange, placeholder, autoComplete, required, trailing }) => (
+  minLength?: number;
+}> = ({ label, type = 'text', value, onChange, placeholder, autoComplete, required, trailing, minLength }) => {
+  const id = React.useId();
+  return (
   <div>
     <div className="flex items-baseline justify-between mb-2">
-      <label className="text-sm font-medium text-foreground">{label}</label>
+      <label htmlFor={id} className="text-sm font-medium text-foreground">{label}</label>
       {trailing}
     </div>
     <input
+      id={id}
+      minLength={minLength}
       type={type}
       value={value}
       onChange={(e) => onChange(e.target.value)}
@@ -131,7 +136,8 @@ export const AuthField: React.FC<{
       className="w-full px-4 py-3 bg-card border border-border rounded-xl text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition-all"
     />
   </div>
-);
+  );
+};
 
 export const SocialButton: React.FC<{
   onClick: () => void;

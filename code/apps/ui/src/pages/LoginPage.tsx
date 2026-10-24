@@ -120,6 +120,8 @@ export const LoginPage: React.FC = () => {
         </AnimatedButton>
       </form>
 
+      {/* Development only: the demo account has a published password. */}
+      {import.meta.env.DEV && (
       <div className="mt-4 p-3 rounded-xl bg-accent-soft border border-accent/20 text-xs flex justify-between items-center">
         <div>
           <span className="font-semibold block text-foreground">Local testing?</span>
@@ -134,6 +136,7 @@ export const LoginPage: React.FC = () => {
           Demo Login
         </button>
       </div>
+      )}
 
       <AuthDivider />
 

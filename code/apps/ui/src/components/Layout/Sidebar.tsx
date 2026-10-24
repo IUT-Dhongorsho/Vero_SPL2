@@ -5,6 +5,7 @@ import {
   ChevronLeft,
   ChevronRight,
   CheckSquare,
+  Files,
   FolderKanban,
   Home,
   Inbox,
@@ -43,6 +44,7 @@ const PRIMARY_NAV: NavEntry[] = [
   { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
   { to: '/progress', icon: LayoutGrid, label: 'Progress' },
   { to: '/projects', icon: FolderKanban, label: 'Projects' },
+  { to: '/files', icon: Files, label: 'Files' },
 ];
 
 const SECONDARY_NAV: NavEntry[] = [

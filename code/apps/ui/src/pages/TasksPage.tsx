@@ -212,7 +212,7 @@ const PersonalTaskList: React.FC = () => {
       topBarActions={
         <AnimatedButton
           size="sm"
-          variant="primary"
+          variant="accent"
           onClick={() => {
             setEditing(null);
             setCreating(true);

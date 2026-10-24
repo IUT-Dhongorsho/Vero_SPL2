@@ -1,7 +1,5 @@
 import { create } from 'zustand';
-import axios from 'axios';
-import { useAuthStore } from './auth.store';
-import { API_BASE } from '../lib/endpoints';
+import { apiClient } from '../utils/apiClient';
 import { connectNotificationSocket, disconnectNotificationSocket } from '../ws/notificationSocket';
 
 export interface Notification {
@@ -12,9 +10,14 @@ export interface Notification {
   body: string | null;
   resourceUrl: string | null;
   isRead: boolean;
+  actorCount?: number;
   createdAt: string;
 }
 
+/**
+ * The bell. The server identifies the caller from the session, so the userId
+ * arguments only key the socket connection; they are never sent as identity.
+ */
 interface NotificationState {
   notifications: Notification[];
   unreadCount: number;
@@ -28,123 +31,82 @@ interface NotificationState {
   disconnectSocket: () => void;
 }
 
-// Create dedicated Axios instance for the Notification microservice
-const notificationBaseURL = API_BASE;
-
-const notificationClient = axios.create({
-  baseURL: notificationBaseURL,
-  headers: {
-    'Content-Type': 'application/json',
-  },
-});
-
-// Inject authentication token into notification requests
-notificationClient.interceptors.request.use(
-  (config) => {
-    const token = useAuthStore.getState().token;
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`;
-    }
-    return config;
-  },
-  (error) => {
-    return Promise.reject(error);
-  }
-);
-
 export const useNotificationStore = create<NotificationState>((set, get) => ({
   notifications: [],
   unreadCount: 0,
   loading: false,
 
-  fetchNotifications: async (userId) => {
+  fetchNotifications: async () => {
     set({ loading: true });
     try {
-      const response = await notificationClient.get<Notification[]>('/notifications/', {
-        params: { userId },
-      });
+      const response = await apiClient.get<Notification[]>('/notifications');
       set({ notifications: response.data, loading: false });
     } catch (error) {
-      console.error('❌ [useNotificationStore] Failed to fetch notifications:', error);
+      console.error('[notifications] failed to load', error);
       set({ loading: false });
     }
   },
 
-  fetchUnreadCount: async (userId) => {
+  fetchUnreadCount: async () => {
     try {
-      const response = await notificationClient.get<{ count: number }>('/notifications/unread-count/', {
-        params: { userId },
-      });
+      const response = await apiClient.get<{ count: number }>('/notifications/unread-count');
       set({ unreadCount: response.data.count });
     } catch (error) {
-      console.error('❌ [useNotificationStore] Failed to fetch unread count:', error);
+      console.error('[notifications] failed to load unread count', error);
     }
   },
 
-  markAsRead: async (userId, id) => {
+  markAsRead: async (_userId, id) => {
+    const { notifications, unreadCount } = get();
+    const target = notifications.find((n) => n.id === id);
+    if (!target || target.isRead) return;
+    set({
+      notifications: notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
+      unreadCount: Math.max(0, unreadCount - 1),
+    });
     try {
-      await notificationClient.patch(`/notifications/${id}/read`, { userId });
-      
-      const { notifications, unreadCount } = get();
-      const target = notifications.find((n) => n.id === id);
-      
-      // Only adjust count if notification transitions from unread to read
-      const wasUnread = target ? !target.isRead : false;
-
-      set({
-        notifications: notifications.map((n) => (n.id === id ? { ...n, isRead: true } : n)),
-        unreadCount: wasUnread ? Math.max(0, unreadCount - 1) : unreadCount,
-      });
+      await apiClient.patch(`/notifications/${id}/read`);
     } catch (error) {
-      console.error(`❌ [useNotificationStore] Failed to mark notification ${id} as read:`, error);
+      set({ notifications, unreadCount });
+      console.error(`[notifications] failed to mark ${id} as read`, error);
     }
   },
 
-  markAllAsRead: async (userId) => {
+  markAllAsRead: async () => {
+    const { notifications, unreadCount } = get();
+    set({ notifications: notifications.map((n) => ({ ...n, isRead: true })), unreadCount: 0 });
     try {
-      await notificationClient.patch('/notifications/read-all', { userId });
-      
-      const { notifications } = get();
-      set({
-        notifications: notifications.map((n) => ({ ...n, isRead: true })),
-        unreadCount: 0,
-      });
+      await apiClient.patch('/notifications/read-all');
     } catch (error) {
-      console.error('❌ [useNotificationStore] Failed to mark all notifications as read:', error);
+      set({ notifications, unreadCount });
+      console.error('[notifications] failed to mark all as read', error);
     }
   },
 
-  deleteNotification: async (userId, id) => {
+  deleteNotification: async (_userId, id) => {
+    const { notifications, unreadCount } = get();
+    const target = notifications.find((n) => n.id === id);
+    set({
+      notifications: notifications.filter((n) => n.id !== id),
+      unreadCount: target && !target.isRead ? Math.max(0, unreadCount - 1) : unreadCount,
+    });
     try {
-      await notificationClient.delete(`/notifications/${id}`, {
-        data: { userId },
-      });
-
-      const { notifications, unreadCount } = get();
-      const target = notifications.find((n) => n.id === id);
-      const wasUnread = target ? !target.isRead : false;
-
-      set({
-        notifications: notifications.filter((n) => n.id !== id),
-        unreadCount: wasUnread ? Math.max(0, unreadCount - 1) : unreadCount,
-      });
+      await apiClient.delete(`/notifications/${id}`);
     } catch (error) {
-      console.error(`❌ [useNotificationStore] Failed to delete notification ${id}:`, error);
+      set({ notifications, unreadCount });
+      console.error(`[notifications] failed to delete ${id}`, error);
     }
   },
 
-  connectSocket: (userId) => {
-    connectNotificationSocket(userId, (newNotification) => {
+  connectSocket: () => {
+    connectNotificationSocket((incoming: Notification) => {
       const { notifications, unreadCount } = get();
-      
-      // Avoid inserting duplicates
-      if (notifications.some((n) => n.id === newNotification.id)) {
-        return;
-      }
-
+      const existing = notifications.find((n) => n.id === incoming.id);
+      // A grouped notification arrives again as more activity joins it:
+      // move it to the top rather than ignoring or duplicating it.
       set({
-        notifications: [newNotification, ...notifications],
-        unreadCount: unreadCount + 1,
+        notifications: [{ ...existing, ...incoming }, ...notifications.filter((n) => n.id !== incoming.id)],
+        unreadCount: existing && !existing.isRead ? unreadCount : unreadCount + 1,
       });
     });
   },

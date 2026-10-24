@@ -1,5 +1,5 @@
 export { default as App } from './App';
-export { ThemeProvider } from './components/Providers/ThemeProvider';
+export { ThemeProvider, applyStoredTheme } from './components/Providers/ThemeProvider';
 export { ToastProvider } from './components/Providers/ToastProvider';
 export { Button } from './components/Button/Button';
 export { AnimatedButton } from './components/ui/AnimatedButton';
