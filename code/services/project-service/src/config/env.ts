@@ -10,6 +10,8 @@ const envSchema = z.object({
   REDIS_URL: z.string().default('redis://localhost:6379'),
   BETTER_AUTH_SECRET: z.string(),
   CHAT_SERVICE_GRPC_URL: z.string().default('localhost:5005'),
+  /** Where uploaded project files are stored. Defaults to services/project-service/uploads. */
+  UPLOAD_DIR: z.string().optional(),
 });
 
 const _env = envSchema.safeParse(process.env);

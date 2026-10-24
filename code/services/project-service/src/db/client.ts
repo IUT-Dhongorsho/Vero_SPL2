@@ -3,6 +3,7 @@ import pg from 'pg';
 import { env } from '../config/env.js';
 import * as userSchema from '../models/user.model.js';
 import * as workspaceSchema from '../models/workspace.model.js';
+import * as fileSchema from '../models/file.model.js';
 
 const pool = new pg.Pool({
   connectionString: env.DATABASE_URL,
@@ -11,6 +12,7 @@ const pool = new pg.Pool({
 export const db = drizzle(pool, { 
     schema: {
         ...userSchema,
-        ...workspaceSchema
+        ...workspaceSchema,
+        ...fileSchema,
     } 
 });

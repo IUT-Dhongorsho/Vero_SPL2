@@ -57,3 +57,19 @@ export const addChatMembers = (data: {
     });
   });
 };
+
+export const removeChatMembers = (data: {
+  channelId: string;
+  userIds: string[];
+}): Promise<any> => {
+  return new Promise((resolve, reject) => {
+    chatGrpcClient.RemoveMembers(data, (error: any, response: any) => {
+      if (error) {
+        console.error('❌ [gRPC:Client] RemoveMembers failed:', error);
+        reject(error);
+      } else {
+        resolve(response);
+      }
+    });
+  });
+};

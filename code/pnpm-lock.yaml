@@ -1128,6 +1128,9 @@ importers:
       jsonwebtoken:
         specifier: ^9.0.3
         version: 9.0.3
+      multer:
+        specifier: ^2.0.0
+        version: 2.2.0
       pg:
         specifier: ^8.13.1
         version: 8.22.0
@@ -1147,6 +1150,9 @@ importers:
       '@types/jsonwebtoken':
         specifier: ^9.0.7
         version: 9.0.10
+      '@types/multer':
+        specifier: ^2.0.0
+        version: 2.2.0
       '@types/node':
         specifier: ^22.9.0
         version: 22.20.1
