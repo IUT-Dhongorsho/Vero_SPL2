@@ -5,6 +5,7 @@ package chat;
 service ChatService {
   rpc CreateChannel (CreateChannelRequest) returns (ChannelResponse);
   rpc AddMembers (AddMembersRequest) returns (ChannelResponse);
+  rpc RemoveMembers (RemoveMembersRequest) returns (ChannelResponse);
 }
 
 message CreateChannelRequest {
@@ -15,6 +16,11 @@ message CreateChannelRequest {
 }
 
 message AddMembersRequest {
+  string channelId = 1;
+  repeated string userIds = 2;
+}
+
+message RemoveMembersRequest {
   string channelId = 1;
   repeated string userIds = 2;
 }
