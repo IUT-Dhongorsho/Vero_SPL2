@@ -18,6 +18,12 @@ export const auth = betterAuth({
     // `/api/better-auth`, so without this every auth request 404s.
     basePath: "/api/better-auth",
     secret: env.BETTER_AUTH_SECRET,
+    // Better Auth marks cookies `Secure` whenever BETTER_AUTH_URL is https —
+    // which it is behind ngrok — and browsers then drop the session on plain
+    // http origins (localhost:3000, a LAN IP). Only production needs them.
+    advanced: {
+        useSecureCookies: env.NODE_ENV === "production",
+    },
     // The Vite dev server runs on :3000; :5173 stays for anyone on the Vite
     // default. Extra origins can be added with a comma-separated CLIENT_URL.
     trustedOrigins: [

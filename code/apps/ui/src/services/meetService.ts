@@ -1,4 +1,4 @@
-import api from '../api/client';
+import { apiClient as api } from '../utils/apiClient';
 
 export interface RoomStatus {
   roomId: string;

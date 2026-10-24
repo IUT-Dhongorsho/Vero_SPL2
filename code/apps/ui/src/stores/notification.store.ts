@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import axios from 'axios';
 import { useAuthStore } from './auth.store';
+import { API_BASE } from '../lib/endpoints';
 import { connectNotificationSocket, disconnectNotificationSocket } from '../ws/notificationSocket';
 
 export interface Notification {
@@ -28,7 +29,7 @@ interface NotificationState {
 }
 
 // Create dedicated Axios instance for the Notification microservice
-const notificationBaseURL = import.meta.env.VITE_API_URL || 'http://localhost:8080/api';
+const notificationBaseURL = API_BASE;
 
 const notificationClient = axios.create({
   baseURL: notificationBaseURL,

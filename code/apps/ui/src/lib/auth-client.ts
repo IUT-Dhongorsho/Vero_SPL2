@@ -1,5 +1,6 @@
 import { createAuthClient } from "better-auth/react";
+import { API_BASE } from "./endpoints";
 
 export const authClient = createAuthClient({
-  baseURL: import.meta.env.VITE_API_URL?.replace(/\/$/, '') + '/better-auth' || 'http://localhost:8080/api/better-auth',
+  baseURL: `${API_BASE}/better-auth`,
 });

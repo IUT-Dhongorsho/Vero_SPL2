@@ -1,3 +1,6 @@
 /node_modules
 node_modules/
 **/*.env
+
+# Uploaded user files (project library, chat attachments)
+uploads/

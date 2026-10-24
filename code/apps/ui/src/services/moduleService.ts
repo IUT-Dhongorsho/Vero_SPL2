@@ -1,4 +1,4 @@
-import api from '../api/client';
+import { apiClient as api } from '../utils/apiClient';
 import { Module } from '../stores/module.store';
 
 export interface CreateModuleData {

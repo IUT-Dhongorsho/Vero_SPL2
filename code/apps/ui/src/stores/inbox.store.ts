@@ -7,8 +7,7 @@ import {
   type ConnectionBuckets,
 } from '../services/inboxService';
 import { useAuthStore } from './auth.store';
-
-const CHAT_SOCKET_URL = import.meta.env.VITE_CHAT_SERVICE_URL || 'http://localhost:8005';
+import { API_ORIGIN, socketPath } from '../lib/endpoints';
 
 interface InboxState {
   connections: ConnectionBuckets;
@@ -187,7 +186,9 @@ export const useInboxStore = create<InboxState>((set, get) => ({
     const token = useAuthStore.getState().token;
     if (!token) return;
 
-    const socket = io(CHAT_SOCKET_URL, {
+    // Through the gateway, so it works behind nginx/ngrok as well as Vite.
+    const socket = io(API_ORIGIN, {
+      path: socketPath('chat'),
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 5,

@@ -1,4 +1,5 @@
 import { io, Socket } from 'socket.io-client';
+import { API_ORIGIN, socketPath } from '../lib/endpoints';
 
 let socket: Socket | null = null;
 
@@ -9,11 +10,8 @@ export const connectNotificationSocket = (
   if (socket) return socket;
 
   try {
-    const apiUrl = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
-    const wsUrl = apiUrl.replace(/\/api$/, '');
-
-    socket = io(wsUrl, {
-      path: '/notification/notifications/socket.io/',
+    socket = io(API_ORIGIN, {
+      path: socketPath('notifications'),
       query: { userId },
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 2,
