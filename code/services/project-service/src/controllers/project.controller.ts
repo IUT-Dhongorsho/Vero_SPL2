@@ -208,9 +208,19 @@ export class ProjectController {
         role: 'member'
       });
 
+      const admins = await db.query.projectMembers.findMany({
+        where: and(eq(projectMembers.projectId, project.id), eq(projectMembers.role, 'admin')),
+        columns: { userId: true },
+      });
       await publisherService.project({
         type: 'project.member_joined',
-        data: { projectId: project.id, projectName: project.name, userId: user.id, userName: user.name ?? 'Someone' },
+        data: {
+          projectId: project.id,
+          projectName: project.name,
+          userId: user.id,
+          userName: user.name ?? 'Someone',
+          adminIds: admins.map((a) => a.userId),
+        },
       });
 
       res.status(200).json({ success: true, projectId: project.id, message: 'Successfully joined project' });

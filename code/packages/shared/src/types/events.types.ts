@@ -9,7 +9,7 @@ export interface DomainEvent<T extends string = string, D = Record<string, unkno
 
 /** project_events */
 export type ProjectEvent =
-  | DomainEvent<'project.member_joined', { projectId: string; projectName: string; userId: string; userName: string }>
+  | DomainEvent<'project.member_joined', { projectId: string; projectName: string; userId: string; userName: string; adminIds: string[] }>
   | DomainEvent<'project.member_removed', { projectId: string; projectName: string; userId: string; actorId: string }>
   | DomainEvent<'project.role_changed', { projectId: string; projectName: string; userId: string; role: string; actorId: string }>
   | DomainEvent<'module.member_added', {
