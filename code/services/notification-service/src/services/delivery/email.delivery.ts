@@ -27,7 +27,7 @@ export class EmailDelivery {
 
     try {
       await this.transporter.sendMail({
-        from: env.FROM_EMAIL,
+        from: env.FROM_EMAIL || `Vero <${env.SMTP_USER}>`,
         to,
         subject,
         html,

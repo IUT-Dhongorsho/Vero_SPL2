@@ -14,7 +14,8 @@ const envSchema = z.object({
   SMTP_PORT: z.string().optional().transform(v => v ? Number(v) : undefined),
   SMTP_USER: z.string().optional(),
   SMTP_PASS: z.string().optional(),
-  FROM_EMAIL: z.string().default('noreply@vero.app'),
+  /** Defaults to the SMTP account — Gmail rewrites or rejects any other sender. */
+  FROM_EMAIL: z.string().optional(),
 
   // Push Notifications (VAPID)
   VAPID_PUBLIC_KEY: z.string().optional(),
@@ -23,6 +24,9 @@ const envSchema = z.object({
 
   // Frontend URL for deep links
   FRONTEND_URL: z.string().default('http://localhost:3000'),
+
+  // Identity is verified by auth-service
+  AUTH_SERVICE_URL: z.string().default('http://localhost:8001'),
 });
 
 const _env = envSchema.safeParse(process.env);

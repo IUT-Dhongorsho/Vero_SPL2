@@ -19,6 +19,7 @@ export class SubscriberService {
     await subClient.subscribe('meet_events');
     await subClient.subscribe('note_events');
     await subClient.subscribe('resource_events');
+    await subClient.subscribe('mail_events');
 
     subClient.on('message', async (channel: string, message: string) => {
       try {

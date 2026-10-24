@@ -1,30 +1,67 @@
-import { describe, it, expect } from 'vitest';
-import { emailDelivery } from '../../src/services/delivery/email.delivery.js';
-import { env } from '../../src/config/env.js';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-describe('Mail Delivery Service (NFR/FR)', () => {
-  it('should verify the SMTP connection if credentials are provided', async () => {
-    // This test will only be truly effective if SMTP environment variables are set.
-    // Otherwise, the service correctly logs a warning and returns false.
+// Never send real mail from a test run: capture what would have gone out.
+const sent = vi.hoisted(() => [] as any[]);
+vi.mock('nodemailer', () => ({
+  default: {
+    createTransport: vi.fn(() => ({
+      sendMail: vi.fn(async (message: any) => {
+        sent.push(message);
+        return { messageId: 'test' };
+      }),
+    })),
+  },
+}));
+vi.hoisted(() => {
+  process.env.SMTP_HOST = 'smtp.test.local';
+  process.env.SMTP_PORT = '587';
+  process.env.SMTP_USER = 'robot@vero.test';
+  process.env.SMTP_PASS = 'x';
+  delete process.env.FROM_EMAIL;
+});
 
-    if (!env.SMTP_HOST) {
-      console.warn('⚠️ Skipping SMTP verification: SMTP_HOST not provided in .env');
-      return;
-    }
+import { mailHandler } from '../../src/services/handlers/mail.handler.js';
+import { passwordResetEmail, notificationEmail } from '../../src/services/email-templates.js';
 
-    const isDelivered = await emailDelivery.deliver(
-      'nafislabib1550@gmail.com',
-      'Vero Test Email',
-      '<h1>SMTP Working</h1><p>This is a test from the notification-service test suite.</p>'
-    );
+beforeEach(() => {
+  sent.length = 0;
+});
 
-    expect(isDelivered).toBe(true);
+describe('transactional mail', () => {
+  it('sends the password reset link from the SMTP account', async () => {
+    await mailHandler.handle({
+      type: 'mail.password_reset',
+      data: { to: 'ada@vero.test', name: 'Ada', url: 'http://localhost:3000/reset-password?token=t0k' },
+    });
+
+    expect(sent).toHaveLength(1);
+    expect(sent[0]).toMatchObject({
+      to: 'ada@vero.test',
+      from: 'Vero <robot@vero.test>',
+      subject: 'Reset your Vero password',
+    });
+    expect(sent[0].html).toContain('href="http://localhost:3000/reset-password?token=t0k"');
+    expect(sent[0].html).toContain('Hi Ada,');
   });
 
-  it('should fail gracefully or skip if SMTP is not configured', async () => {
-    if (!env.SMTP_HOST) {
-      const result = await emailDelivery.deliver('test@test.com', 'test', 'test');
-      expect(result).toBe(false);
-    }
+  it('ignores malformed events', async () => {
+    await mailHandler.handle({ type: 'mail.password_reset', data: { to: 'x@vero.test' } });
+    await mailHandler.handle({ type: 'mail.unknown', data: {} });
+    expect(sent).toHaveLength(0);
+  });
+});
+
+describe('email templates', () => {
+  it('escapes user-controlled text', () => {
+    const { html } = passwordResetEmail('<script>alert(1)</script>', 'http://x/?a=1&b=2');
+    expect(html).not.toContain('<script>');
+    expect(html).toContain('&lt;script&gt;');
+    expect(html).toContain('a=1&amp;b=2');
+  });
+
+  it('links notifications into the app', () => {
+    const { html, subject } = notificationEmail('Ada assigned you a task', 'Ship it', '/project/p/module/m/board');
+    expect(subject).toBe('Ada assigned you a task');
+    expect(html).toContain('/project/p/module/m/board');
   });
 });

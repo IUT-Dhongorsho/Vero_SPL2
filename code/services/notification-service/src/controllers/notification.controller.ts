@@ -1,43 +1,161 @@
-import { Request, Response } from 'express';
+import { Response } from 'express';
 import { db } from '../db/client.js';
 import { notifications } from '../models/notification.model.js';
-import { eq, and, desc, count } from 'drizzle-orm';
+import { users } from '../models/user.model.js';
+import { pushSubscriptions } from '../models/push-subscription.model.js';
+import { eq, and, desc, count, lt } from 'drizzle-orm';
+import { env } from '../config/env.js';
+import type { AuthedRequest } from '../middleware/auth.js';
 
-export const getNotifications = async (req: Request, res: Response) => {
-  const userId = req.query.userId as string; // Ideally from auth middleware
-  
-  if (!userId) {
-    return res.status(400).json({ error: 'userId is required' });
-  }
+/** Every handler below acts only on the signed-in user's own rows. */
+export const notificationController = {
+  /** GET /notifications?before=<iso>&limit= — newest first. */
+  async list(req: AuthedRequest, res: Response) {
+    try {
+      const limit = Math.min(Math.max(Number(req.query.limit) || 30, 1), 100);
+      const before = typeof req.query.before === 'string' ? new Date(req.query.before) : null;
 
-  try {
-    const list = await db.query.notifications.findMany({
-      where: eq(notifications.userId, userId),
-      orderBy: [desc(notifications.createdAt)],
-      limit: 50,
-    });
+      const list = await db.query.notifications.findMany({
+        where:
+          before && !isNaN(before.getTime())
+            ? and(eq(notifications.userId, req.userId!), lt(notifications.createdAt, before))
+            : eq(notifications.userId, req.userId!),
+        orderBy: [desc(notifications.createdAt)],
+        limit,
+      });
+      res.json(list);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch notifications' });
+    }
+  },
 
-    res.json(list);
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch notifications' });
-  }
-};
+  async unreadCount(req: AuthedRequest, res: Response) {
+    try {
+      const [result] = await db
+        .select({ value: count() })
+        .from(notifications)
+        .where(and(eq(notifications.userId, req.userId!), eq(notifications.isRead, false)));
+      res.json({ count: result.value });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to fetch unread count' });
+    }
+  },
 
-export const getUnreadCount = async (req: Request, res: Response) => {
-  const userId = req.query.userId as string;
+  async markAsRead(req: AuthedRequest, res: Response) {
+    try {
+      const updated = await db
+        .update(notifications)
+        .set({ isRead: true, updatedAt: new Date() })
+        .where(and(eq(notifications.id, String(req.params.id)), eq(notifications.userId, req.userId!)))
+        .returning({ id: notifications.id });
+      if (updated.length === 0) return res.status(404).json({ error: 'Notification not found' });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to mark notification as read' });
+    }
+  },
 
-  if (!userId) {
-    return res.status(400).json({ error: 'userId is required' });
-  }
+  async markAllAsRead(req: AuthedRequest, res: Response) {
+    try {
+      await db
+        .update(notifications)
+        .set({ isRead: true, updatedAt: new Date() })
+        .where(and(eq(notifications.userId, req.userId!), eq(notifications.isRead, false)));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to mark all notifications as read' });
+    }
+  },
 
-  try {
-    const [result] = await db
-      .select({ value: count() })
-      .from(notifications)
-      .where(and(eq(notifications.userId, userId), eq(notifications.isRead, false)));
+  async remove(req: AuthedRequest, res: Response) {
+    try {
+      const deleted = await db
+        .delete(notifications)
+        .where(and(eq(notifications.id, String(req.params.id)), eq(notifications.userId, req.userId!)))
+        .returning({ id: notifications.id });
+      if (deleted.length === 0) return res.status(404).json({ error: 'Notification not found' });
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to delete notification' });
+    }
+  },
 
-    res.json({ count: result.value });
-  } catch (error) {
-    res.status(500).json({ error: 'Failed to fetch unread count' });
-  }
+  /** GET /notifications/preferences */
+  async preferences(req: AuthedRequest, res: Response) {
+    try {
+      const user = await db.query.users.findFirst({ where: eq(users.id, req.userId!) });
+      const subs = await db.query.pushSubscriptions.findMany({
+        where: eq(pushSubscriptions.userId, req.userId!),
+        columns: { id: true, deviceLabel: true, platform: true, createdAt: true },
+      });
+      res.json({
+        emailNotifications: user?.emailNotifications ?? true,
+        emailAvailable: !!env.SMTP_HOST,
+        pushAvailable: !!(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY),
+        pushPublicKey: env.VAPID_PUBLIC_KEY ?? null,
+        pushDevices: subs,
+      });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to load preferences' });
+    }
+  },
+
+  /** PATCH /notifications/preferences { emailNotifications } */
+  async updatePreferences(req: AuthedRequest, res: Response) {
+    const { emailNotifications } = req.body ?? {};
+    if (typeof emailNotifications !== 'boolean') {
+      return res.status(400).json({ error: 'emailNotifications must be true or false' });
+    }
+    try {
+      const updated = await db
+        .update(users)
+        .set({ emailNotifications })
+        .where(eq(users.id, req.userId!))
+        .returning({ emailNotifications: users.emailNotifications });
+      if (updated.length === 0) return res.status(404).json({ error: 'Your account has not finished syncing yet' });
+      res.json(updated[0]);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to save preferences' });
+    }
+  },
+
+  /** POST /notifications/push/subscriptions — a browser's PushSubscription JSON. */
+  async subscribePush(req: AuthedRequest, res: Response) {
+    const { endpoint, keys, deviceLabel } = req.body ?? {};
+    if (typeof endpoint !== 'string' || !/^https:\/\//.test(endpoint) || !keys?.p256dh || !keys?.auth) {
+      return res.status(400).json({ error: 'That is not a valid push subscription' });
+    }
+    try {
+      // One row per endpoint: re-subscribing the same browser replaces it.
+      await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
+      const [sub] = await db
+        .insert(pushSubscriptions)
+        .values({
+          userId: req.userId!,
+          platform: 'web',
+          endpoint,
+          p256dhKey: String(keys.p256dh),
+          authKey: String(keys.auth),
+          deviceLabel: typeof deviceLabel === 'string' ? deviceLabel.slice(0, 120) : null,
+        })
+        .returning({ id: pushSubscriptions.id, deviceLabel: pushSubscriptions.deviceLabel });
+      res.status(201).json(sub);
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to save push subscription' });
+    }
+  },
+
+  /** DELETE /notifications/push/subscriptions { endpoint } */
+  async unsubscribePush(req: AuthedRequest, res: Response) {
+    const endpoint = req.body?.endpoint;
+    if (typeof endpoint !== 'string') return res.status(400).json({ error: 'endpoint is required' });
+    try {
+      await db
+        .delete(pushSubscriptions)
+        .where(and(eq(pushSubscriptions.endpoint, endpoint), eq(pushSubscriptions.userId, req.userId!)));
+      res.json({ success: true });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to remove push subscription' });
+    }
+  },
 };
