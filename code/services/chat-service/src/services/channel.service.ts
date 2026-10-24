@@ -1,6 +1,6 @@
 import { db } from '../db/client.js';
 import { channels, channelMembers } from '../models/channel.model.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, inArray } from 'drizzle-orm';
 
 export class ChannelService {
   async isMember(channelId: string, userId: string) {
@@ -113,17 +113,42 @@ export class ChannelService {
   }
 
   async addMembers(channelId: string, userIds: string[]) {
-    const memberData = userIds.map((userId: string) => ({
-      channelId,
-      userId,
-      role: 'member',
-    }));
+    // channel_members has no unique (channel, user) constraint, so conflicts
+    // cannot be left to the database — skip anyone who is already in.
+    const existing = await db.query.channelMembers.findMany({
+      where: eq(channelMembers.channelId, channelId),
+      columns: { userId: true },
+    });
+    const present = new Set(existing.map((m) => m.userId));
+
+    const memberData = [...new Set(userIds)]
+      .filter((userId) => userId && !present.has(userId))
+      .map((userId) => ({ channelId, userId, role: 'member' }));
 
     if (memberData.length > 0) {
-      await db.insert(channelMembers).values(memberData).onConflictDoNothing();
+      await db.insert(channelMembers).values(memberData);
     }
-    
-    return { success: true };
+
+    return { success: true, added: memberData.length };
+  }
+
+  async removeMembers(channelId: string, userIds: string[]) {
+    if (userIds.length === 0) return { success: true, removed: 0 };
+
+    const removed = await db
+      .delete(channelMembers)
+      .where(and(eq(channelMembers.channelId, channelId), inArray(channelMembers.userId, userIds)))
+      .returning({ id: channelMembers.id });
+
+    return { success: true, removed: removed.length };
+  }
+
+  /** The group channel provisioned for a project module (externalId = moduleId). */
+  async findByExternalId(externalId: string) {
+    return db.query.channels.findFirst({
+      where: eq(channels.externalId, externalId),
+      with: { members: { with: { user: true } } },
+    });
   }
 }
 
