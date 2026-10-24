@@ -228,7 +228,7 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
     const { from, to } = ed.state.selection;
     const text = ed.state.doc.textBetween(from, to, ' ').trim();
     if (!text) {
-      toast.error('Select the text you want as a task first');
+      toast.error('Select the text you want as a task first', { id: 'select-text-first' });
       return;
     }
     setBoardItems([{ title: text }]);
