@@ -2,7 +2,7 @@
   "name": "chat-service",
   "version": "1.0.0",
   "description": "",
-  "main": "app.js",
+  "main": "dist/app.js",
   "scripts": {
     "test": "vitest run",
     "clean": "rm -rf dist",
