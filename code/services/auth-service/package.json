@@ -15,6 +15,7 @@
   },
   "dependencies": {
     "@better-auth/infra": "^0.2.8",
+    "@repo/shared": "workspace:^",
     "better-auth": "^1.6.11",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",

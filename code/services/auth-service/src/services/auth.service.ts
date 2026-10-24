@@ -9,7 +9,27 @@ import crypto from "crypto";
 import { generateJWT, generateRefreshToken } from "../utils/jwt.util.js";
 import { eq } from "drizzle-orm";
 
-import { publisherService } from "./publisher.service.js";
+import { publisherService, publishMail } from "./publisher.service.js";
+
+/**
+ * Better Auth's reset link points at BETTER_AUTH_URL, which only bounces the
+ * browser on to the app's own reset page (the origin-checked `redirectTo`).
+ * Linking to that page directly keeps the email working when the auth URL is
+ * not publicly reachable — an ngrok tunnel that is down, say.
+ */
+export function resetLinkFor(url: string, token: string): string {
+    try {
+        const callback = new URL(url).searchParams.get("callbackURL");
+        if (callback) {
+            const target = new URL(callback);
+            target.searchParams.set("token", token);
+            return target.toString();
+        }
+    } catch {
+        /* fall through to Better Auth's own link */
+    }
+    return url;
+}
 
 export const auth = betterAuth({
     baseURL: env.BETTER_AUTH_URL,
@@ -23,6 +43,9 @@ export const auth = betterAuth({
     // http origins (localhost:3000, a LAN IP). Only production needs them.
     advanced: {
         useSecureCookies: env.NODE_ENV === "production",
+        // Better Auth silently skips origin checks under NODE_ENV=test; keep
+        // them on everywhere so tests exercise the same rules as production.
+        disableOriginCheck: false,
     },
     // The Vite dev server runs on :3000; :5173 stays for anyone on the Vite
     // default. Extra origins can be added with a comma-separated CLIENT_URL.
@@ -118,7 +141,36 @@ export const auth = betterAuth({
         }
     },
     emailAndPassword: {
-        enabled: true
+        enabled: true,
+        minPasswordLength: 8,
+        resetPasswordTokenExpiresIn: 60 * 60,
+        // Signing in with a fresh password should end every other session —
+        // whoever triggered the reset may not have been the only one in.
+        revokeSessionsOnPasswordReset: true,
+        sendResetPassword: async ({ user, url, token }) => {
+            await publishMail({
+                type: "mail.password_reset",
+                data: { to: user.email, name: user.name, url: resetLinkFor(url, token) },
+            });
+        },
+    },
+    user: {
+        deleteUser: {
+            enabled: true,
+        },
+    },
+    // Better Auth only rate-limits in production by default; the reset and
+    // sign-in endpoints are worth guarding everywhere.
+    rateLimit: {
+        enabled: true,
+        window: 60,
+        max: 120,
+        customRules: {
+            "/sign-in/email": { window: 60, max: 10 },
+            "/sign-up/email": { window: 60, max: 5 },
+            "/request-password-reset": { window: 15 * 60, max: 5 },
+            "/reset-password": { window: 15 * 60, max: 10 },
+        },
     },
     socialProviders: {
         github: {

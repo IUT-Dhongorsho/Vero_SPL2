@@ -1,4 +1,5 @@
 import { Redis } from 'ioredis';
+import { REDIS_CHANNELS, type MailEvent } from '@repo/shared';
 import { env } from '../config/env.js';
 
 // We need REDIS_URL in env.ts
@@ -22,3 +23,11 @@ export class PublisherService {
 }
 
 export const publisherService = new PublisherService();
+
+/**
+ * Transactional mail goes to notification-service over its own channel: it is
+ * sent straight through SMTP and never stored as an in-app notification.
+ */
+export async function publishMail(event: MailEvent) {
+  await redisClient.publish(REDIS_CHANNELS.MAIL_EVENTS, JSON.stringify({ ...event, timestamp: new Date().toISOString() }));
+}
