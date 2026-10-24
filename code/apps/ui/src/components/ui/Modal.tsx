@@ -25,11 +25,16 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description,
   const titleId = useId();
   const panel = useRef<HTMLDivElement>(null);
   const opener = useRef<Element | null>(null);
+  // Callers pass a fresh onClose on every render; reading it through a ref keeps
+  // the effect below tied to opening only. Depending on onClose re-ran it on
+  // every keystroke, which pulled focus back to the first field mid-typing.
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     opener.current = document.activeElement;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onCloseRef.current();
     window.addEventListener('keydown', onKey);
     // Focus the first field, or the panel itself.
     requestAnimationFrame(() => {
@@ -40,7 +45,7 @@ export const Modal: React.FC<ModalProps> = ({ open, onClose, title, description,
       window.removeEventListener('keydown', onKey);
       (opener.current as HTMLElement | null)?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return createPortal(
     <AnimatePresence>
