@@ -10,8 +10,8 @@ self.addEventListener('push', (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body: payload.body || '',
-      icon: '/vero-icon-192.png',
-      badge: '/vero-icon-192.png',
+      icon: '/icons/BlackBG/android-chrome-192x192.png',
+      badge: '/icons/V_black/favicon-32x32.png',
       tag: payload.data && payload.data.url ? payload.data.url : undefined,
       data: payload.data || {},
     })
