@@ -1,108 +1,79 @@
 import { Request, Response, NextFunction } from 'express';
+import { and, eq, gt, or } from 'drizzle-orm';
 import { env } from '../config/env.js';
+import { db } from '../db/client.js';
+import { sessions } from '../models/user.model.js';
 
 export interface AuthRequest extends Request {
   userId?: string;
+  /** The caller's own Authorization header, forwarded to project-service. */
+  authorization?: string;
 }
 
-const isDev = process.env.NODE_ENV !== 'production';
-const AUTH_URL = 'http://127.0.0.1:8001/internal/verify';
+const cache = new Map<string, { userId: string; expiresAt: number }>();
+const CACHE_TTL_MS = 60_000;
 
-function tryExtractUserId(token: string): string | null {
+/**
+ * Who owns this bearer token? Sessions are replicated here from auth-service,
+ * so most lookups are local; a session minted moments ago may not have been
+ * replicated yet, so auth-service is asked as a fallback. Nothing the client
+ * merely asserts (headers, unsigned JWT payloads) is ever trusted.
+ */
+export async function userForToken(token: string): Promise<string | null> {
   if (!token) return null;
+  const cached = cache.get(token);
+  if (cached && cached.expiresAt > Date.now()) return cached.userId;
+
+  let userId: string | null = null;
   try {
-    const cleanToken = token.startsWith('Bearer ') ? token.slice(7) : token;
-    const parts = cleanToken.split('.');
-    if (parts.length === 3) {
-      const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf-8'));
-      if (payload && (payload.id || payload.userId || payload.sub)) {
-        return payload.id || payload.userId || payload.sub;
+    const session = await db.query.sessions.findFirst({
+      where: and(or(eq(sessions.authToken, token), eq(sessions.token, token)), gt(sessions.expiresAt, new Date())),
+    });
+    userId = session?.userId ?? null;
+  } catch (error: any) {
+    console.error('[notes:auth] session lookup failed:', error.message);
+  }
+
+  if (!userId) {
+    try {
+      const response = await fetch(`${env.AUTH_SERVICE_URL}/internal/verify`, {
+        headers: { authorization: `Bearer ${token}` },
+      });
+      if (response.ok) {
+        const session = (await response.json()) as { user?: { id?: string } };
+        userId = session?.user?.id ?? null;
       }
+    } catch (error: any) {
+      console.error('[notes:auth] auth-service verify failed:', error.message);
     }
-  } catch (_) {}
-  return null;
+  }
+
+  if (userId) {
+    if (cache.size > 5_000) cache.clear();
+    cache.set(token, { userId, expiresAt: Date.now() + CACHE_TTL_MS });
+  }
+  return userId;
 }
 
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
-    return res.status(401).json({ error: 'Unauthorized: No token provided' });
+    return res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
   }
 
-  // 1. In development, accept X-User-Id header if provided
-  if (isDev) {
-    const userId = req.headers['x-user-id'] as string;
-    if (userId) {
-      req.userId = userId;
-      return next();
-    }
-    const token = authHeader.split(' ')[1];
-    if (token.startsWith('fake-jwt-token-')) {
-      req.userId = 'dev-user';
-      return next();
-    }
-  }
+  const userId = await userForToken(authHeader.slice(7));
+  if (!userId) return res.status(401).json({ error: 'Unauthorized', code: 'UNAUTHORIZED' });
 
-  // 2. Try extracting user ID directly from JWT payload
-  const token = authHeader.split(' ')[1];
-  const extractedUserId = tryExtractUserId(token);
-  if (extractedUserId) {
-    req.userId = extractedUserId;
-    return next();
-  }
-
-  // 3. Fallback: verify via auth-service internal API
-  try {
-    const response = await fetch(AUTH_URL, {
-      headers: { Authorization: authHeader },
-    });
-
-    if (!response.ok) {
-      return res.status(401).json({ error: 'Unauthorized: Invalid token' });
-    }
-
-    const session = await response.json();
-    req.userId = session.user.id;
-    next();
-  } catch (error) {
-    console.error('Auth verification error:', error);
-    return res.status(500).json({ error: 'Internal server error during authentication' });
-  }
+  req.userId = userId;
+  req.authorization = authHeader;
+  next();
 };
 
-export const authenticateWs = async (req: any): Promise<{ userId: string }> => {
+/** The Yjs socket carries the token as a query parameter (browsers cannot set headers). */
+export const authenticateWs = async (req: any): Promise<{ userId: string; token: string }> => {
   const url = new URL(req.url || '', 'http://localhost');
-  const token = url.searchParams.get('token');
-
-  if (!token) throw new Error('No token provided');
-
-  // 1. Dev mode fake token check
-  if (isDev && token.startsWith('fake-jwt-token-')) {
-    const userId = url.searchParams.get('userId') || 'dev-user';
-    return { userId };
-  }
-
-  // 2. Try extracting user ID from JWT payload
-  const extractedUserId = tryExtractUserId(token);
-  if (extractedUserId) {
-    return { userId: extractedUserId };
-  }
-
-  // 3. Fallback: verify via auth-service
-  try {
-    const response = await fetch(AUTH_URL, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-
-    if (response.ok) {
-      const session = await response.json();
-      if (session?.user?.id) {
-        return { userId: session.user.id };
-      }
-    }
-  } catch (err) {
-    console.warn('[Notes:WS:Auth] Auth-service verify failed:', err);
-  }
-
-  throw new Error('Unauthorized WebSocket connection');
+  const token = url.searchParams.get('token') ?? '';
+  const userId = await userForToken(token);
+  if (!userId) throw new Error('Unauthorized WebSocket connection');
+  return { userId, token };
 };

@@ -1,10 +1,14 @@
 import { Router } from 'express';
-import { documentController } from '../controllers/document.controller.js';
+import { documentController, aiController } from '../controllers/document.controller.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 export const documentRouter = Router();
 
 documentRouter.use(authMiddleware);
+
+documentRouter.get('/search', documentController.search);
+documentRouter.get('/ai/status', aiController.status);
+documentRouter.post('/documents/:id/digest', aiController.digest);
 
 documentRouter.get('/modules/:moduleId/documents', documentController.list);
 documentRouter.post('/modules/:moduleId/documents', documentController.create);
