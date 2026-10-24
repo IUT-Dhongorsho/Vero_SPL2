@@ -10,9 +10,15 @@ interface TaskEditorModalProps {
   task: WorkItem | null;
   defaultStatus?: WorkStatus;
   onClose: () => void;
-  onSubmit: (input: CreatePersonalTask) => Promise<void>;
+  onSubmit: (input: TaskEditorInput) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
+  /** Project boards pass who a task can go to; personal tasks have no assignee. */
+  assignees?: { id: string; name: string }[];
+  assigneeId?: string | null;
+  defaultAssigneeId?: string | null;
 }
+
+export type TaskEditorInput = CreatePersonalTask & { assigneeId?: string | null };
 
 const STATUSES: { id: WorkStatus; label: string }[] = [
   { id: 'backlog', label: 'Backlog' },
@@ -44,6 +50,9 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
   onClose,
   onSubmit,
   onDelete,
+  assignees,
+  assigneeId: currentAssignee,
+  defaultAssigneeId = null,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -52,6 +61,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
   const [dueDate, setDueDate] = useState('');
   const [labels, setLabels] = useState('');
   const [saving, setSaving] = useState(false);
+  const [assignee, setAssignee] = useState<string>('');
 
   useEffect(() => {
     if (!open) return;
@@ -62,7 +72,8 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
     setDueDate(toLocalInput(task?.dueDate));
     setLabels((task?.labels ?? []).join(', '));
     setSaving(false);
-  }, [open, task, defaultStatus]);
+    setAssignee((task ? currentAssignee : defaultAssigneeId) ?? '');
+  }, [open, task, defaultStatus, currentAssignee, defaultAssigneeId]);
 
   useEffect(() => {
     if (!open) return;
@@ -85,6 +96,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
           .split(',')
           .map((l) => l.trim())
           .filter(Boolean),
+        ...(assignees ? { assigneeId: assignee || null } : {}),
       });
       onClose();
     } finally {
@@ -188,6 +200,28 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
                   ))}
                 </div>
               </div>
+
+              {assignees && (
+                <div>
+                  <label htmlFor="task-assignee" className="block text-sm font-medium text-foreground mb-2">
+                    Assignee
+                  </label>
+                  <select
+                    id="task-assignee"
+                    value={assignee}
+                    onChange={(e) => setAssignee(e.target.value)}
+                    className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition-all"
+                  >
+                    <option value="">Nobody yet</option>
+                    {assignees.map((person) => (
+                      <option key={person.id} value={person.id}>
+                        {person.name}
+                      </option>
+                    ))}
+                  </select>
+                  <p className="text-xs text-muted-foreground mt-1.5">They get a notification and see it on their Progress board.</p>
+                </div>
+              )}
 
               <div className="grid sm:grid-cols-2 gap-5">
                 <div>

@@ -10,7 +10,7 @@ import { SignupPage } from './pages/SignupPage';
 import { ForgotPasswordPage } from './pages/ForgotPasswordPage';
 import { AuthCallbackPage } from './pages/AuthCallbackPage';
 import { DashboardPage } from './pages/DashboardPage';
-import { ProjectPage } from './pages/ProjectPage';
+import { ProjectPage } from './pages/project/ProjectPage';
 import { WorkspacePage } from './pages/WorkspacePage';
 import { TasksPage } from './pages/TasksPage';
 import { ProgressPage } from './pages/ProgressPage';

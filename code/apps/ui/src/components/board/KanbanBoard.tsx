@@ -152,7 +152,7 @@ const Column: React.FC<{
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
 
   return (
-    <div className="flex flex-col min-w-[290px] w-[290px] shrink-0">
+    <div className="flex flex-col flex-1 min-w-[260px] shrink-0">
       <div className="flex items-center justify-between px-1 pb-3">
         <div className="flex items-center gap-2">
           <h3 className="font-semibold text-foreground">{column.label}</h3>

@@ -1,23 +1,47 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
+import { ArrowLeft, FileText, FolderKanban, MessageSquare, Settings2, UserPlus, Video, type LucideIcon } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
-import { Users, FolderKanban, Video, FileText, MessageSquare, ArrowLeft, ShieldCheck, Radio } from 'lucide-react';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { motion } from 'framer-motion';
-import { useModuleStore } from '../stores/module.store';
+import { Avatar } from '../components/ui/Avatar';
+import { Skeleton } from '../components/ui/Skeleton';
+import { ConfirmDialog } from '../components/ui/ConfirmDialog';
+import { Modal } from '../components/ui/Modal';
+import { Field, inputClass } from '../components/ui/Field';
+import { ModuleStatusBadge, MODULE_STATUS } from '../components/project/ModuleStatusBadge';
+import { ModuleMembersDialog } from '../components/project/ModuleMembersDialog';
+import { toast } from '../components/Providers/ToastProvider';
 import { meetService, RoomStatus } from '../services/meetService';
+import { moduleService, type ModuleStatus } from '../services/moduleService';
+import { useModule } from '../hooks/useModule';
+import { useAuthStore } from '../stores/auth.store';
+import { errorMessage } from '../utils/errors';
+import { cn } from '../utils/cn';
+
+interface Tool {
+  id: string;
+  name: string;
+  icon: LucideIcon;
+  description: string;
+  route: string;
+  isLive?: boolean;
+  liveCount?: number;
+}
 
 export const ModuleHubPage: React.FC = () => {
-  const { workspaceId, projectId, moduleId } = useParams();
+  const { projectId, moduleId } = useParams();
   const navigate = useNavigate();
-  const { modules, fetchModules } = useModuleStore();
+  const me = useAuthStore((s) => s.user);
+  const { module, missing, reload } = useModule(moduleId);
   const [roomStatus, setRoomStatus] = useState<RoomStatus | null>(null);
-
-  useEffect(() => {
-    if (projectId && modules.length === 0) {
-      fetchModules(projectId);
-    }
-  }, [projectId, modules.length, fetchModules]);
+  const [membersOpen, setMembersOpen] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const [joining, setJoining] = useState(false);
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
+  const [saving, setSaving] = useState(false);
 
   // Poll meeting status for this module so ongoing meetings are recognized immediately
   useEffect(() => {
@@ -41,138 +65,317 @@ export const ModuleHubPage: React.FC = () => {
     };
   }, [moduleId]);
 
-  const module = modules.find(m => m.id === moduleId);
-  const moduleName = module?.name || 'Module Hub';
-  const moduleDescription = module?.description || 'Select a tool to start collaborating.';
-
+  const isAdmin = module?.userRole === 'admin';
   const isMeetLive = roomStatus?.status === 'active' && (roomStatus?.livePeerCount ?? 0) > 0;
   const liveCount = roomStatus?.livePeerCount ?? 0;
+  const base = `/project/${projectId}/module/${moduleId}`;
 
-  const tools = [
-    { 
-      id: 'board', 
-      name: 'Kanban Board', 
-      icon: FolderKanban, 
-      color: 'text-foreground', 
-      bg: 'bg-muted',
-      description: 'Track tasks specific to this module',
-      route: `/project/${projectId}/module/${moduleId}/board`,
-      isLive: false,
+  const tools: Tool[] = [
+    { id: 'board', name: 'Board', icon: FolderKanban, description: 'Tasks for this module, from backlog to done', route: `${base}/board` },
+    { id: 'notes', name: 'Notes', icon: FileText, description: 'Specs and documents, edited together live', route: `${base}/notes` },
+    {
+      id: 'chat',
+      name: 'Chat',
+      icon: MessageSquare,
+      description: module?.isMember ? 'The conversation for everyone on this module' : 'Join the module to take part',
+      route: `${base}/chat`,
     },
-    { 
-      id: 'notes', 
-      name: 'Notes', 
-      icon: FileText, 
-      color: 'text-foreground', 
-      bg: 'bg-muted',
-      description: 'Module documentation and specs',
-      route: `/project/${projectId}/module/${moduleId}/notes`,
-      isLive: false,
-    },
-    { 
-      id: 'chat', 
-      name: 'Chat', 
-      icon: MessageSquare, 
-      color: 'text-foreground', 
-      bg: 'bg-muted',
-      description: 'Private channel for module members',
-      route: `/project/${projectId}/module/${moduleId}/chat`,
-      isLive: false,
-    },
-    { 
-      id: 'meet', 
-      name: 'Meet', 
-      icon: Video, 
-      color: isMeetLive ? 'text-emerald-500' : 'text-foreground', 
-      bg: isMeetLive ? 'bg-emerald-500/10' : 'bg-muted',
+    {
+      id: 'meet',
+      name: 'Meet',
+      icon: Video,
       description: isMeetLive
         ? `Meeting in progress with ${liveCount} participant${liveCount !== 1 ? 's' : ''} — Click to join`
         : 'Sync with the module team',
-      route: `/project/${projectId}/module/${moduleId}/meet`,
+      route: `${base}/meet`,
       isLive: isMeetLive,
       liveCount,
-    }
+    },
   ];
 
-  return (
-    <PageContainer title={moduleName}>
-      <div className="max-w-6xl mx-auto space-y-8">
-        
-        {/* Header Section */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="flex flex-col md:flex-row md:items-start justify-between gap-6">
-          <div>
-            <AnimatedButton variant="outline" size="sm" onClick={() => navigate(`/project/${projectId}`)} className="mb-4 text-muted-foreground border-transparent hover:bg-muted">
-              <ArrowLeft className="w-4 h-4 mr-2" /> Back to Project Modules
-            </AnimatedButton>
-            <div className="flex items-center gap-3 mb-2">
-              <h1 className="text-3xl font-bold tracking-tight text-foreground">{moduleName}</h1>
-              <span className="bg-primary/10 text-primary text-xs font-semibold px-2 py-1 rounded border border-primary/20 flex items-center gap-1">
-                <ShieldCheck className="w-3 h-3" /> Restricted Access
-              </span>
-            </div>
-            <p className="text-muted-foreground text-lg">{moduleDescription}</p>
-          </div>
-            <div className="flex flex-col items-end gap-3">
-              <div className="flex -space-x-2 mr-2">
-                {Array.from({ length: Math.min(module?.members || 1, 3) }).map((_, i) => (
-                  <div key={i} className="w-8 h-8 rounded-full bg-muted border-2 border-background flex items-center justify-center text-xs font-medium ring-2 ring-background">
-                    {['J', 'A', 'S'][i % 3]}
-                  </div>
-                ))}
-              </div>
-              <AnimatedButton variant="outline" size="sm">
-                <Users className="w-4 h-4 mr-2" /> {module?.members || 1} Member{(module?.members || 1) !== 1 ? 's' : ''}
-              </AnimatedButton>
-            </div>
-        </motion.div>
+  const join = async () => {
+    if (!moduleId) return;
+    setJoining(true);
+    try {
+      await moduleService.join(moduleId);
+      await reload();
+      toast.success(`You joined ${module?.name}`);
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not join the module'));
+    } finally {
+      setJoining(false);
+    }
+  };
 
-        {/* Tools Grid */}
-        <div className="pt-6">
-          <div className="flex items-center justify-between mb-6">
-            <h2 className="text-xl font-semibold tracking-tight text-foreground">Module Tools</h2>
-          </div>
-          
-          <div className="grid md:grid-cols-2 gap-6">
-            {tools.map((tool, i) => (
-              <motion.div
-                key={tool.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.1 }}
-                onClick={() => navigate(tool.route)}
-                className={`group relative bg-card border ${
-                  tool.isLive
-                    ? 'border-emerald-500/50 shadow-[0_0_20px_rgba(16,185,129,0.15)] ring-1 ring-emerald-500/30'
-                    : 'border-border shadow-sm'
-                } rounded-2xl p-6 cursor-pointer overflow-hidden hover:shadow-md transition-all duration-300`}
-              >
-                {/* Live meeting badge */}
-                {tool.isLive && (
-                  <div className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 text-emerald-500 text-xs font-semibold animate-pulse">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500" />
-                    <span>Live ({tool.liveCount})</span>
+  const setStatus = async (status: ModuleStatus) => {
+    if (!moduleId) return;
+    try {
+      await moduleService.updateModule(moduleId, { status });
+      await reload();
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not change the status'));
+    }
+  };
+
+  const saveDetails = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!moduleId || !name.trim()) return;
+    setSaving(true);
+    try {
+      await moduleService.updateModule(moduleId, { name: name.trim(), description: description.trim() });
+      await reload();
+      setEditOpen(false);
+      toast.success('Module details saved');
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not save the module'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (missing) {
+    return (
+      <PageContainer title="Module">
+        <div className="surface rounded-2xl px-6 py-16 text-center max-w-xl mx-auto">
+          <h2 className="text-xl font-semibold text-foreground mb-2">This module isn’t available</h2>
+          <p className="text-muted-foreground mb-6">It may have been deleted, or you are no longer on its project.</p>
+          <AnimatedButton variant="primary" onClick={() => navigate(projectId ? `/project/${projectId}` : '/projects')}>
+            Back to the project
+          </AnimatedButton>
+        </div>
+      </PageContainer>
+    );
+  }
+
+  return (
+    <PageContainer
+      title={module?.name ?? 'Module'}
+      subtitle={module?.project?.name}
+      topBarActions={
+        module && !module.isMember ? (
+          <AnimatedButton size="sm" variant="accent" onClick={join} loading={joining}>
+            <UserPlus className="w-4 h-4" />
+            <span className="hidden sm:inline">Join module</span>
+          </AnimatedButton>
+        ) : null
+      }
+    >
+      <div className="space-y-8">
+        <header className="space-y-4">
+          <Link
+            to={`/project/${projectId}`}
+            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            {module?.project?.name ?? 'Project'}
+          </Link>
+
+          {module ? (
+            <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem] gap-6 items-start">
+              <div className="min-w-0">
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-3xl font-semibold tracking-tight text-foreground">{module.name}</h1>
+                  {isAdmin ? (
+                    <select
+                      value={module.status}
+                      onChange={(e) => setStatus(e.target.value as ModuleStatus)}
+                      aria-label="Module status"
+                      className="h-8 pl-2.5 pr-7 rounded-full border border-border bg-card text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-accent-soft"
+                    >
+                      {(Object.keys(MODULE_STATUS) as ModuleStatus[]).map((s) => (
+                        <option key={s} value={s}>
+                          {MODULE_STATUS[s].label}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <ModuleStatusBadge status={module.status} />
+                  )}
+                </div>
+                <p className="mt-2 text-muted-foreground leading-relaxed max-w-2xl">
+                  {module.description || 'No description yet.'}
+                </p>
+                {isAdmin && (
+                  <div className="flex gap-2 mt-4">
+                    <AnimatedButton
+                      size="sm"
+                      variant="secondary"
+                      onClick={() => {
+                        setName(module.name);
+                        setDescription(module.description ?? '');
+                        setEditOpen(true);
+                      }}
+                    >
+                      <Settings2 className="w-4 h-4" /> Edit details
+                    </AnimatedButton>
                   </div>
                 )}
+              </div>
 
-                <div className={`absolute top-0 right-0 w-32 h-32 ${tool.bg} rounded-full blur-3xl -mr-10 -mt-10 opacity-50 group-hover:opacity-100 transition-opacity`} />
-                <div className="relative z-10">
-                  <div className={`w-12 h-12 rounded-xl ${tool.bg} ${tool.color} flex items-center justify-center mb-5`}>
-                    <tool.icon className="w-6 h-6" />
-                  </div>
-                  <h3 className="text-xl font-bold text-foreground mb-2 flex items-center gap-2">
-                    {tool.name}
-                    {tool.isLive && (
-                      <span className="inline-block w-2 h-2 rounded-full bg-emerald-500" />
-                    )}
-                  </h3>
-                  <p className="text-muted-foreground">{tool.description}</p>
+              <aside className="surface rounded-2xl p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <h2 className="font-semibold text-foreground">
+                    Members <span className="text-muted-foreground font-normal">{module.members.length}</span>
+                  </h2>
+                  {isAdmin && (
+                    <button onClick={() => setMembersOpen(true)} className="text-sm font-medium text-accent hover:underline">
+                      Manage
+                    </button>
+                  )}
                 </div>
-              </motion.div>
-            ))}
-          </div>
-        </div>
+                <ul className="space-y-2.5">
+                  {module.members.slice(0, 6).map((m) => (
+                    <li key={m.userId} className="flex items-center gap-2.5">
+                      <Avatar name={m.user.name} src={m.user.avatarUrl} size="xs" />
+                      <span className="text-sm text-foreground truncate">
+                        {m.user.name}
+                        {m.userId === me?.id && <span className="text-muted-foreground"> (you)</span>}
+                      </span>
+                    </li>
+                  ))}
+                  {module.members.length === 0 && <li className="text-sm text-muted-foreground">Nobody has joined yet.</li>}
+                </ul>
+                {module.members.length > 6 && (
+                  <p className="text-xs text-muted-foreground mt-3">and {module.members.length - 6} more</p>
+                )}
+                {module.isMember && (
+                  <button
+                    onClick={() => setLeaveOpen(true)}
+                    className="mt-4 text-sm text-muted-foreground hover:text-danger transition-colors"
+                  >
+                    Leave module
+                  </button>
+                )}
+              </aside>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <Skeleton width="260px" height="34px" />
+              <Skeleton width="380px" height="18px" />
+            </div>
+          )}
+        </header>
 
+        <section className="grid sm:grid-cols-2 gap-4" aria-label="Module tools">
+          {tools.map((tool) => (
+            <button
+              key={tool.id}
+              onClick={() => navigate(tool.route)}
+              className={cn(
+                'group relative text-left surface rounded-2xl p-6 transition-colors hover:border-border-strong',
+                tool.isLive && 'border-success/50 ring-1 ring-success/30'
+              )}
+            >
+              {tool.isLive && (
+                <span className="absolute top-4 right-4 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-success-soft text-success text-xs font-semibold">
+                  <span className="w-2 h-2 rounded-full bg-success animate-pulse" />
+                  Live ({tool.liveCount})
+                </span>
+              )}
+              <span
+                className={cn(
+                  'w-11 h-11 rounded-xl grid place-items-center mb-5 transition-colors',
+                  tool.isLive ? 'bg-success-soft text-success' : 'bg-muted text-foreground group-hover:bg-accent-soft group-hover:text-accent'
+                )}
+              >
+                <tool.icon className="w-5 h-5" strokeWidth={1.9} />
+              </span>
+              <h3 className="text-lg font-semibold text-foreground mb-1">{tool.name}</h3>
+              <p className="text-sm text-muted-foreground leading-relaxed">{tool.description}</p>
+            </button>
+          ))}
+        </section>
+
+        {isAdmin && module && (
+          <section className="surface rounded-2xl p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-danger/30">
+            <div>
+              <h2 className="font-semibold text-danger">Delete this module</h2>
+              <p className="text-sm text-muted-foreground">Its board, notes and chat go with it.</p>
+            </div>
+            <AnimatedButton variant="danger" size="sm" onClick={() => setDeleteOpen(true)}>
+              Delete module
+            </AnimatedButton>
+          </section>
+        )}
       </div>
+
+      {module && (
+        <>
+          <ModuleMembersDialog open={membersOpen} onClose={() => setMembersOpen(false)} module={module} onChanged={reload} />
+
+          <Modal
+            open={editOpen}
+            onClose={() => setEditOpen(false)}
+            title="Edit module"
+            footer={
+              <>
+                <AnimatedButton variant="secondary" onClick={() => setEditOpen(false)}>
+                  Cancel
+                </AnimatedButton>
+                <AnimatedButton type="submit" form="edit-module" variant="primary" loading={saving} disabled={!name.trim()}>
+                  Save changes
+                </AnimatedButton>
+              </>
+            }
+          >
+            <form id="edit-module" onSubmit={saveDetails} className="space-y-4">
+              <Field label="Name">
+                {(props) => <input {...props} value={name} onChange={(e) => setName(e.target.value)} maxLength={255} className={inputClass} />}
+              </Field>
+              <Field label="Description">
+                {(props) => (
+                  <textarea
+                    {...props}
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    maxLength={2000}
+                    className={cn(inputClass, 'resize-none')}
+                  />
+                )}
+              </Field>
+            </form>
+          </Modal>
+
+          <ConfirmDialog
+            open={deleteOpen}
+            onClose={() => setDeleteOpen(false)}
+            title={`Delete ${module.name}?`}
+            description="Its board, notes and chat are removed for everyone on the project."
+            typeToConfirm={module.name}
+            confirmLabel="Delete module"
+            onConfirm={async () => {
+              try {
+                await moduleService.deleteModule(module.id);
+                toast.success(`Deleted ${module.name}`);
+                navigate(`/project/${projectId}`);
+              } catch (error) {
+                toast.error(errorMessage(error, 'Could not delete the module'));
+                throw error;
+              }
+            }}
+          />
+
+          <ConfirmDialog
+            open={leaveOpen}
+            onClose={() => setLeaveOpen(false)}
+            title={`Leave ${module.name}?`}
+            description="You leave its chat. You can still open its board and notes, and join again at any time."
+            confirmLabel="Leave module"
+            tone="primary"
+            onConfirm={async () => {
+              try {
+                await moduleService.removeMember(module.id, me!.id);
+                await reload();
+                toast.success(`You left ${module.name}`);
+              } catch (error) {
+                toast.error(errorMessage(error, 'Could not leave the module'));
+                throw error;
+              }
+            }}
+          />
+        </>
+      )}
     </PageContainer>
   );
 };

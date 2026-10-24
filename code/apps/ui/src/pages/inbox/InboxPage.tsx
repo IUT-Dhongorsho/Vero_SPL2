@@ -18,29 +18,12 @@ import { EmptyState } from '../../components/ui/EmptyState';
 import { toast } from '../../components/Providers/ToastProvider';
 import { AddConnectionPanel } from './AddConnectionPanel';
 import { Composer } from './Composer';
-import { MessageBubble } from './MessageBubble';
+import { MessageThread } from '../../components/chat/MessageThread';
+import { useConversation } from '../../hooks/useConversation';
 import { inboxService, type ChatMessage, type Connection } from '../../services/inboxService';
 import { useInboxStore } from '../../stores/inbox.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { cn } from '../../utils/cn';
-
-function dayLabel(iso: string): string {
-  const date = new Date(iso);
-  const today = new Date();
-  const yesterday = new Date();
-  yesterday.setDate(yesterday.getDate() - 1);
-
-  const same = (a: Date, b: Date) => a.toDateString() === b.toDateString();
-  if (same(date, today)) return 'Today';
-  if (same(date, yesterday)) return 'Yesterday';
-
-  return date.toLocaleDateString(undefined, {
-    weekday: 'long',
-    month: 'short',
-    day: 'numeric',
-    ...(date.getFullYear() !== today.getFullYear() ? { year: 'numeric' } : {}),
-  });
-}
 
 const RequestRow: React.FC<{
   connection: Connection;
@@ -83,8 +66,6 @@ export const InboxPage: React.FC = () => {
   const [addOpen, setAddOpen] = useState(false);
   const [filter, setFilter] = useState('');
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [localNotices, setLocalNotices] = useState<ChatMessage[]>([]);
-  const [hiddenBefore, setHiddenBefore] = useState<Record<string, string>>({});
   const [mobileShowList, setMobileShowList] = useState(true);
 
   const me = useAuthStore((state) => state.user);
@@ -93,18 +74,14 @@ export const InboxPage: React.FC = () => {
     connectionsLoading,
     activeChannelId,
     activePeerId,
-    messagesByChannel,
     messagesLoading,
     unreadByChannel,
-    typingByChannel,
     onlineUserIds,
     connected,
     loadConnections,
     openConversation,
     deleteMessage,
   } = useInboxStore();
-
-  const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     loadConnections();
@@ -130,24 +107,7 @@ export const InboxPage: React.FC = () => {
     });
   }, [connections.accepted, filter, unreadByChannel]);
 
-  const messages = useMemo(() => {
-    if (!activeChannelId) return [];
-    const cutoff = hiddenBefore[activeChannelId];
-    const stored = messagesByChannel[activeChannelId] ?? [];
-    const visible = cutoff
-      ? stored.filter((m) => new Date(m.createdAt).getTime() > new Date(cutoff).getTime())
-      : stored;
-
-    return [...visible, ...localNotices.filter((n) => n.channelId === activeChannelId)].sort(
-      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
-    );
-  }, [activeChannelId, messagesByChannel, localNotices, hiddenBefore]);
-
-  // Stick to the bottom as new messages arrive.
-  useEffect(() => {
-    const node = scrollRef.current;
-    if (node) node.scrollTop = node.scrollHeight;
-  }, [messages.length, activeChannelId]);
+  const { messages, addNotice, clearView, scrollRef, typingNames } = useConversation(activeChannelId);
 
   const handleOpen = useCallback(
     async (connection: Connection) => {
@@ -191,29 +151,6 @@ export const InboxPage: React.FC = () => {
     }
   };
 
-  const addNotice = (content: string) => {
-    if (!activeChannelId) return;
-    setLocalNotices((notices) => [
-      ...notices,
-      {
-        id: `notice-${Date.now()}`,
-        channelId: activeChannelId,
-        senderId: 'system',
-        content,
-        type: 'system',
-        attachmentUrl: null,
-        attachmentName: null,
-        attachmentMime: null,
-        attachmentSize: null,
-        replyToId: null,
-        deletedAt: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      },
-    ]);
-  };
-
-  const typingNames = activeChannelId ? typingByChannel[activeChannelId] ?? [] : [];
 
   return (
     <PageContainer
@@ -399,89 +336,17 @@ export const InboxPage: React.FC = () => {
               </header>
 
               <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4 bg-background">
-                {messagesLoading ? (
-                  <div className="space-y-3 max-w-2xl mx-auto">
-                    {Array.from({ length: 6 }).map((_, i) => (
-                      <div
-                        key={i}
-                        className={cn('h-12 rounded-2xl skeleton-shimmer', i % 2 ? 'ml-auto w-1/2' : 'w-2/3')}
-                      />
-                    ))}
-                  </div>
-                ) : messages.length === 0 ? (
-                  <div className="h-full grid place-items-center text-center px-6">
-                    <div>
-                      <MessageSquarePlus className="w-10 h-10 text-subtle-foreground mx-auto mb-4" />
-                      <p className="font-medium text-foreground">
-                        Say hello to {activeConnection.user.name}
-                      </p>
-                      <p className="text-sm text-muted-foreground mt-1.5">
-                        Messages and files stay between the two of you.
-                      </p>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="max-w-3xl mx-auto">
-                    {messages.map((message, index) => {
-                      const previous = messages[index - 1];
-                      const showDay =
-                        !previous || dayLabel(previous.createdAt) !== dayLabel(message.createdAt);
-                      const grouped =
-                        !showDay &&
-                        previous?.senderId === message.senderId &&
-                        new Date(message.createdAt).getTime() -
-                          new Date(previous.createdAt).getTime() <
-                          5 * 60_000;
-
-                      const mine = message.senderId === me?.id;
-
-                      return (
-                        <React.Fragment key={message.id}>
-                          {showDay && (
-                            <div className="flex items-center gap-3 my-5">
-                              <span className="flex-1 h-px bg-border" />
-                              <span className="text-2xs font-medium uppercase tracking-wider text-subtle-foreground">
-                                {dayLabel(message.createdAt)}
-                              </span>
-                              <span className="flex-1 h-px bg-border" />
-                            </div>
-                          )}
-                          <MessageBubble
-                            message={message}
-                            mine={mine}
-                            grouped={grouped}
-                            senderName={
-                              mine ? me?.name ?? 'You' : message.sender?.name ?? activeConnection.user.name
-                            }
-                            onDelete={mine ? (id) => deleteMessage(id) : undefined}
-                          />
-                        </React.Fragment>
-                      );
-                    })}
-                  </div>
-                )}
-
-                <AnimatePresence>
-                  {typingNames.length > 0 && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0 }}
-                      className="max-w-3xl mx-auto mt-3"
-                    >
-                      <span className="inline-flex items-center gap-1.5 bg-card border border-border rounded-2xl rounded-bl-md px-3.5 py-3">
-                        {[0, 1, 2].map((i) => (
-                          <motion.span
-                            key={i}
-                            animate={{ y: [0, -4, 0], opacity: [0.4, 1, 0.4] }}
-                            transition={{ duration: 1, repeat: Infinity, delay: i * 0.15 }}
-                            className="w-1.5 h-1.5 rounded-full bg-muted-foreground"
-                          />
-                        ))}
-                      </span>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
+                <MessageThread
+                  messages={messages}
+                  loading={messagesLoading}
+                  meId={me?.id}
+                  meName={me?.name}
+                  fallbackName={activeConnection.user.name}
+                  typingNames={typingNames}
+                  emptyTitle={`Say hello to ${activeConnection.user.name}`}
+                  emptyHint="Messages and files stay between the two of you."
+                  onDelete={(id) => deleteMessage(id)}
+                />
               </div>
 
               {activeChannelId && (
@@ -489,13 +354,7 @@ export const InboxPage: React.FC = () => {
                   channelId={activeChannelId}
                   onLocalNotice={addNotice}
                   onClear={() => {
-                    setHiddenBefore((state) => ({
-                      ...state,
-                      [activeChannelId]: new Date().toISOString(),
-                    }));
-                    setLocalNotices((notices) =>
-                      notices.filter((n) => n.channelId !== activeChannelId)
-                    );
+                    clearView();
                     toast.success('Cleared from your view — nothing was deleted');
                   }}
                 />
