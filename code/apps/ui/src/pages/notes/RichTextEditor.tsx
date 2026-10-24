@@ -213,7 +213,9 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
     const seed = (synced: boolean) => {
       if (!synced) return;
       const meta = ydoc.getMap('vero');
-      if (meta.get('seeded') || !editor.isEmpty) return;
+      // Ask the shared document, not the editor: the editor renders synced
+      // content a tick later and would still look empty here.
+      if (meta.get('seeded') || ydoc.getXmlFragment('default').length > 0) return;
       ydoc.transact(() => meta.set('seeded', true));
       editor.commands.setContent(note.contentSnapshot);
     };
