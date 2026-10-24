@@ -11,7 +11,8 @@ import { ydocToHtml } from './ydoc-html.js';
 const STATUS_KEY = `${env.AI_NAMESPACE ? `${env.AI_NAMESPACE}:` : ''}ai-worker:status`;
 /** BullMQ key prefix, namespaced the same way as ai-worker's. */
 export const AI_QUEUE_PREFIX = env.AI_NAMESPACE ? `bull:${env.AI_NAMESPACE}` : 'bull';
-const WAIT_MS = 60_000;
+// Current Flash models can take a minute or more on a long note.
+const WAIT_MS = 120_000;
 const PER_MINUTE = 6;
 
 let redis: Redis | null = null;

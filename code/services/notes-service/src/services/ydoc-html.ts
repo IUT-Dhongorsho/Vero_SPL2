@@ -10,6 +10,16 @@ import * as Y from 'yjs';
  * them private again.
  */
 
+/**
+ * y-websocket's server helpers load Yjs's CommonJS build while this file
+ * imports the ES module build — two copies of Yjs, so `instanceof` is false
+ * for every node of a live document. Nodes are recognised by shape instead.
+ */
+type TextNode = { toDelta(): Array<{ insert: unknown; attributes?: Record<string, any> }> };
+type ElementNode = { nodeName: string; getAttributes(): Record<string, any>; toArray(): unknown[] };
+const isText = (node: any): node is TextNode => typeof node?.toDelta === 'function';
+const isElement = (node: any): node is ElementNode => typeof node?.nodeName === 'string' && typeof node?.toArray === 'function';
+
 const escapeText = (value: string) => value.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!);
 const escapeAttr = (value: string) => escapeText(value).replace(/"/g, '&quot;');
 
@@ -23,8 +33,9 @@ const MARKS: Record<string, (attrs: any) => [string, string]> = {
   link: (attrs) => [`<a href="${escapeAttr(String(attrs?.href ?? ''))}" target="_blank" rel="noopener noreferrer nofollow">`, '</a>'],
 };
 
-function textToHtml(text: Y.XmlText): string {
-  return (text.toDelta() as Array<{ insert: unknown; attributes?: Record<string, any> }>)
+function textToHtml(text: TextNode): string {
+  return text
+    .toDelta()
     .map(({ insert, attributes }) => {
       if (typeof insert !== 'string') return '';
       let html = escapeText(insert);
@@ -40,16 +51,16 @@ function textToHtml(text: Y.XmlText): string {
     .join('');
 }
 
-function childrenToHtml(node: Y.XmlElement | Y.XmlFragment): string {
+function childrenToHtml(node: { toArray(): unknown[] }): string {
   return node
     .toArray()
-    .map((child) => (child instanceof Y.XmlText ? textToHtml(child) : child instanceof Y.XmlElement ? elementToHtml(child) : ''))
+    .map((child) => (isText(child) ? textToHtml(child) : isElement(child) ? elementToHtml(child) : ''))
     .join('');
 }
 
-function elementToHtml(el: Y.XmlElement): string {
+function elementToHtml(el: ElementNode): string {
   const inner = () => childrenToHtml(el);
-  const attrs = el.getAttributes() as Record<string, any>;
+  const attrs = el.getAttributes();
 
   switch (el.nodeName) {
     case 'paragraph':
@@ -95,7 +106,7 @@ function elementToHtml(el: Y.XmlElement): string {
 }
 
 /** HTML for the document TipTap's Collaboration extension edits (fragment "default"). */
-export function ydocToHtml(doc: Y.Doc, field = 'default'): string {
+export function ydocToHtml(doc: Pick<Y.Doc, 'getXmlFragment'>, field = 'default'): string {
   return childrenToHtml(doc.getXmlFragment(field));
 }
 

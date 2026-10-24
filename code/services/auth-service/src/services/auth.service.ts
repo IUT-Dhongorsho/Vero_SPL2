@@ -40,9 +40,10 @@ export const auth = betterAuth({
     secret: env.BETTER_AUTH_SECRET,
     // Better Auth marks cookies `Secure` whenever BETTER_AUTH_URL is https —
     // which it is behind ngrok — and browsers then drop the session on plain
-    // http origins (localhost:3000, a LAN IP). Only production needs them.
+    // http origins (localhost:3000, a LAN IP). Only a production deployment
+    // that is actually served over https needs them.
     advanced: {
-        useSecureCookies: env.NODE_ENV === "production",
+        useSecureCookies: env.NODE_ENV === "production" && env.BETTER_AUTH_URL.startsWith("https:"),
         // Better Auth silently skips origin checks under NODE_ENV=test; keep
         // them on everywhere so tests exercise the same rules as production.
         disableOriginCheck: false,

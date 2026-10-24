@@ -10,6 +10,7 @@
     "start": "node dist/index.js",
     "generate": "drizzle-kit generate",
     "migrate": "tsx src/db/migrate.ts",
+    "repair:snapshots": "tsx src/db/repair-snapshots.ts",
     "test": "vitest run"
   },
   "dependencies": {

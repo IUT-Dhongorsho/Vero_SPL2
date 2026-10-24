@@ -62,3 +62,22 @@ describe('isDocumentWrite', () => {
     expect(isDocumentWrite(new Uint8Array([1, 5, 1]))).toBe(false); // awareness
   });
 });
+
+describe('ydocToHtml with the CommonJS copy of Yjs', () => {
+  it('serialises documents created by y-websocket’s own Yjs instance', async () => {
+    // y-websocket's server utils require() the CommonJS build — a different
+    // Yjs instance from the one this module imports.
+    const { createRequire } = await import('node:module');
+    const YC = createRequire(import.meta.url)('yjs') as typeof Y;
+    expect(YC.XmlText).not.toBe(Y.XmlText);
+
+    const doc = new YC.Doc();
+    const para = new YC.XmlElement('paragraph');
+    const text = new YC.XmlText();
+    text.insert(0, 'Ship on Friday');
+    para.insert(0, [text]);
+    doc.getXmlFragment('default').insert(0, [para]);
+
+    expect(ydocToHtml(doc as any)).toBe('<p>Ship on Friday</p>');
+  });
+});

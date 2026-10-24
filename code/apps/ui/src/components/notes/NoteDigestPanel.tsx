@@ -70,6 +70,7 @@ export const NoteDigestPanel: React.FC<Props> = ({ open, onClose, noteId, noteTi
       >
         {loading && !digest ? (
           <div className="space-y-3" aria-busy="true" aria-label="Summarising">
+            <p className="text-sm text-muted-foreground pb-1">Reading the note. This can take up to a minute.</p>
             <Skeleton width="100%" height="16px" />
             <Skeleton width="92%" height="16px" />
             <Skeleton width="70%" height="16px" />

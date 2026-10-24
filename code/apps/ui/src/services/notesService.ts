@@ -53,6 +53,6 @@ export const notesService = {
   },
   /** Summary, key points and action items. Can take several seconds. */
   digest: async (id: string): Promise<NoteDigest> => {
-    return apiClient.post(`/notes/documents/${id}/digest`, null, { timeout: 75_000 }).then(r => r.data);
+    return apiClient.post(`/notes/documents/${id}/digest`, {}, { timeout: 135_000 }).then(r => r.data);
   },
 };

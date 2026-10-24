@@ -70,3 +70,40 @@ describe('GeminiService', () => {
     await expect(ask(garbled)).rejects.toBeInstanceOf(GeminiError);
   });
 });
+
+describe('GeminiService against a key with retired models', () => {
+  it('skips models that answer 404 and settles on one that works', async () => {
+    const calls: string[] = [];
+    const fetchImpl = vi.fn(async (url: string) => {
+      if (url.endsWith('/models?pageSize=200')) {
+        return json({
+          models: [
+            { name: 'models/gemini-3.8-flash', supportedGenerationMethods: ['generateContent'] },
+            { name: 'models/gemini-3.9-flash', supportedGenerationMethods: ['generateContent'] },
+          ],
+        });
+      }
+      calls.push(url);
+      return url.includes('gemini-3.9-flash') ? json({ error: 'gone' }, 404) : answer({ ok: true });
+    });
+    const svc = new GeminiService('k', undefined, 'https://api.test', fetchImpl as any);
+    expect(await ask(svc)).toEqual({ ok: true });
+    expect(svc.model).toBe('gemini-3.8-flash');
+  });
+
+  it('asks for a low thinking level, and drops it for models that refuse it', async () => {
+    const bodies: any[] = [];
+    const fetchImpl = vi.fn(async (_url: string, init: any) => {
+      const body = JSON.parse(init.body);
+      bodies.push(body);
+      return body.generationConfig.thinkingConfig
+        ? json({ error: { message: 'Thinking level LOW is not supported for this model.' } }, 400)
+        : answer({ ok: true });
+    });
+    const svc = new GeminiService('k', 'gemini-old-flash', 'https://api.test', fetchImpl as any);
+    expect(await ask(svc)).toEqual({ ok: true });
+    expect(bodies[0].generationConfig.thinkingConfig).toEqual({ thinkingLevel: 'low' });
+    await ask(svc);
+    expect(bodies[2].generationConfig.thinkingConfig).toBeUndefined();
+  });
+});

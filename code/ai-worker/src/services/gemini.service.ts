@@ -17,10 +17,14 @@ interface ModelInfo {
  */
 export class GeminiService {
   private resolvedModel: string | null = null;
+  /** Models this key has been refused (Google retires older ones per key). */
+  private unavailable = new Set<string>();
+  /** Some models reject a thinking level; remember which, and stop sending it. */
+  private noThinkingConfig = new Set<string>();
 
   constructor(
     private apiKey = env.GEMINI_API_KEY,
-    private preferredModel = env.GEMINI_MODEL,
+    private preferredModel = env.GEMINI_MODEL || undefined,
     private base = env.GEMINI_API_BASE,
     private fetchImpl: typeof fetch = (...args) => fetch(...args)
   ) {}
@@ -38,10 +42,11 @@ export class GeminiService {
   }
 
   /**
-   * The newest Flash model that supports generateContent. Model names change
-   * with each Gemini release, so a hard-coded default would eventually 404.
+   * Flash models that support generateContent, newest first. Model names change
+   * with each Gemini release, and older ones stop answering new keys, so a
+   * hard-coded default would eventually 404.
    */
-  async discoverModel(): Promise<string> {
+  async discoverModels(): Promise<string[]> {
     const res = await this.fetchImpl(`${this.base}/models?pageSize=200`, { headers: this.headers() });
     if (!res.ok) throw new GeminiError(`Could not list Gemini models (${res.status})`, 'UPSTREAM_FAILED');
     const { models = [] } = (await res.json()) as { models?: ModelInfo[] };
@@ -53,16 +58,37 @@ export class GeminiService {
 
     const version = (name: string) => Number(name.match(/gemini-([\d.]+)/)?.[1] ?? 0);
     candidates.sort((a, b) => version(b) - version(a) || a.length - b.length);
-    if (!candidates[0]) throw new GeminiError('No Gemini Flash model is available for this key', 'UPSTREAM_FAILED');
-    return candidates[0];
+    return candidates.filter((name) => !this.unavailable.has(name));
   }
 
-  private async call(model: string, body: unknown) {
-    return this.fetchImpl(`${this.base}/models/${model}:generateContent`, {
-      method: 'POST',
-      headers: this.headers(),
-      body: JSON.stringify(body),
-    });
+  async discoverModel(): Promise<string> {
+    const [first] = await this.discoverModels();
+    if (!first) throw new GeminiError('No Gemini Flash model is available for this key', 'UPSTREAM_FAILED');
+    return first;
+  }
+
+  /**
+   * One request. Asks for a low thinking level — summaries do not need long
+   * reasoning, and it is markedly faster — unless the model has refused that.
+   */
+  private async call(model: string, body: any) {
+    const send = (payload: any) =>
+      this.fetchImpl(`${this.base}/models/${model}:generateContent`, {
+        method: 'POST',
+        headers: this.headers(),
+        body: JSON.stringify(payload),
+      });
+
+    if (this.noThinkingConfig.has(model)) return send(body);
+    const res = await send({ ...body, generationConfig: { ...body.generationConfig, thinkingConfig: { thinkingLevel: 'low' } } });
+    if (res.status === 400) {
+      const detail = await res.clone().text().catch(() => '');
+      if (/thinking/i.test(detail)) {
+        this.noThinkingConfig.add(model);
+        return send(body);
+      }
+    }
+    return res;
   }
 
   async generateJson<T>(options: { system: string; prompt: string; schema: Record<string, unknown>; temperature?: number }): Promise<T> {
@@ -81,9 +107,13 @@ export class GeminiService {
     if (!this.resolvedModel) this.resolvedModel = this.preferredModel || (await this.discoverModel());
     let res = await this.call(this.resolvedModel, body);
 
-    // A pinned or remembered model may have been retired: rediscover once.
-    if (res.status === 404) {
-      this.resolvedModel = await this.discoverModel();
+    // A pinned or remembered model may have been retired: work down the
+    // list of current Flash models until one answers.
+    while (res.status === 404) {
+      this.unavailable.add(this.resolvedModel);
+      const next = (await this.discoverModels())[0];
+      if (!next) throw new GeminiError('No Gemini Flash model is available for this key', 'UPSTREAM_FAILED');
+      this.resolvedModel = next;
       res = await this.call(this.resolvedModel, body);
     }
 
