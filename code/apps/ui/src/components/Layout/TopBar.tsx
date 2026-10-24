@@ -12,9 +12,11 @@ export interface TopBarProps {
   title: string;
   subtitle?: string;
   actions?: React.ReactNode;
+  /** The shell passes a slot pages portal their buttons into. */
+  actionsRef?: (node: HTMLDivElement | null) => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, actions }) => {
+export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, actions, actionsRef }) => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const isHydrated = useAuthStore((state) => state._hasHydrated);
@@ -70,6 +72,7 @@ export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, actions }) => {
         </button>
 
         {actions}
+        <div ref={actionsRef} className="contents" />
 
         <NotificationDropdown />
 

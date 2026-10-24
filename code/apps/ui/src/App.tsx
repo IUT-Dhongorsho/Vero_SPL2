@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
-import { AnimatePresence } from 'framer-motion';
-import { PageTransition } from './components/ui/PageTransition';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { AppShell } from './components/Layout/AppShell';
 import { ToastProvider } from './components/Providers/ToastProvider';
 import { GlobalSearch } from './components/ui/GlobalSearch';
 import { VeroLogo } from './components/ui/VeroLogo';
@@ -40,50 +39,49 @@ const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =
   return <>{children}</>;
 };
 
-const guarded = (element: React.ReactNode) => <ProtectedRoute>{element}</ProtectedRoute>;
-
 function AppContent() {
-  const location = useLocation();
-
   return (
-    // The keyed motion wrapper — not <Routes> — is what AnimatePresence tracks.
-    // Keying <Routes> directly leaves the exit unresolved and `mode="wait"`
-    // then never mounts the incoming route.
-    <AnimatePresence mode="wait" initial={false}>
-      <PageTransition key={location.pathname}>
-        <Routes location={location}>
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/forgot-password" element={<ForgotPasswordPage />} />
-        <Route path="/reset-password" element={<ResetPasswordPage />} />
-        <Route path="/auth/callback" element={<AuthCallbackPage />} />
+    <Routes>
+      <Route path="/" element={<LandingPage />} />
+      <Route path="/login" element={<LoginPage />} />
+      <Route path="/signup" element={<SignupPage />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
+      <Route path="/auth/callback" element={<AuthCallbackPage />} />
 
-        <Route path="/dashboard" element={guarded(<DashboardPage />)} />
+      {/* Signed-in pages share one shell, so the sidebar and top bar stay put
+          while the content changes. */}
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppShell />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/dashboard" element={<DashboardPage />} />
 
         {/* Primary navigation */}
-        <Route path="/inbox" element={guarded(<InboxPage />)} />
-        <Route path="/inbox/:connectionId" element={guarded(<InboxPage />)} />
-        <Route path="/calendar" element={guarded(<CalendarPage />)} />
-        <Route path="/tasks" element={guarded(<TasksPage />)} />
-        <Route path="/progress" element={guarded(<ProgressPage />)} />
-        <Route path="/projects" element={guarded(<WorkspacePage />)} />
-        <Route path="/profile" element={guarded(<ProfilePage />)} />
-        <Route path="/settings" element={guarded(<SettingsPage />)} />
-        <Route path="/files" element={guarded(<FilesPage />)} />
+        <Route path="/inbox" element={<InboxPage />} />
+        <Route path="/inbox/:connectionId" element={<InboxPage />} />
+        <Route path="/calendar" element={<CalendarPage />} />
+        <Route path="/tasks" element={<TasksPage />} />
+        <Route path="/progress" element={<ProgressPage />} />
+        <Route path="/projects" element={<WorkspacePage />} />
+        <Route path="/profile" element={<ProfilePage />} />
+        <Route path="/settings" element={<SettingsPage />} />
+        <Route path="/files" element={<FilesPage />} />
 
         {/* Projects and module hub */}
-        <Route path="/project/:projectId" element={guarded(<ProjectPage />)} />
-        <Route path="/project/:projectId/module/:moduleId" element={guarded(<ModuleHubPage />)} />
-        <Route path="/project/:projectId/module/:moduleId/board" element={guarded(<BoardPage />)} />
-        <Route path="/project/:projectId/module/:moduleId/notes" element={guarded(<NotesPage />)} />
-        <Route path="/project/:projectId/module/:moduleId/chat" element={guarded(<ChatPage />)} />
-        <Route path="/project/:projectId/module/:moduleId/meet" element={guarded(<MeetPage />)} />
+        <Route path="/project/:projectId" element={<ProjectPage />} />
+        <Route path="/project/:projectId/module/:moduleId" element={<ModuleHubPage />} />
+        <Route path="/project/:projectId/module/:moduleId/board" element={<BoardPage />} />
+        <Route path="/project/:projectId/module/:moduleId/notes" element={<NotesPage />} />
+        <Route path="/project/:projectId/module/:moduleId/chat" element={<ChatPage />} />
+        <Route path="/project/:projectId/module/:moduleId/meet" element={<MeetPage />} />
+      </Route>
 
-        <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </PageTransition>
-    </AnimatePresence>
+      <Route path="*" element={<Navigate to="/" replace />} />
+    </Routes>
   );
 }
 
