@@ -145,3 +145,18 @@ describe('board access', () => {
     });
   });
 });
+
+describe('board initialisation', () => {
+  it('creates one set of columns however many requests race to open the board', async () => {
+    const RACE = 'mod-access-race';
+    people['token-member'].roles[RACE] = 'member';
+    try {
+      await Promise.all(Array.from({ length: 5 }, () => request(app).post(`/api/board/init/${RACE}`).set(as('token-member'))));
+      const cols = await db.select().from(columns).where(eq(columns.projectId, RACE));
+      expect(cols.map((c) => c.name).sort()).toEqual(['Backlog', 'Done', 'In Progress', 'In Review']);
+    } finally {
+      await db.delete(columns).where(eq(columns.projectId, RACE));
+      await db.delete(projects).where(eq(projects.id, RACE));
+    }
+  });
+});

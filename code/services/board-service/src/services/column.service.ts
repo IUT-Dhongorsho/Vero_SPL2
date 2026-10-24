@@ -98,26 +98,33 @@ export const columnService = {
     return deleted;
   },
 
+  /**
+   * Creates the default columns once. Boards are opened by several requests at
+   * the same moment (React StrictMode, two tabs), so the check-then-insert runs
+   * under a per-board advisory lock — without it each request saw an empty
+   * board and both inserted a full set of columns.
+   */
   async initializeBoard(projectId: string) {
-    const existing = await db
-      .select({ id: columns.id })
-      .from(columns)
-      .where(eq(columns.projectId, projectId))
-      .limit(1);
+    const created = await db.transaction(async (tx) => {
+      await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext(${'board-init:' + projectId}))`);
 
-    if (existing.length > 0) {
-      return this.getColumnsByProject(projectId);
-    }
+      const existing = await tx
+        .select({ id: columns.id })
+        .from(columns)
+        .where(eq(columns.projectId, projectId))
+        .limit(1);
+      if (existing.length > 0) return null;
 
-    const created = await db
-      .insert(columns)
-      .values(DEFAULT_COLUMNS.map(col => ({
-        name: col.name,
-        order: col.order,
-        projectId,
-      })))
-      .returning();
+      return tx
+        .insert(columns)
+        .values(DEFAULT_COLUMNS.map(col => ({
+          name: col.name,
+          order: col.order,
+          projectId,
+        })))
+        .returning();
+    });
 
-    return created;
+    return created ?? this.getColumnsByProject(projectId);
   },
 };
