@@ -64,7 +64,10 @@ export const authService = {
   async loginWithSocial(provider: 'github' | 'google'): Promise<void> {
     await authClient.signIn.social({
       provider,
-      callbackURL: '/dashboard', 
+      // Absolute, so the provider returns to this app even when the auth
+      // server lives on another origin (an ngrok tunnel, say).
+      callbackURL: `${window.location.origin}/auth/callback`,
+      errorCallbackURL: `${window.location.origin}/auth/callback`,
     });
   },
 

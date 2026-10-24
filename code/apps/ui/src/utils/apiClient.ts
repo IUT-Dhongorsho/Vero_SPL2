@@ -26,10 +26,6 @@ apiClient.interceptors.request.use(
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
-    // Send user ID header for dev-mode services that use fake auth
-    if (user?.id) {
-      config.headers['X-User-Id'] = user.id;
-    }
     
     return config;
   },
