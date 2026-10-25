@@ -1,22 +1,24 @@
 import React, { useEffect } from 'react';
-import { Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ChevronRight, Search } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
 import { NotificationDropdown } from './NotificationDropdown';
 import { useAuthStore } from '../../stores/auth.store';
 import { useNotificationStore } from '../../stores/notification.store';
 import { useNavigationStore } from '../../stores/navigationStore';
 import { Avatar } from '../ui/Avatar';
+import type { Crumb } from '../../lib/routes';
 import { cn } from '../../utils/cn';
 
 export interface TopBarProps {
   title: string;
   subtitle?: string;
+  crumbs?: Crumb[];
   actions?: React.ReactNode;
   /** The shell passes a slot pages portal their buttons into. */
   actionsRef?: (node: HTMLDivElement | null) => void;
 }
 
-export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, actions, actionsRef }) => {
+export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, crumbs, actions, actionsRef }) => {
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const isHydrated = useAuthStore((state) => state._hasHydrated);
@@ -43,10 +45,26 @@ export const TopBar: React.FC<TopBarProps> = ({ title, subtitle, actions, action
       )}
     >
       <div className="min-w-0 pl-12 md:pl-0">
+        {crumbs?.length ? (
+          <nav aria-label="You are here" className="flex items-center gap-1 text-xs text-muted-foreground min-w-0">
+            {crumbs.map((crumb, i) => (
+              <React.Fragment key={`${crumb.label}-${i}`}>
+                {i > 0 && <ChevronRight className="w-3 h-3 shrink-0 text-subtle-foreground" aria-hidden />}
+                {crumb.to ? (
+                  <Link to={crumb.to} className="truncate hover:text-foreground transition-colors">
+                    {crumb.label}
+                  </Link>
+                ) : (
+                  <span className="truncate">{crumb.label}</span>
+                )}
+              </React.Fragment>
+            ))}
+          </nav>
+        ) : null}
         <h1 className="text-lg font-semibold tracking-tight text-foreground truncate leading-tight">
           {title}
         </h1>
-        {subtitle && (
+        {subtitle && !crumbs?.length && (
           <p className="text-xs text-muted-foreground truncate hidden sm:block">{subtitle}</p>
         )}
       </div>

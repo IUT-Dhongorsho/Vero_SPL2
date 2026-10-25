@@ -1,11 +1,14 @@
 import React, { useLayoutEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useShell, type PageLayout } from './AppShell';
+import type { Crumb } from '../../lib/routes';
 
 export interface PageContainerProps {
   children: React.ReactNode;
   title: string;
   subtitle?: string;
+  /** The pages above this one, shown in the top bar instead of the subtitle. */
+  crumbs?: Crumb[];
   /** Kept for backward compatibility with pages that still pass it. */
   sidebarItems?: unknown;
   topBarActions?: React.ReactNode;
@@ -22,6 +25,7 @@ export const PageContainer: React.FC<PageContainerProps> = ({
   children,
   title,
   subtitle,
+  crumbs,
   topBarActions,
   layout = 'default',
 }) => {
@@ -29,8 +33,8 @@ export const PageContainer: React.FC<PageContainerProps> = ({
 
   // Before paint, so the top bar never shows the previous page's title.
   useLayoutEffect(() => {
-    shell?.setMeta({ title, subtitle, layout });
-  }, [shell, title, subtitle, layout]);
+    shell?.setMeta({ title, subtitle, crumbs, layout });
+  }, [shell, title, subtitle, crumbs, layout]);
 
   return (
     <>

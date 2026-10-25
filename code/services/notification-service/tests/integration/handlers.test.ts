@@ -62,14 +62,14 @@ describe('task.assigned', () => {
     },
   });
 
-  it('notifies the assignee with a link to the module board, and emails them', async () => {
+  it('notifies the assignee with a link that opens the task on its board, and emails them', async () => {
     await taskHandler.handle(event(bob));
 
     const [row] = await rowsFor(bob);
     expect(row).toMatchObject({
       title: 'Ada assigned you a task',
       body: 'Write launch notes — Apollo · Launch',
-      resourceUrl: '/project/p1/module/m1/board',
+      resourceUrl: `/project/p1/module/m1/board?task=task-${bob}`,
     });
     expect(mail.sent).toEqual([{ to: 'bob@vero.test', subject: 'Ada assigned you a task' }]);
   });

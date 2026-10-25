@@ -7,6 +7,7 @@ import { StatTile } from '../components/ui/StatTile';
 import { EmptyState } from '../components/ui/EmptyState';
 import { KanbanBoard, type KanbanCard } from '../components/board/KanbanBoard';
 import { TaskEditorModal } from '../components/tasks/TaskEditorModal';
+import { WorkViewSwitch, useWorkLinks } from '../components/tasks/WorkViewSwitch';
 import { toast } from '../components/Providers/ToastProvider';
 import { useWorkStore } from '../stores/work.store';
 import { WORK_COLUMNS, type WorkItem, type WorkStatus } from '../services/workService';
@@ -58,17 +59,18 @@ export const ProgressPage: React.FC = () => {
     }
   };
 
+  const openTask = useWorkLinks({
+    projectTasks,
+    personalTasks,
+    loading,
+    onOpen: setEditing,
+    onCreate: () => setCreatingIn('backlog'),
+  });
+
+  // Project tasks are owned by their board, so they open there.
   const openCard = (card: KanbanCard) => {
-    const personal = personalTasks.find((t) => t.id === card.id);
-    if (personal) {
-      setEditing(personal);
-      return;
-    }
-    // Project tasks are owned by their board — editing happens there.
-    const projectTask = projectTasks.find((t) => t.id === card.id);
-    if (projectTask) {
-      toast.success(`“${projectTask.title}” lives on the ${projectTask.projectName} board`);
-    }
+    const task = [...personalTasks, ...projectTasks].find((t) => t.id === card.id);
+    if (task) openTask(task);
   };
 
   const totalOnPlate = projectTasks.length + personalTasks.length;
@@ -76,8 +78,8 @@ export const ProgressPage: React.FC = () => {
 
   return (
     <PageContainer
-      title="Progress"
-      subtitle="Everything on your plate, across every project"
+      title="My work"
+      subtitle="Your own tasks and everything assigned to you"
       topBarActions={
         <AnimatedButton size="sm" variant="accent" onClick={() => setCreatingIn('backlog')}>
           <Plus className="w-4 h-4" />
@@ -86,6 +88,8 @@ export const ProgressPage: React.FC = () => {
       }
     >
       <motion.div variants={stagger()} initial="hidden" animate="show" className="space-y-6">
+        <WorkViewSwitch />
+
         <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           <StatTile
             label="On your plate"

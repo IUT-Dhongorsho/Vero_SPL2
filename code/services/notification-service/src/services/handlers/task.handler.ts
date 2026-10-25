@@ -29,7 +29,7 @@ export class TaskHandler {
       actorId: assignerId,
       title: `${assigner?.name ?? 'Someone'} assigned you a task`,
       body: `${taskTitle} — ${projectName}${moduleName ? ` · ${moduleName}` : ''}`,
-      resourceUrl: moduleId ? `/project/${projectId}/module/${moduleId}/board` : '/progress',
+      resourceUrl: moduleId ? `/project/${projectId}/module/${moduleId}/board?task=${taskId}` : `/work?task=${taskId}`,
       email: true,
     });
   }

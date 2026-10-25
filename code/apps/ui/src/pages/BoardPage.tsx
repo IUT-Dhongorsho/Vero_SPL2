@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, RefreshCw, UserPlus } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
@@ -14,6 +14,7 @@ import type { WorkItem } from '../services/workService';
 import { projectService, type ProjectMember } from '../services/projectService';
 import { useModule } from '../hooks/useModule';
 import { errorMessage } from '../utils/errors';
+import { moduleCrumbs } from '../lib/routes';
 import { fadeUp, stagger } from '../lib/motion';
 
 /** A module's kanban. Each module has its own board in board-service. */
@@ -61,6 +62,17 @@ export const BoardPage: React.FC = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // `?task=` (from Home, My work or a notification) opens that task.
+  const [params, setParams] = useSearchParams();
+  const linkedTaskId = params.get('task');
+  useEffect(() => {
+    if (!linkedTaskId || loading) return;
+    const task = tasks.find((t) => t.id === linkedTaskId);
+    setParams({}, { replace: true });
+    if (task) setEditing(task);
+    else toast.error('That task is no longer on this board');
+  }, [linkedTaskId, loading, tasks, setParams]);
 
   const columnDefs: KanbanColumnDef[] = useMemo(
     () => columns.map((column) => ({ id: column.id, label: column.name })),
@@ -120,8 +132,8 @@ export const BoardPage: React.FC = () => {
 
   return (
     <PageContainer
-      title={module ? `${module.name} board` : 'Board'}
-      subtitle={readOnly ? 'You can view this board but not change it' : 'Tasks assigned to someone appear on their Progress board'}
+      title={module?.name ?? 'Board'}
+      crumbs={moduleCrumbs(module)}
       topBarActions={
         <div className="flex items-center gap-2">
           <AnimatedButton size="sm" variant="ghost" onClick={refresh}>
@@ -140,6 +152,11 @@ export const BoardPage: React.FC = () => {
       }
     >
       <motion.div variants={stagger()} initial="hidden" animate="show" className="space-y-6">
+        {readOnly && (
+          <p className="text-sm text-muted-foreground">
+            You are a viewer on this project, so you can read this board but not change it.
+          </p>
+        )}
         {error ? (
           <motion.div variants={fadeUp} className="surface rounded-2xl p-6">
             <p className="font-medium text-danger">{error}</p>

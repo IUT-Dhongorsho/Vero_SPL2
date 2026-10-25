@@ -10,7 +10,8 @@ import {
 } from 'lucide-react';
 import { PageContainer } from '../../components/Layout/PageContainer';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
-import { ThemeToggle } from '../../components/ui/ThemeToggle';
+import { useModule } from '../../hooks/useModule';
+import { moduleCrumbs } from '../../lib/routes';
 import { toast } from '../../components/Providers/ToastProvider';
 import { useChatStore } from '../../stores/chat.store';
 import { useAuthStore } from '../../stores/auth.store';
@@ -418,6 +419,7 @@ const PreJoinScreen: React.FC<{ onJoin: () => void; onCancel: () => void }> = ({
 // ─── MAIN MEET PAGE ───────────────────────────────────────────────────────────
 export const MeetPage: React.FC = () => {
   const { projectId, moduleId } = useParams();
+  const { module } = useModule(moduleId);
   const [meetingMode, setMeetingMode] = useState<'hub' | 'pre-join' | 'in-call'>('hub');
   const [showScheduleModal, setShowScheduleModal] = useState(false);
   const [scheduleTitle, setScheduleTitle] = useState('Weekly Sync');
@@ -755,8 +757,8 @@ export const MeetPage: React.FC = () => {
     const peerCount = roomStatus?.livePeerCount ?? 0;
 
     return (
-      <PageContainer title="Meet" topBarActions={<ThemeToggle />}>
-        <div className="flex-1 flex flex-col items-center justify-center h-[calc(100vh-140px)] px-4">
+      <PageContainer title={module?.name ?? 'Meet'} crumbs={moduleCrumbs(module)}>
+        <div className="flex-1 flex flex-col items-center justify-center h-[calc(100vh-var(--shell-top)-4.5rem)] px-4">
           <div className="max-w-lg w-full">
             {/* Duplicate login warning banner */}
             {duplicateDisconnectReason && (

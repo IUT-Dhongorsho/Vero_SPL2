@@ -1,5 +1,4 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   CalendarClock,
@@ -17,8 +16,8 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Badge, PriorityBadge } from '../components/ui/Badge';
 import { EmptyState } from '../components/ui/EmptyState';
 import { TaskEditorModal } from '../components/tasks/TaskEditorModal';
+import { WorkViewSwitch, useWorkLinks } from '../components/tasks/WorkViewSwitch';
 import { dueMeta } from '../components/board/KanbanBoard';
-import { BoardPage } from './BoardPage';
 import { toast } from '../components/Providers/ToastProvider';
 import { useWorkStore } from '../stores/work.store';
 import type { WorkItem } from '../services/workService';
@@ -145,17 +144,8 @@ const TaskRow: React.FC<{
   );
 };
 
+/** My work, as a list grouped by when things are due. */
 export const TasksPage: React.FC = () => {
-  const { projectId, moduleId } = useParams<{ projectId?: string; moduleId?: string }>();
-
-  if (projectId && moduleId) {
-    return <BoardPage />;
-  }
-
-  return <PersonalTaskList />;
-};
-
-const PersonalTaskList: React.FC = () => {
   const {
     projectTasks,
     personalTasks,
@@ -180,6 +170,17 @@ const PersonalTaskList: React.FC = () => {
     load();
     loadStats();
   }, [load, loadStats]);
+
+  const openTask = useWorkLinks({
+    projectTasks,
+    personalTasks,
+    loading,
+    onOpen: setEditing,
+    onCreate: () => {
+      setEditing(null);
+      setCreating(true);
+    },
+  });
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -207,8 +208,8 @@ const PersonalTaskList: React.FC = () => {
 
   return (
     <PageContainer
-      title="Tasks"
-      subtitle="Everything on your plate across projects and your own list."
+      title="My work"
+      subtitle="Your own tasks and everything assigned to you"
       topBarActions={
         <AnimatedButton
           size="sm"
@@ -224,6 +225,8 @@ const PersonalTaskList: React.FC = () => {
       }
     >
       <motion.div initial="initial" animate="animate" variants={stagger()} className="space-y-6">
+        <WorkViewSwitch />
+
         {/* Controls */}
         <motion.div
           variants={fadeUp}
@@ -350,13 +353,7 @@ const PersonalTaskList: React.FC = () => {
                             toast.error('Could not update that task');
                           }
                         }}
-                        onEdit={() => {
-                          if (task.source === 'personal') setEditing(task);
-                          else
-                            toast.success(
-                              `“${task.title}” is managed on the ${task.projectName} board`
-                            );
-                        }}
+                        onEdit={() => openTask(task)}
                         onDelete={async () => {
                           await deletePersonal(task.id);
                           toast.success('Task deleted');

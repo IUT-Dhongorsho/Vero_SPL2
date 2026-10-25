@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom';
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { ArrowLeft, FileText, FolderKanban, Settings2, Users } from 'lucide-react';
+import { FileText, FolderKanban, Settings2, Users } from 'lucide-react';
 import { PageContainer } from '../../components/Layout/PageContainer';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { projectService, type Project } from '../../services/projectService';
 import { springSoft } from '../../lib/motion';
+import { projectCrumbs } from '../../lib/routes';
 import { cn } from '../../utils/cn';
 import { ModulesTab } from './ModulesTab';
 import { MembersTab } from './MembersTab';
@@ -80,31 +81,25 @@ export const ProjectPage: React.FC = () => {
   return (
     <PageContainer
       title={project?.name ?? 'Project'}
-      subtitle={project ? `${project.memberCount} ${project.memberCount === 1 ? 'member' : 'members'}` : undefined}
+      crumbs={projectCrumbs()}
       topBarActions={actions}
     >
       <div className="space-y-6">
         <header className="space-y-4">
-          <Link
-            to="/projects"
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            All projects
-          </Link>
-
           {project ? (
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="min-w-0 max-w-3xl">
-                <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-3xl font-semibold tracking-tight text-foreground">{project.name}</h1>
+                <p className="text-muted-foreground leading-relaxed">
+                  {project.description || 'No description yet.'}
+                </p>
+                <div className="mt-3 flex flex-wrap items-center gap-2">
                   <Badge tone={project.status === 'completed' ? 'neutral' : 'success'} dot>
                     {project.status === 'completed' ? 'Completed' : 'Active'}
                   </Badge>
+                  <Badge>
+                    {project.memberCount} {project.memberCount === 1 ? 'member' : 'members'}
+                  </Badge>
                 </div>
-                <p className="mt-2 text-muted-foreground leading-relaxed">
-                  {project.description || 'No description yet.'}
-                </p>
               </div>
               <span className="text-sm text-muted-foreground">
                 You are {project.userRole === 'admin' ? 'an' : 'a'}{' '}
@@ -113,8 +108,8 @@ export const ProjectPage: React.FC = () => {
             </div>
           ) : (
             <div className="space-y-3">
-              <Skeleton width="280px" height="34px" />
               <Skeleton width="420px" height="18px" />
+              <Skeleton width="200px" height="24px" />
             </div>
           )}
 

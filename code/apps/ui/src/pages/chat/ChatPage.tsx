@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
-import { ArrowLeft, Loader2, MessageSquare } from 'lucide-react';
+import { useParams } from 'react-router-dom';
+import { Loader2, MessageSquare } from 'lucide-react';
 import { PageContainer } from '../../components/Layout/PageContainer';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { AvatarStack } from '../../components/project/AvatarStack';
@@ -14,6 +14,7 @@ import { useConversation } from '../../hooks/useConversation';
 import { useInboxStore } from '../../stores/inbox.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { errorMessage } from '../../utils/errors';
+import { moduleCrumbs } from '../../lib/routes';
 
 type ChatState = 'loading' | 'ready' | 'not-member' | 'provisioning' | 'failed';
 
@@ -22,7 +23,7 @@ type ChatState = 'loading' | 'ready' | 'not-member' | 'provisioning' | 'failed';
  * the Inbox, so messages, files, slash commands and typing behave identically.
  */
 export const ChatPage: React.FC = () => {
-  const { projectId, moduleId } = useParams();
+  const { moduleId } = useParams();
   const me = useAuthStore((s) => s.user);
   const { module, missing, reload } = useModule(moduleId);
   const { activeChannelId, messagesLoading, onlineUserIds, connected, openChannel, closeConversation, deleteMessage } =
@@ -99,21 +100,14 @@ export const ChatPage: React.FC = () => {
           : `${module?.members.length ?? 0} ${module?.members.length === 1 ? 'member' : 'members'}`;
 
   return (
-    <PageContainer title={module ? `${module.name} chat` : 'Chat'} subtitle={module?.project?.name} layout="full">
-      <div className="h-[calc(100vh-4rem)] flex flex-col">
+    <PageContainer title={module?.name ?? 'Chat'} crumbs={moduleCrumbs(module)} layout="full">
+      <div className="h-[calc(100vh-var(--shell-top))] flex flex-col">
         <header className="h-16 shrink-0 flex items-center gap-3 px-4 md:px-6 border-b border-border bg-card">
-          <Link
-            to={`/project/${projectId}/module/${moduleId}`}
-            aria-label="Back to the module"
-            className="p-2 -ml-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <ArrowLeft className="w-5 h-5" />
-          </Link>
           <span className="w-9 h-9 rounded-xl bg-accent-soft text-accent grid place-items-center shrink-0">
             <MessageSquare className="w-[18px] h-[18px]" />
           </span>
           <div className="min-w-0 flex-1">
-            <p className="font-semibold text-foreground truncate leading-tight">{module?.name ?? 'Module chat'}</p>
+            <p className="font-semibold text-foreground truncate leading-tight">Chat</p>
             <p className="text-xs text-muted-foreground truncate">{status}</p>
           </div>
           {module && <AvatarStack people={module.members.map((m) => m.user)} />}

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useParams, useSearchParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { ArrowLeft, Copy, Eye, FileText, Lock, Plus, Search, Trash2, Users } from 'lucide-react';
 import { PageContainer } from '../../components/Layout/PageContainer';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
@@ -13,6 +13,7 @@ import { useNotesStore } from '../../stores/notes.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { useModule } from '../../hooks/useModule';
 import { errorMessage } from '../../utils/errors';
+import { moduleCrumbs } from '../../lib/routes';
 import { timeAgo } from '../../utils/dateUtils';
 import { cn } from '../../utils/cn';
 import type { NoteListItem, NoteVisibility, NoteEditPermission } from '../../../../../packages/shared/src/types/notes.types';
@@ -27,7 +28,7 @@ const sharingIcon = (note: NoteListItem) =>
   note.visibility === 'private' ? Lock : note.editPermission === 'editable' ? Users : Eye;
 
 export const NotesPage: React.FC = () => {
-  const { projectId, moduleId } = useParams();
+  const { moduleId } = useParams();
   const [params, setParams] = useSearchParams();
   const me = useAuthStore((s) => s.user);
   const { module } = useModule(moduleId);
@@ -103,8 +104,8 @@ export const NotesPage: React.FC = () => {
 
   return (
     <PageContainer
-      title={module ? `${module.name} notes` : 'Notes'}
-      subtitle={module?.project?.name}
+      title={module?.name ?? 'Notes'}
+      crumbs={moduleCrumbs(module)}
       topBarActions={
         canWrite ? (
           <AnimatedButton size="sm" variant="accent" onClick={() => setCreateOpen(true)}>
@@ -114,7 +115,7 @@ export const NotesPage: React.FC = () => {
         ) : null
       }
     >
-      <div className="flex h-[calc(100vh-8.5rem)] gap-5">
+      <div className="flex h-[calc(100vh-var(--shell-top)-4.5rem)] gap-5">
         {/* Notes list */}
         <aside
           className={cn(
@@ -123,13 +124,6 @@ export const NotesPage: React.FC = () => {
           )}
         >
           <div className="p-4 border-b border-border space-y-3">
-            <Link
-              to={`/project/${projectId}/module/${moduleId}`}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              <ArrowLeft className="w-4 h-4" />
-              {module?.name ?? 'Module'}
-            </Link>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
               <input

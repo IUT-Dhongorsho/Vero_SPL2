@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, FileText, FolderKanban, MessageSquare, Settings2, UserPlus, Video, type LucideIcon } from 'lucide-react';
+import React, { useState } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { FileText, FolderKanban, MessageSquare, Settings2, UserPlus, Video, type LucideIcon } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Avatar } from '../components/ui/Avatar';
@@ -11,7 +11,8 @@ import { Field, inputClass } from '../components/ui/Field';
 import { ModuleStatusBadge, MODULE_STATUS } from '../components/project/ModuleStatusBadge';
 import { ModuleMembersDialog } from '../components/project/ModuleMembersDialog';
 import { toast } from '../components/Providers/ToastProvider';
-import { meetService, RoomStatus } from '../services/meetService';
+import { useMeetStatus } from '../hooks/useMeetStatus';
+import { moduleCrumbs } from '../lib/routes';
 import { moduleService, type ModuleStatus } from '../services/moduleService';
 import { useModule } from '../hooks/useModule';
 import { useAuthStore } from '../stores/auth.store';
@@ -33,7 +34,6 @@ export const ModuleHubPage: React.FC = () => {
   const navigate = useNavigate();
   const me = useAuthStore((s) => s.user);
   const { module, missing, reload } = useModule(moduleId);
-  const [roomStatus, setRoomStatus] = useState<RoomStatus | null>(null);
   const [membersOpen, setMembersOpen] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -43,31 +43,9 @@ export const ModuleHubPage: React.FC = () => {
   const [description, setDescription] = useState('');
   const [saving, setSaving] = useState(false);
 
-  // Poll meeting status for this module so ongoing meetings are recognized immediately
-  useEffect(() => {
-    if (!moduleId) return;
-    let isMounted = true;
-
-    const checkMeetStatus = async () => {
-      try {
-        const res = await meetService.getRoomStatus(moduleId);
-        if (isMounted) setRoomStatus(res);
-      } catch {
-        // Meet service unreachable or no active room
-      }
-    };
-
-    checkMeetStatus();
-    const interval = setInterval(checkMeetStatus, 4000);
-    return () => {
-      isMounted = false;
-      clearInterval(interval);
-    };
-  }, [moduleId]);
+  const { isLive: isMeetLive, liveCount } = useMeetStatus(moduleId);
 
   const isAdmin = module?.userRole === 'admin';
-  const isMeetLive = roomStatus?.status === 'active' && (roomStatus?.livePeerCount ?? 0) > 0;
-  const liveCount = roomStatus?.livePeerCount ?? 0;
   const base = `/project/${projectId}/module/${moduleId}`;
 
   const tools: Tool[] = [
@@ -150,7 +128,7 @@ export const ModuleHubPage: React.FC = () => {
   return (
     <PageContainer
       title={module?.name ?? 'Module'}
-      subtitle={module?.project?.name}
+      crumbs={moduleCrumbs(module)}
       topBarActions={
         module && !module.isMember ? (
           <AnimatedButton size="sm" variant="accent" onClick={join} loading={joining}>
@@ -161,20 +139,11 @@ export const ModuleHubPage: React.FC = () => {
       }
     >
       <div className="space-y-8">
-        <header className="space-y-4">
-          <Link
-            to={`/project/${projectId}`}
-            className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
-          >
-            <ArrowLeft className="w-4 h-4" />
-            {module?.project?.name ?? 'Project'}
-          </Link>
-
+        <header>
           {module ? (
             <div className="grid lg:grid-cols-[minmax(0,1fr)_20rem] gap-6 items-start">
               <div className="min-w-0">
                 <div className="flex flex-wrap items-center gap-3">
-                  <h1 className="text-3xl font-semibold tracking-tight text-foreground">{module.name}</h1>
                   {isAdmin ? (
                     <select
                       value={module.status}

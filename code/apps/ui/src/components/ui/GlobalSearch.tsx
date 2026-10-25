@@ -109,11 +109,11 @@ export const GlobalSearch: React.FC = () => {
     { id: 'nav-dashboard', title: 'Home', icon: <LayoutDashboard />, route: '/dashboard', category: 'Navigation' },
     { id: 'nav-inbox', title: 'Inbox', subtitle: 'Direct messages', icon: <MessageSquare />, route: '/inbox', category: 'Navigation' },
     { id: 'nav-calendar', title: 'Calendar', icon: <CalendarDays />, route: '/calendar', category: 'Navigation' },
-    { id: 'nav-tasks', title: 'Tasks', icon: <CheckSquare />, route: '/tasks', category: 'Navigation' },
-    { id: 'nav-progress', title: 'Progress', subtitle: 'Your personal board', icon: <CheckSquare />, route: '/progress', category: 'Navigation' },
+    { id: 'nav-work', title: 'My work', subtitle: 'Your tasks as a list', icon: <CheckSquare />, route: '/work', category: 'Navigation' },
+    { id: 'nav-work-board', title: 'My work board', subtitle: 'Your tasks by status', icon: <CheckSquare />, route: '/work/board', category: 'Navigation' },
     { id: 'nav-projects', title: 'Projects', icon: <FolderKanban />, route: '/projects', category: 'Navigation' },
     { id: 'nav-profile', title: 'Profile', icon: <Settings />, route: '/profile', category: 'Navigation' },
-    { id: 'nav-files', title: 'Files', icon: <FileText />, route: '/files', category: 'Navigation' },
+    { id: 'nav-files', title: 'Recent files', subtitle: 'Across all your projects', icon: <FileText />, route: '/files', category: 'Navigation' },
     { id: 'nav-settings', title: 'Settings', icon: <Settings />, route: '/settings', category: 'Navigation' },
 
     // Real projects, so the palette actually navigates somewhere useful.

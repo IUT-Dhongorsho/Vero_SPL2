@@ -64,8 +64,10 @@ function AppContent() {
         <Route path="/inbox" element={<InboxPage />} />
         <Route path="/inbox/:connectionId" element={<InboxPage />} />
         <Route path="/calendar" element={<CalendarPage />} />
-        <Route path="/tasks" element={<TasksPage />} />
-        <Route path="/progress" element={<ProgressPage />} />
+        <Route path="/work" element={<TasksPage />} />
+        <Route path="/work/board" element={<ProgressPage />} />
+        <Route path="/tasks" element={<Navigate to="/work" replace />} />
+        <Route path="/progress" element={<Navigate to="/work/board" replace />} />
         <Route path="/projects" element={<WorkspacePage />} />
         <Route path="/profile" element={<ProfilePage />} />
         <Route path="/settings" element={<SettingsPage />} />
