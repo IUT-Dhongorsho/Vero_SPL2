@@ -26,12 +26,12 @@ SERVICES=(
 )
 
 free_ports() {
-  echo "â Releasing Vero portsâ¦"
+  echo "→ Releasing Vero ports…"
   for port in "${PORTS[@]}"; do
     # `lsof -t` lists only pids, which is all we need to signal.
     pids="$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)"
     if [[ -n "$pids" ]]; then
-      echo "   port $port â killing $(echo "$pids" | tr '\n' ' ')"
+      echo "   port $port → killing $(echo "$pids" | tr '\n' ' ')"
       # shellcheck disable=SC2086
       kill $pids 2>/dev/null || true
     fi
@@ -63,7 +63,7 @@ status() {
 case "${1:-start}" in
   stop)
     free_ports
-    echo "â Stopped."
+    echo "✓ Stopped."
     exit 0
     ;;
   status)
@@ -72,9 +72,9 @@ case "${1:-start}" in
     ;;
 esac
 
-command -v bun >/dev/null 2>&1 || { echo "â bun is required but not installed or not found in PATH."; exit 1; }
-command -v psql >/dev/null 2>&1 && psql -lqt >/dev/null 2>&1 || echo "â ï¸  PostgreSQL does not look reachable."
-redis-cli ping >/dev/null 2>&1 || echo "â ï¸  Redis does not look reachable on :6379."
+command -v bun >/dev/null 2>&1 || { echo "❌ bun is required but not installed or not found in PATH."; exit 1; }
+command -v psql >/dev/null 2>&1 && psql -lqt >/dev/null 2>&1 || echo "⚠️  PostgreSQL does not look reachable."
+redis-cli ping >/dev/null 2>&1 || echo "⚠️  Redis does not look reachable on :6379."
 
 free_ports
 mkdir -p "$LOG_DIR"
@@ -83,23 +83,23 @@ mkdir -p "$LOG_DIR"
 # *.model.ts and *.test.ts then pick up as source.
 find "$ROOT" -name '._*' -not -path '*/node_modules/*' -delete 2>/dev/null || true
 
-echo "â Building @repo/sharedâ¦"
-( cd "$ROOT/packages/shared" && bun run build >"$LOG_DIR/shared.log" 2>&1 ) || echo "â ï¸  @repo/shared failed to build â see $LOG_DIR/shared.log"
+echo "→ Building @repo/shared…"
+( cd "$ROOT/packages/shared" && bun run build >"$LOG_DIR/shared.log" 2>&1 ) || echo "⚠️  @repo/shared failed to build — see $LOG_DIR/shared.log"
 
-echo "â Starting services with bun devâ¦"
+echo "→ Starting services with bun dev…"
 for entry in "${SERVICES[@]}"; do
   IFS=: read -r name port <<<"$entry"
   ( cd "$ROOT/services/$name" && bun dev >"$LOG_DIR/$name.log" 2>&1 & )
-  echo "   $name â :$port"
+  echo "   $name → :$port"
 done
 
-echo "â Starting ai-worker with bun devâ¦"
+echo "→ Starting ai-worker with bun dev…"
 ( cd "$ROOT/ai-worker" && bun dev >"$LOG_DIR/ai-worker.log" 2>&1 & )
 
-echo "â Starting the web app with bun devâ¦"
+echo "→ Starting the web app with bun dev…"
 ( cd "$ROOT/apps/web" && bun dev --host >"$LOG_DIR/web.log" 2>&1 & )
 
-echo "â Waiting for health checksâ¦"
+echo "→ Waiting for health checks…"
 for _ in {1..30}; do
   ready=0
   for entry in "${SERVICES[@]}"; do
@@ -113,6 +113,6 @@ done
 echo
 status
 echo
-echo "â Web app:  http://localhost:3000"
+echo "✓ Web app:  http://localhost:3000"
 echo "  Logs:     $LOG_DIR/*.log"
 echo "  Stop:     ./scripts/dev-stack.sh stop"
