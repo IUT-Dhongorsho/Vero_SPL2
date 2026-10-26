@@ -176,18 +176,22 @@ export const documentService = {
     const doc = await this.getRawById(id);
     if (!doc) throw new Error('Document not found');
 
-    const updatedRaw = doc.contentSnapshot
-      ? `${doc.contentSnapshot}\n\n${text}`
-      : text;
+    const ydoc = new Y.Doc();
+    if (doc.yjsState) {
+      Y.applyUpdate(ydoc, Buffer.from(doc.yjsState, 'base64'));
+    } else if (doc.contentSnapshot) {
+      markdownToYdoc(doc.contentSnapshot, ydoc);
+    }
 
-    const ydoc = markdownToYdoc(updatedRaw);
+    markdownToYdoc(text, ydoc);
+
     const yjsState = Buffer.from(Y.encodeStateAsUpdate(ydoc)).toString('base64');
     const contentSnapshot = ydocToHtml(ydoc);
 
     const [updated] = await db
       .update(documents)
       .set({
-        contentSnapshot: contentSnapshot || updatedRaw,
+        contentSnapshot,
         yjsState,
         updatedAt: new Date(),
       })

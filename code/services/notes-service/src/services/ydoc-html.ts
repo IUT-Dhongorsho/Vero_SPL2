@@ -112,9 +112,10 @@ export function ydocToHtml(doc: Pick<Y.Doc, 'getXmlFragment'>, field = 'default'
 
 /**
  * Converts a plain Markdown or text string into a Y.Doc with TipTap-compatible XmlElements.
+ * If an existingDoc is provided, appends the elements to it.
  */
-export function markdownToYdoc(markdown: string, field = 'default'): Y.Doc {
-  const doc = new Y.Doc();
+export function markdownToYdoc(markdown: string, existingDoc?: Y.Doc, field = 'default'): Y.Doc {
+  const doc = existingDoc || new Y.Doc();
   const fragment = doc.getXmlFragment(field);
 
   const lines = markdown.split(/\r?\n/);
