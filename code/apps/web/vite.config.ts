@@ -7,14 +7,40 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'resolve-ui-from-web',
+      resolveId(id, importer) {
+        if (
+          importer &&
+          importer.includes('/apps/ui/src') &&
+          !id.startsWith('.') &&
+          !id.startsWith('/') &&
+          !id.startsWith('\0') &&
+          !id.startsWith('@repo/ui') &&
+          !id.startsWith('@/')
+        ) {
+          return this.resolve(id, path.resolve(__dirname, 'src/main.tsx'), { skipSelf: true });
+        }
+        return null;
+      },
+    },
   ],
   resolve: {
     alias: [
       { find: '@repo/ui/src', replacement: path.resolve(__dirname, '../ui/src') },
-      { find: '@repo/ui', replacement: path.resolve(__dirname, '../ui/src') },
+      { find: '@repo/ui', replacement: path.resolve(__dirname, '../ui/src/index.ts') },
       { find: '@', replacement: path.resolve(__dirname, '../ui/src') },
     ],
-    dedupe: ['yjs', 'y-protocols', 'y-websocket', '@tiptap/extension-collaboration', '@tiptap/extension-collaboration-cursor'],
+    dedupe: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'yjs',
+      'y-protocols',
+      'y-websocket',
+      '@tiptap/extension-collaboration',
+      '@tiptap/extension-collaboration-cursor',
+    ],
   },
   server: {
     port: 3000,

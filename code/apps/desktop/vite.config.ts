@@ -9,6 +9,23 @@ export default defineConfig({
   plugins: [
     react(),
     tailwindcss(),
+    {
+      name: 'resolve-ui-from-desktop',
+      resolveId(id, importer) {
+        if (
+          importer &&
+          importer.includes('/apps/ui/src') &&
+          !id.startsWith('.') &&
+          !id.startsWith('/') &&
+          !id.startsWith('\0') &&
+          !id.startsWith('@repo/ui') &&
+          !id.startsWith('@/')
+        ) {
+          return this.resolve(id, path.resolve(__dirname, 'src/renderer.tsx'), { skipSelf: true });
+        }
+        return null;
+      },
+    },
     electron([
       {
         entry: 'src/main.ts',
@@ -43,7 +60,16 @@ export default defineConfig({
       { find: '@repo/ui', replacement: path.resolve(__dirname, '../ui/src/index.ts') },
       { find: '@', replacement: path.resolve(__dirname, '../ui/src') },
     ],
-    dedupe: ['yjs', 'y-protocols', 'y-websocket', '@tiptap/extension-collaboration', '@tiptap/extension-collaboration-cursor'],
+    dedupe: [
+      'react',
+      'react-dom',
+      'react-router-dom',
+      'yjs',
+      'y-protocols',
+      'y-websocket',
+      '@tiptap/extension-collaboration',
+      '@tiptap/extension-collaboration-cursor',
+    ],
   },
   server: {
     port: 5174,
