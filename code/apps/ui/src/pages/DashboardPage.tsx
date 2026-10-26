@@ -2,21 +2,18 @@ import React, { useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import {
-  AlertTriangle,
   ArrowRight,
   CheckCircle2,
   Clock,
   FolderOpen,
   Inbox,
   LayoutGrid,
-  ListTodo,
   Plus,
   Timer,
 } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Badge, PriorityBadge } from '../components/ui/Badge';
-import { StatTile } from '../components/ui/StatTile';
 import { MailWidget } from '../components/dashboard/MailWidget';
 import { dueMeta } from '../components/board/KanbanBoard';
 import { useAuthStore } from '../stores/auth.store';
@@ -24,6 +21,7 @@ import { useProjectStore } from '../stores/project.store';
 import { useWorkStore } from '../stores/work.store';
 import { useInboxStore } from '../stores/inbox.store';
 import { fadeUp, hoverLift, stagger } from '../lib/motion';
+import { taskHref } from '../lib/routes';
 import { cn } from '../utils/cn';
 
 function greeting(): string {
@@ -59,13 +57,14 @@ export const DashboardPage: React.FC = () => {
   }, [projectTasks, personalTasks]);
 
   const openCount = projectTasks.concat(personalTasks).filter((t) => t.status !== 'done').length;
+  const overdue = stats?.assignedOverdue ?? 0;
 
   return (
     <PageContainer
       title="Home"
-      subtitle="Your command centre"
+      subtitle={new Date().toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })}
       topBarActions={
-        <AnimatedButton size="sm" variant="accent" onClick={() => navigate('/tasks')}>
+        <AnimatedButton size="sm" variant="accent" onClick={() => navigate('/work?new=1')}>
           <Plus className="w-4 h-4" />
           <span className="hidden sm:inline">Add task</span>
         </AnimatedButton>
@@ -80,9 +79,25 @@ export const DashboardPage: React.FC = () => {
           <p className="text-muted-foreground text-lg mt-2">
             {openCount === 0
               ? 'Nothing is waiting on you right now.'
-              : `You have ${openCount} open ${openCount === 1 ? 'item' : 'items'} across ${
+              : `You have ${openCount} open ${openCount === 1 ? 'task' : 'tasks'} across ${
                   projects.length || 'your'
                 } ${projects.length === 1 ? 'project' : 'projects'}.`}
+            {overdue > 0 && (
+              <>
+                {' '}
+                <button onClick={() => navigate('/work')} className="text-danger font-medium hover:underline cursor-pointer">
+                  {overdue} {overdue === 1 ? 'is' : 'are'} overdue.
+                </button>
+              </>
+            )}
+            {unread > 0 && (
+              <>
+                {' '}
+                <button onClick={() => navigate('/inbox')} className="text-foreground font-medium hover:underline cursor-pointer">
+                  {unread} unread {unread === 1 ? 'message' : 'messages'} in your Inbox.
+                </button>
+              </>
+            )}
           </p>
         </motion.header>
 
@@ -107,36 +122,6 @@ export const DashboardPage: React.FC = () => {
             <ArrowRight className="w-5 h-5 text-muted-foreground shrink-0" />
           </motion.button>
         )}
-
-        <motion.div variants={fadeUp} className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatTile
-            label="Open work"
-            value={openCount}
-            icon={ListTodo}
-            tone="accent"
-            hint={`${projectTasks.length} assigned, ${personalTasks.length} personal.`}
-          />
-          <StatTile
-            label="Completed"
-            value={stats?.assignedDone ?? 0}
-            icon={CheckCircle2}
-            tone="success"
-            hint="Project tasks you have finished."
-          />
-          <StatTile
-            label="Overdue"
-            value={stats?.assignedOverdue ?? 0}
-            icon={AlertTriangle}
-            tone={stats?.assignedOverdue ? 'danger' : 'neutral'}
-            hint="Worth a look today."
-          />
-          <StatTile
-            label="Unread messages"
-            value={unread}
-            icon={Inbox}
-            hint={unread ? 'Head to the Inbox.' : 'All caught up.'}
-          />
-        </motion.div>
 
         <div className="grid lg:grid-cols-5 gap-6">
           {/* Up next */}
@@ -174,7 +159,7 @@ export const DashboardPage: React.FC = () => {
                   return (
                     <button
                       key={task.id}
-                      onClick={() => navigate(task.source === 'personal' ? '/tasks' : '/progress')}
+                      onClick={() => navigate(taskHref(task))}
                       className="w-full text-left rounded-xl border border-border p-3.5 hover:border-border-strong hover:bg-muted/40 transition-colors cursor-pointer"
                     >
                       <p className="font-medium text-foreground leading-snug line-clamp-1">
@@ -194,10 +179,10 @@ export const DashboardPage: React.FC = () => {
             )}
 
             <button
-              onClick={() => navigate('/progress')}
+              onClick={() => navigate('/work')}
               className="mt-5 text-sm font-medium text-accent hover:underline text-left cursor-pointer"
             >
-              Open the Progress board →
+              See all my work
             </button>
           </motion.section>
 

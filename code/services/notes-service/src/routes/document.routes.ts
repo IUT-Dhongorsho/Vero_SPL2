@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { documentController } from '../controllers/document.controller.js';
+import { documentController, aiController } from '../controllers/document.controller.js';
 import { meetingNoteController } from '../controllers/meeting-note.controller.js';
 import { authMiddleware } from '../middleware/auth.js';
 
@@ -11,6 +11,10 @@ documentRouter.use(authMiddleware);
 documentRouter.post('/internal/meeting-note/init', meetingNoteController.initMeetingNote);
 documentRouter.patch('/internal/meeting-note/:id/append', meetingNoteController.appendTranscript);
 documentRouter.patch('/internal/meeting-note/:id/finalize', meetingNoteController.finalizeMinutes);
+
+documentRouter.get('/search', documentController.search);
+documentRouter.get('/ai/status', aiController.status);
+documentRouter.post('/documents/:id/digest', aiController.digest);
 
 documentRouter.get('/modules/:moduleId/documents', documentController.list);
 documentRouter.post('/modules/:moduleId/documents', documentController.create);

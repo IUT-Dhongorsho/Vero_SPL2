@@ -1,0 +1,191 @@
+# The whole Vero stack on one machine.
+#
+#   cp infra/docker/.env.example infra/docker/.env      # then fill it in
+#   docker compose -f infra/docker/docker-compose.yml up --build
+#   open http://localhost:8080
+#
+# Meet (mediasoup) is opt-in:  ... --profile meet up
+# Metrics (Prometheus + Grafana): ... --profile monitoring up
+
+name: vero
+
+x-service: &service
+  restart: unless-stopped
+  depends_on:
+    postgres: { condition: service_healthy }
+    redis: { condition: service_healthy }
+
+x-build: &build
+  context: ../..
+  dockerfile: Dockerfile.service
+
+x-common-env: &common-env
+  NODE_ENV: production
+  REDIS_URL: redis://redis:6379
+  BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:?set BETTER_AUTH_SECRET in infra/docker/.env}
+  AUTH_SERVICE_URL: http://auth-service:8001
+  PROJECT_SERVICE_URL: http://project-service:8004
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: vero
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in infra/docker/.env}
+      POSTGRES_DB: postgres
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./postgres/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U vero"]
+      interval: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+    volumes:
+      - ../redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      retries: 20
+
+  auth-service:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_NAME: auth-service, SERVICE_PATH: services/auth-service } }
+    environment:
+      <<: *common-env
+      PORT: "8001"
+      DATABASE_URL: postgresql://vero:${POSTGRES_PASSWORD}@postgres:5432/vero_auth
+      BETTER_AUTH_URL: ${PUBLIC_URL:-http://localhost:8080}/api/better-auth
+      BETTER_AUTH_API_KEY: ${BETTER_AUTH_API_KEY:-}
+      CLIENT_URL: ${PUBLIC_URL:-http://localhost:8080}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
+
+  board-service:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_NAME: board-service, SERVICE_PATH: services/board-service } }
+    environment:
+      <<: *common-env
+      PORT: "8002"
+      DATABASE_URL: postgresql://vero:${POSTGRES_PASSWORD}@postgres:5432/vero_board
+
+  notes-service:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_NAME: notes-service, SERVICE_PATH: services/notes-service } }
+    environment:
+      <<: *common-env
+      PORT: "8003"
+      DATABASE_URL: postgresql://vero:${POSTGRES_PASSWORD}@postgres:5432/vero_notes
+
+  project-service:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_NAME: project-service, SERVICE_PATH: services/project-service } }
+    environment:
+      <<: *common-env
+      PORT: "8004"
+      DATABASE_URL: postgresql://vero:${POSTGRES_PASSWORD}@postgres:5432/vero_project
+      CHAT_SERVICE_GRPC_URL: chat-service:5005
+      UPLOAD_DIR: /data/uploads
+    volumes:
+      - project-files:/data/uploads
+
+  chat-service:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_NAME: chat-service, SERVICE_PATH: services/chat-service } }
+    environment:
+      <<: *common-env
+      PORT: "8005"
+      GRPC_PORT: "5005"
+      DATABASE_URL: postgresql://vero:${POSTGRES_PASSWORD}@postgres:5432/vero_chat
+    volumes:
+      - chat-files:/app/services/chat-service/uploads
+
+  notification-service:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_NAME: notification-service, SERVICE_PATH: services/notification-service } }
+    environment:
+      <<: *common-env
+      PORT: "8006"
+      DATABASE_URL: postgresql://vero:${POSTGRES_PASSWORD}@postgres:5432/vero_notifications
+      FRONTEND_URL: ${PUBLIC_URL:-http://localhost:8080}
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      VAPID_PUBLIC_KEY: ${VAPID_PUBLIC_KEY:-}
+      VAPID_PRIVATE_KEY: ${VAPID_PRIVATE_KEY:-}
+      VAPID_SUBJECT: ${VAPID_SUBJECT:-mailto:admin@example.com}
+
+  ai-worker:
+    <<: *service
+    build: { <<: *build, args: { SERVICE_NAME: ai-worker, SERVICE_PATH: ai-worker } }
+    environment:
+      NODE_ENV: production
+      REDIS_URL: redis://redis:6379
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-}
+
+  meet-service:
+    <<: *service
+    profiles: ["meet"]
+    build: { <<: *build, args: { SERVICE_NAME: meet-service, SERVICE_PATH: services/meet-service } }
+    environment:
+      <<: *common-env
+      PORT: "8007"
+      DATABASE_URL: postgresql://vero:${POSTGRES_PASSWORD}@postgres:5432/vero_meet
+      CLIENT_URL: ${PUBLIC_URL:-http://localhost:8080}
+      MEDIASOUP_ANNOUNCED_IP: ${MEDIASOUP_ANNOUNCED_IP:-127.0.0.1}
+      MEDIASOUP_MIN_PORT: "40000"
+      MEDIASOUP_MAX_PORT: "40100"
+    ports:
+      - "40000-40100:40000-40100/udp"
+
+  # The web app and the /api gateway — the only port exposed by default.
+  web:
+    build:
+      context: ../..
+      dockerfile: infra/docker/web.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT:-8080}:80"
+    depends_on:
+      - auth-service
+      - board-service
+      - notes-service
+      - project-service
+      - chat-service
+      - notification-service
+
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    profiles: ["monitoring"]
+    volumes:
+      - ../prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    profiles: ["monitoring"]
+    environment:
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    volumes:
+      - ../grafana/provisioning:/etc/grafana/provisioning:ro
+      - ../grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3001:3000"
+
+volumes:
+  postgres-data:
+  redis-data:
+  project-files:
+  chat-files:

@@ -2,7 +2,7 @@
 #
 # Starts every Vero service plus the Vite dev server for local development using bun dev.
 #
-#   ./scripts/dev-stack.sh          start everything (logs in .dev-logs/)
+#   ./scripts/dev-stack.sh          start everything, ai-worker included (logs in .dev-logs/)
 #   ./scripts/dev-stack.sh stop     stop everything on the Vero ports
 #   ./scripts/dev-stack.sh status   show what is listening
 #
@@ -36,6 +36,11 @@ free_ports() {
       kill $pids 2>/dev/null || true
     fi
   done
+  # `tsx watch` parents respawn their server when it is killed, and ai-worker
+  # listens on no port at all — stop every watcher of this checkout by its
+  # command line, or old copies keep fighting over the ports.
+  pkill -f "$ROOT/.*tsx/dist/cli.mjs watch" 2>/dev/null || true
+  pkill -f "$ROOT/.*vite/bin/vite.js" 2>/dev/null || true
   sleep 2
   for port in "${PORTS[@]}"; do
     pids="$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)"
@@ -74,12 +79,22 @@ redis-cli ping >/dev/null 2>&1 || echo "⚠️  Redis does not look reachable on
 free_ports
 mkdir -p "$LOG_DIR"
 
+# macOS litters non-APFS drives with ._* AppleDouble files, which globs such as
+# *.model.ts and *.test.ts then pick up as source.
+find "$ROOT" -name '._*' -not -path '*/node_modules/*' -delete 2>/dev/null || true
+
+echo "→ Building @repo/shared…"
+( cd "$ROOT/packages/shared" && bun run build >"$LOG_DIR/shared.log" 2>&1 ) || echo "⚠️  @repo/shared failed to build — see $LOG_DIR/shared.log"
+
 echo "→ Starting services with bun dev…"
 for entry in "${SERVICES[@]}"; do
   IFS=: read -r name port <<<"$entry"
   ( cd "$ROOT/services/$name" && bun dev >"$LOG_DIR/$name.log" 2>&1 & )
   echo "   $name → :$port"
 done
+
+echo "→ Starting ai-worker with bun dev…"
+( cd "$ROOT/ai-worker" && bun dev >"$LOG_DIR/ai-worker.log" 2>&1 & )
 
 echo "→ Starting the web app with bun dev…"
 ( cd "$ROOT/apps/web" && bun dev --host >"$LOG_DIR/web.log" 2>&1 & )

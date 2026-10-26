@@ -69,8 +69,10 @@ export const taskService = {
         updatedAt: tasks.updatedAt,
         columnId: tasks.columnId,
         columnName: columns.name,
-        projectId: columns.projectId,
-        projectName: projects.name,
+        boardId: columns.projectId,
+        moduleName: projects.name,
+        parentProjectId: projects.parentProjectId,
+        parentProjectName: projects.parentProjectName,
       })
       .from(tasks)
       .innerJoin(columns, eq(tasks.columnId, columns.id))
@@ -78,11 +80,16 @@ export const taskService = {
       .where(eq(tasks.assigneeId, userId))
       .orderBy(asc(tasks.order));
 
-    return rows.map((row) => ({
+    // Boards are per module: `moduleId` is the board, `projectId` its project,
+    // which together give the board route in the app.
+    return rows.map(({ boardId, moduleName, parentProjectId, parentProjectName, ...row }) => ({
       ...row,
       source: 'project' as const,
       labels: row.labels ? row.labels.split(',').filter(Boolean) : [],
-      projectName: row.projectName ?? 'Untitled project',
+      moduleId: boardId,
+      moduleName: moduleName ?? 'Module',
+      projectId: parentProjectId ?? boardId,
+      projectName: parentProjectName ?? moduleName ?? 'Untitled project',
     }));
   },
 

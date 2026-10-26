@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, RefreshCw, UserPlus } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
@@ -11,12 +11,25 @@ import { toast } from '../components/Providers/ToastProvider';
 import { boardService, type BoardColumn, type BoardTask } from '../services/boardService';
 import { useAuthStore } from '../stores/auth.store';
 import type { WorkItem } from '../services/workService';
+import { projectService, type ProjectMember } from '../services/projectService';
+import { useModule } from '../hooks/useModule';
+import { errorMessage } from '../utils/errors';
+import { moduleCrumbs } from '../lib/routes';
 import { fadeUp, stagger } from '../lib/motion';
 
-/** The project kanban for a module. Columns come from board-service. */
+/** A module's kanban. Each module has its own board in board-service. */
 export const BoardPage: React.FC = () => {
-  const { projectId } = useParams<{ projectId: string }>();
+  const { projectId, moduleId } = useParams<{ projectId: string; moduleId: string }>();
   const me = useAuthStore((state) => state.user);
+  const { module } = useModule(moduleId);
+  const [people, setPeople] = useState<ProjectMember[]>([]);
+  const readOnly = module?.userRole === 'viewer';
+
+  useEffect(() => {
+    if (projectId) projectService.getMembers(projectId).then(setPeople).catch(() => setPeople([]));
+  }, [projectId]);
+
+  const nameOf = useCallback((id: string | null) => people.find((p) => p.userId === id)?.user.name ?? null, [people]);
 
   const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [tasks, setTasks] = useState<BoardTask[]>([]);
@@ -26,29 +39,40 @@ export const BoardPage: React.FC = () => {
   const [creatingIn, setCreatingIn] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
-    if (!projectId) return;
+    if (!moduleId) return;
     setLoading(true);
     setError(null);
     try {
-      let boardColumns = await boardService.columns(projectId);
-      // A project that has never been opened has no columns yet.
+      let boardColumns = await boardService.columns(moduleId);
+      // A module board that has never been opened has no columns yet.
       if (boardColumns.length === 0) {
-        const initialised = await boardService.initialise(projectId);
+        const initialised = await boardService.initialise(moduleId);
         boardColumns = initialised.columns;
       }
-      const boardTasks = await boardService.tasks(projectId);
+      const boardTasks = await boardService.tasks(moduleId);
       setColumns(boardColumns);
       setTasks(boardTasks);
     } catch (err: any) {
-      setError(err?.response?.data?.error ?? 'Could not load this board');
+      setError(errorMessage(err, 'This board could not be loaded'));
     } finally {
       setLoading(false);
     }
-  }, [projectId]);
+  }, [moduleId]);
 
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // `?task=` (from Home, My work or a notification) opens that task.
+  const [params, setParams] = useSearchParams();
+  const linkedTaskId = params.get('task');
+  useEffect(() => {
+    if (!linkedTaskId || loading) return;
+    const task = tasks.find((t) => t.id === linkedTaskId);
+    setParams({}, { replace: true });
+    if (task) setEditing(task);
+    else toast.error('That task is no longer on this board');
+  }, [linkedTaskId, loading, tasks, setParams]);
 
   const columnDefs: KanbanColumnDef[] = useMemo(
     () => columns.map((column) => ({ id: column.id, label: column.name })),
@@ -66,9 +90,9 @@ export const BoardPage: React.FC = () => {
         priority: task.priority,
         dueDate: task.dueDate,
         labels: task.labels ? task.labels.split(',').filter(Boolean) : [],
-        context: task.assigneeId === me?.id ? 'Assigned to you' : null,
+        context: task.assigneeId === me?.id ? 'Assigned to you' : task.assigneeId ? `Assigned to ${nameOf(task.assigneeId) ?? 'a teammate'}` : null,
       })),
-    [tasks, me?.id]
+    [tasks, me?.id, nameOf]
   );
 
   const handleMove = async (cardId: string, toColumnId: string) => {
@@ -108,8 +132,8 @@ export const BoardPage: React.FC = () => {
 
   return (
     <PageContainer
-      title="Board"
-      subtitle="Project tasks — assign one to yourself and it shows on your Progress board"
+      title={module?.name ?? 'Board'}
+      crumbs={moduleCrumbs(module)}
       topBarActions={
         <div className="flex items-center gap-2">
           <AnimatedButton size="sm" variant="ghost" onClick={refresh}>
@@ -119,7 +143,7 @@ export const BoardPage: React.FC = () => {
             size="sm"
             variant="accent"
             onClick={() => setCreatingIn(columns[0]?.id ?? null)}
-            disabled={columns.length === 0}
+            disabled={columns.length === 0 || readOnly}
           >
             <Plus className="w-4 h-4" />
             <span className="hidden sm:inline">New task</span>
@@ -128,12 +152,17 @@ export const BoardPage: React.FC = () => {
       }
     >
       <motion.div variants={stagger()} initial="hidden" animate="show" className="space-y-6">
+        {readOnly && (
+          <p className="text-sm text-muted-foreground">
+            You are a viewer on this project, so you can read this board but not change it.
+          </p>
+        )}
         {error ? (
           <motion.div variants={fadeUp} className="surface rounded-2xl p-6">
             <p className="font-medium text-danger">{error}</p>
-            <p className="text-sm text-muted-foreground mt-1.5">
-              Check that the board service is running on port 8002.
-            </p>
+            <AnimatedButton size="sm" variant="secondary" className="mt-4" onClick={refresh}>
+              Try again
+            </AnimatedButton>
           </motion.div>
         ) : loading && tasks.length === 0 ? (
           <div className="flex gap-4 overflow-hidden">
@@ -153,9 +182,9 @@ export const BoardPage: React.FC = () => {
             <KanbanBoard
               columns={columnDefs}
               cards={cards}
-              onMove={handleMove}
-              onCardClick={(card) => setEditing(tasks.find((t) => t.id === card.id) ?? null)}
-              onAdd={(columnId) => setCreatingIn(columnId)}
+              onMove={readOnly ? () => toast.error('Viewers cannot move tasks') : handleMove}
+              onCardClick={(card) => !readOnly && setEditing(tasks.find((t) => t.id === card.id) ?? null)}
+              onAdd={(columnId) => !readOnly && setCreatingIn(columnId)}
             />
           </motion.div>
         )}
@@ -164,6 +193,9 @@ export const BoardPage: React.FC = () => {
       <TaskEditorModal
         open={Boolean(editing) || Boolean(creatingIn)}
         task={asWorkItem(editing)}
+        assignees={people.filter((p) => p.role !== 'viewer').map((p) => ({ id: p.userId, name: p.userId === me?.id ? `${p.user.name} (you)` : p.user.name }))}
+        assigneeId={editing?.assigneeId ?? null}
+        defaultAssigneeId={me?.id ?? null}
         onClose={() => {
           setEditing(null);
           setCreatingIn(null);
@@ -178,6 +210,7 @@ export const BoardPage: React.FC = () => {
                 dueDate: input.dueDate,
                 labels: input.labels,
                 status: input.status,
+                assigneeId: input.assigneeId ?? null,
               });
               setTasks((current) => current.map((t) => (t.id === editing.id ? updated : t)));
               toast.success('Task updated');
@@ -187,17 +220,17 @@ export const BoardPage: React.FC = () => {
                 description: input.description,
                 columnId: creatingIn,
                 creatorId: me.id,
-                // New cards default to you, which is what puts them on Progress.
-                assigneeId: me.id,
+                assigneeId: input.assigneeId ?? undefined,
                 dueDate: input.dueDate,
                 priority: input.priority,
                 labels: input.labels,
               });
               setTasks((current) => [...current, created]);
-              toast.success('Task created and assigned to you');
+              const who = input.assigneeId === me.id ? 'you' : nameOf(input.assigneeId ?? null);
+              toast.success(who ? `Task created and assigned to ${who}` : 'Task created');
             }
-          } catch {
-            toast.error('Could not save that task');
+          } catch (error) {
+            toast.error(errorMessage(error, 'Could not save that task'));
           }
         }}
         onDelete={async (id) => {

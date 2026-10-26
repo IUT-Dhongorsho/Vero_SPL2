@@ -1,122 +1,162 @@
-import React, { useState, useEffect } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from '../ui/Dialog';
-import { Button } from '../ui/Button';
-import { useBoardStore } from '../../stores/board.store';
+import React, { useEffect, useState } from 'react';
+import { Check } from 'lucide-react';
+import { Modal } from '../ui/Modal';
+import { AnimatedButton } from '../ui/AnimatedButton';
+import { PriorityBadge } from '../ui/Badge';
+import { toast } from '../Providers/ToastProvider';
+import { boardService, type BoardColumn } from '../../services/boardService';
+import type { WorkPriority } from '../../services/workService';
 import { useAuthStore } from '../../stores/auth.store';
-import { toast } from '../../components/Providers/ToastProvider';
-import { Loader2 } from 'lucide-react';
+import { errorMessage } from '../../utils/errors';
+import { cn } from '../../utils/cn';
+
+export interface DraftTask {
+  title: string;
+  detail?: string;
+  priority?: WorkPriority;
+}
 
 interface SendToBoardModalProps {
   isOpen: boolean;
   onClose: () => void;
-  selectedText: string;
-  noteId: string;
-  projectId?: string;
+  /** The module whose board receives the tasks. */
+  moduleId: string;
+  noteTitle: string;
+  items: DraftTask[];
 }
 
-export const SendToBoardModal: React.FC<SendToBoardModalProps> = ({
-  isOpen, onClose, selectedText, noteId, projectId
-}) => {
+/**
+ * Turns note text — a selection, or the AI's action items — into tasks on the
+ * module's board. Every item can be left out before sending.
+ */
+export const SendToBoardModal: React.FC<SendToBoardModalProps> = ({ isOpen, onClose, moduleId, noteTitle, items }) => {
+  const me = useAuthStore((s) => s.user);
+  const [columns, setColumns] = useState<BoardColumn[]>([]);
   const [columnId, setColumnId] = useState('');
-  const [priority, setPriority] = useState<'low' | 'medium' | 'high'>('medium');
+  const [chosen, setChosen] = useState<boolean[]>([]);
+  const [assignToMe, setAssignToMe] = useState(false);
   const [sending, setSending] = useState(false);
-  const { columns, fetchBoard, createTask } = useBoardStore();
-  const { user } = useAuthStore();
 
   useEffect(() => {
-    if (isOpen && projectId && columns.length === 0) {
-      fetchBoard(projectId);
-    }
-  }, [isOpen, projectId, columns.length, fetchBoard]);
+    if (!isOpen) return;
+    setChosen(items.map(() => true));
+    setAssignToMe(false);
+    (async () => {
+      try {
+        let cols = await boardService.columns(moduleId);
+        if (cols.length === 0) cols = (await boardService.initialise(moduleId)).columns;
+        cols = [...cols].sort((a, b) => a.order - b.order);
+        setColumns(cols);
+        setColumnId((cols.find((c) => c.name === 'Backlog') ?? cols[0])?.id ?? '');
+      } catch (error) {
+        toast.error(errorMessage(error, 'Could not load the board'));
+      }
+    })();
+  }, [isOpen, moduleId, items]);
 
-  useEffect(() => {
-    if (columns.length > 0 && !columnId) {
-      const backlog = columns.find(c => c.name === 'Backlog');
-      setColumnId(backlog?.id || columns[0]?.id || '');
-    }
-  }, [columns, columnId]);
+  const selected = items.filter((_, i) => chosen[i]);
 
-  const handleSend = async () => {
-    if (!columnId || !user?.id) return;
+  const send = async () => {
+    if (!columnId || !me || selected.length === 0) return;
     setSending(true);
     try {
-      await createTask({
-        title: selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText,
-        description: `Source: Note ${noteId}\n\n${selectedText}`,
-        columnId,
-        creatorId: user.id,
-        priority,
-      });
-      toast.success('Task created on board');
+      for (const item of selected) {
+        await boardService.createTask({
+          title: item.title.length > 200 ? `${item.title.slice(0, 197)}…` : item.title,
+          description: [item.detail, `From the note “${noteTitle}”.`].filter(Boolean).join('\n\n'),
+          columnId,
+          creatorId: me.id,
+          assigneeId: assignToMe ? me.id : undefined,
+          priority: item.priority ?? 'medium',
+        });
+      }
+      const column = columns.find((c) => c.id === columnId)?.name ?? 'the board';
+      toast.success(selected.length === 1 ? `Added to ${column}` : `Added ${selected.length} tasks to ${column}`);
       onClose();
-    } catch (e) {
-      toast.error('Failed to create task');
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not add the tasks'));
     } finally {
       setSending(false);
     }
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Send to Board</DialogTitle>
-          <DialogDescription>Create a task on the Kanban board from selected text.</DialogDescription>
-        </DialogHeader>
+    <Modal
+      open={isOpen}
+      onClose={onClose}
+      title={items.length === 1 ? 'Add to the board' : `Add ${items.length} tasks to the board`}
+      description="They are created on this module’s board."
+      size="lg"
+      footer={
+        <>
+          <AnimatedButton variant="secondary" onClick={onClose}>
+            Cancel
+          </AnimatedButton>
+          <AnimatedButton variant="primary" onClick={send} loading={sending} disabled={!columnId || selected.length === 0}>
+            {selected.length === 1 ? 'Add task' : `Add ${selected.length} tasks`}
+          </AnimatedButton>
+        </>
+      }
+    >
+      <div className="space-y-5">
+        <ul className="space-y-2">
+          {items.map((item, i) => (
+            <li key={i}>
+              <button
+                onClick={() => items.length > 1 && setChosen((c) => c.map((v, j) => (j === i ? !v : v)))}
+                aria-pressed={chosen[i]}
+                className={cn(
+                  'w-full flex items-start gap-3 p-3 rounded-xl border text-left transition-colors',
+                  chosen[i] ? 'border-border bg-card' : 'border-dashed border-border bg-transparent opacity-60',
+                  items.length > 1 && 'hover:border-border-strong'
+                )}
+              >
+                {items.length > 1 && (
+                  <span
+                    className={cn(
+                      'mt-0.5 w-5 h-5 rounded-md border grid place-items-center shrink-0',
+                      chosen[i] ? 'bg-accent border-accent text-accent-foreground' : 'border-border-strong'
+                    )}
+                  >
+                    {chosen[i] && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
+                  </span>
+                )}
+                <span className="flex-1 min-w-0">
+                  <span className="block text-sm font-medium text-foreground line-clamp-2">{item.title}</span>
+                  {item.detail && <span className="block text-xs text-muted-foreground mt-0.5 line-clamp-2">{item.detail}</span>}
+                </span>
+                {item.priority && <PriorityBadge priority={item.priority} />}
+              </button>
+            </li>
+          ))}
+        </ul>
 
-        <div className="space-y-5 my-4">
-          <div className="p-4 bg-muted rounded-xl text-sm text-foreground border-l-4 border-primary">
-            "{selectedText.length > 120 ? selectedText.substring(0, 120) + '...' : selectedText}"
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Column</label>
-            <div className="grid grid-cols-2 gap-2">
-              {columns.sort((a, b) => a.order - b.order).map((col) => (
-                <button
-                  key={col.id}
-                  onClick={() => setColumnId(col.id)}
-                  className={`text-sm font-medium px-3 py-2.5 rounded-lg border-2 transition-all text-left ${
-                    columnId === col.id
-                      ? 'border-primary bg-primary/5 text-foreground'
-                      : 'border-border bg-card text-muted-foreground hover:bg-muted'
-                  }`}
-                >
-                  {col.name}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-foreground mb-2">Priority</label>
-            <div className="flex gap-2">
-              {(['low', 'medium', 'high'] as const).map((p) => (
-                <button
-                  key={p}
-                  onClick={() => setPriority(p)}
-                  className={`text-xs font-semibold px-3.5 py-2 rounded-full uppercase tracking-wider transition-all ${
-                    priority === p
-                      ? p === 'high' ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 ring-1 ring-red-300'
-                      : p === 'medium' ? 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 ring-1 ring-yellow-300'
-                      : 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 ring-1 ring-green-300'
-                      : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
-            </div>
+        <div>
+          <p className="text-sm font-medium text-foreground mb-2">Column</p>
+          <div className="flex flex-wrap gap-2">
+            {columns.map((col) => (
+              <button
+                key={col.id}
+                onClick={() => setColumnId(col.id)}
+                aria-pressed={columnId === col.id}
+                className={cn(
+                  'text-sm px-3.5 py-2 rounded-lg border transition-colors',
+                  columnId === col.id
+                    ? 'border-accent bg-accent-soft text-accent font-medium'
+                    : 'border-border text-muted-foreground hover:text-foreground hover:bg-muted'
+                )}
+              >
+                {col.name}
+              </button>
+            ))}
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>Cancel</Button>
-          <Button onClick={handleSend} disabled={sending || !columnId}>
-            {sending ? <><Loader2 className="w-4 h-4 animate-spin mr-1" /> Creating...</> : 'Send to Board'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        <label className="flex items-center gap-2.5 text-sm text-foreground cursor-pointer">
+          <input type="checkbox" checked={assignToMe} onChange={(e) => setAssignToMe(e.target.checked)} className="w-4 h-4 accent-[var(--accent)]" />
+          Assign them to me
+        </label>
+      </div>
+    </Modal>
   );
 };

@@ -10,8 +10,8 @@ describe('Project Service Integration Tests (FR)', () => {
   });
 
   describe('Unauthenticated Access', () => {
-    it('should reject access to workspace list without token', async () => {
-      const res = await request(app).get('/api/project/workspaces');
+    it('should reject the project list without a token', async () => {
+      const res = await request(app).get('/project/projects');
       expect(res.status).toBe(401);
     });
   });

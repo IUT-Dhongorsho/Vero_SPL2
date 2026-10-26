@@ -67,11 +67,32 @@ const addMembers = async (call: any, callback: any) => {
   }
 };
 
+const removeMembers = async (call: any, callback: any) => {
+  try {
+    const { channelId, userIds } = call.request;
+
+    await channelService.removeMembers(channelId, userIds);
+
+    callback(null, {
+      id: channelId,
+      success: true,
+      message: 'Members removed successfully',
+    });
+  } catch (error: any) {
+    console.error('gRPC RemoveMembers Error:', error);
+    callback({
+      code: grpc.status.INTERNAL,
+      message: error.message,
+    });
+  }
+};
+
 export const initGrpcServer = () => {
   const server = new grpc.Server();
   server.addService(chatProto.ChatService.service, {
     createChannel,
     addMembers,
+    removeMembers,
   });
 
   const address = `0.0.0.0:${env.GRPC_PORT}`;

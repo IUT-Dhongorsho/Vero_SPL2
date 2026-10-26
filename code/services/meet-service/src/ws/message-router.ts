@@ -107,6 +107,8 @@ export function registerSignalHandlers(io: Server, socket: AuthSocket): void {
         io.to(roomId).emit('transcription-stopped', {
           roomId,
           noteId: result.noteId,
+          transcriptNoteId: result.transcriptNoteId,
+          minutesNoteId: result.minutesNoteId,
         });
       }
     })

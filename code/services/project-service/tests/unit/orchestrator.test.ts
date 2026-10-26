@@ -1,46 +1,78 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createChatChannel } from '../../src/grpc/client.js';
-import { db } from '../../src/db/client.js';
 
-// Mock gRPC client
+const state = vi.hoisted(() => ({ module: null as any, updates: [] as any[] }));
+
 vi.mock('../../src/grpc/client.js', () => ({
-  createChatChannel: vi.fn()
+  createChatChannel: vi.fn(),
 }));
-
-// Mock DB
+vi.mock('../../src/services/chat-sync.service.js', () => ({
+  chatSyncService: { addAllMembers: vi.fn(async () => undefined) },
+}));
 vi.mock('../../src/db/client.js', () => ({
   db: {
+    query: { modules: { findFirst: vi.fn(async () => state.module) } },
     update: vi.fn(() => ({
-      set: vi.fn(() => ({
-        where: vi.fn()
-      }))
-    }))
-  }
+      set: vi.fn((values: any) => ({
+        where: vi.fn(async () => state.updates.push(values)),
+      })),
+    })),
+  },
 }));
 
-describe('Orchestration Worker (FR: Resiliency)', () => {
+import { processOrchestrationJob } from '../../src/worker/orchestrator.worker.js';
+import { createChatChannel } from '../../src/grpc/client.js';
+import { chatSyncService } from '../../src/services/chat-sync.service.js';
+
+const job = (data: any = {}) => ({
+  name: 'provision-module-resources',
+  data: { moduleId: 'mod-1', name: 'Launch', workspaceId: '', ...data },
+});
+
+describe('module orchestration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    state.updates = [];
+    state.module = { id: 'mod-1', chatResourceId: null };
   });
 
-  it('should call gRPC to create channel when processing a job', async () => {
-    const mockJob = {
-      name: 'provision-module-resources',
-      data: {
-        moduleId: 'mod-1',
-        name: 'Test Module',
-        workspaceId: 'ws-1'
-      }
-    };
+  it('creates the module chat, stores its id and adds the members', async () => {
+    vi.mocked(createChatChannel).mockResolvedValue({ success: true, id: 'chan-1' });
 
-    (createChatChannel as any).mockResolvedValue({
-      success: true,
-      id: 'chan-1'
+    await processOrchestrationJob(job());
+
+    expect(createChatChannel).toHaveBeenCalledWith({
+      name: 'Launch Chat',
+      type: 'group',
+      externalId: 'mod-1',
+      workspaceId: '',
     });
+    expect(state.updates).toEqual([{ chatResourceId: 'chan-1' }]);
+    expect(chatSyncService.addAllMembers).toHaveBeenCalledWith('mod-1');
+  });
 
-    // We can't easily test the anonymous worker function inside startOrchestrationWorker
-    // unless we refactor it or export the processor function.
-    // For now, this placeholder reminds us to test the gRPC interaction.
-    expect(true).toBe(true);
+  it('does not create a second channel when retried', async () => {
+    state.module = { id: 'mod-1', chatResourceId: 'chan-1' };
+
+    await processOrchestrationJob(job());
+
+    expect(createChatChannel).not.toHaveBeenCalled();
+    expect(chatSyncService.addAllMembers).toHaveBeenCalledWith('mod-1');
+  });
+
+  it('skips modules deleted before the job ran', async () => {
+    state.module = null;
+    await processOrchestrationJob(job());
+    expect(createChatChannel).not.toHaveBeenCalled();
+  });
+
+  it('throws so BullMQ retries when chat-service fails', async () => {
+    vi.mocked(createChatChannel).mockResolvedValue({ success: false, message: 'down' });
+    await expect(processOrchestrationJob(job())).rejects.toThrow('down');
+    expect(state.updates).toEqual([]);
+  });
+
+  it('ignores unrelated jobs', async () => {
+    await processOrchestrationJob({ name: 'something-else', data: {} });
+    expect(createChatChannel).not.toHaveBeenCalled();
   });
 });

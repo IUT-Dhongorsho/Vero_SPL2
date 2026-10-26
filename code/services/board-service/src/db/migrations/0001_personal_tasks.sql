@@ -18,8 +18,8 @@ ALTER TABLE "projects" ALTER COLUMN "workspace_id" DROP NOT NULL;--> statement-b
 ALTER TABLE "projects" ALTER COLUMN "owner_id" SET DATA TYPE text;--> statement-breakpoint
 ALTER TABLE "tasks" ALTER COLUMN "assignee_id" SET DATA TYPE text;--> statement-breakpoint
 ALTER TABLE "tasks" ALTER COLUMN "creator_id" SET DATA TYPE text;--> statement-breakpoint
-ALTER TABLE "sessions" ALTER COLUMN "user_id" SET DATA TYPE text;--> statement-breakpoint
-ALTER TABLE "users" ALTER COLUMN "id" SET DATA TYPE text;--> statement-breakpoint
+-- sessions.user_id and users.id are converted in 0002, which first drops the
+-- foreign key between them; changing one side here breaks fresh databases.
 ALTER TABLE "workspaces" ALTER COLUMN "owner_id" SET DATA TYPE text;--> statement-breakpoint
 CREATE INDEX "personal_tasks_user_idx" ON "personal_tasks" USING btree ("user_id");--> statement-breakpoint
 CREATE INDEX "personal_tasks_due_idx" ON "personal_tasks" USING btree ("user_id","due_date");

@@ -59,7 +59,11 @@ const LinkChip: React.FC<{ href: string; icon: React.ElementType; label: string 
 );
 
 export const ProfilePage: React.FC = () => {
-  const [tab, setTab] = useState<Tab>('overview');
+  // Settings links straight to `?tab=edit`.
+  const [tab, setTab] = useState<Tab>(() => {
+    const wanted = new URLSearchParams(window.location.search).get('tab');
+    return TABS.some((t) => t.id === wanted) ? (wanted as Tab) : 'overview';
+  });
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [activity, setActivity] = useState<ActivitySummary | null>(null);
   const [stats, setStats] = useState<WorkStats | null>(null);

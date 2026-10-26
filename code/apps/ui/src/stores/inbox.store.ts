@@ -7,8 +7,7 @@ import {
   type ConnectionBuckets,
 } from '../services/inboxService';
 import { useAuthStore } from './auth.store';
-
-const CHAT_SOCKET_URL = import.meta.env.VITE_CHAT_SERVICE_URL || 'http://localhost:8005';
+import { API_ORIGIN, socketPath } from '../lib/endpoints';
 
 interface InboxState {
   connections: ConnectionBuckets;
@@ -32,6 +31,8 @@ interface InboxState {
 
   loadConnections: () => Promise<void>;
   openConversation: (connection: Connection) => Promise<void>;
+  /** Opens any channel the user belongs to (module chats) — no peer involved. */
+  openChannel: (channelId: string) => Promise<void>;
   closeConversation: () => void;
   sendMessage: (input: {
     content: string;
@@ -97,22 +98,31 @@ export const useInboxStore = create<InboxState>((set, get) => ({
       }));
     }
 
+    await get().openChannel(channelId!);
+    set({ activePeerId: connection.user.id });
+  },
+
+  async openChannel(channelId) {
+    const { activeChannelId, socket } = get();
+    if (activeChannelId && activeChannelId !== channelId) socket?.emit('leave_room', activeChannelId);
+
     set({
       activeChannelId: channelId,
-      activePeerId: connection.user.id,
+      activePeerId: null,
       messagesLoading: true,
-      unreadByChannel: { ...get().unreadByChannel, [channelId!]: 0 },
+      unreadByChannel: { ...get().unreadByChannel, [channelId]: 0 },
     });
 
-    get().socket?.emit('join_room', channelId);
+    socket?.emit('join_room', channelId);
 
     try {
-      const messages = await inboxService.history(channelId!);
+      const messages = await inboxService.history(channelId);
       set((state) => ({
-        messagesByChannel: { ...state.messagesByChannel, [channelId!]: messages },
+        messagesByChannel: { ...state.messagesByChannel, [channelId]: messages },
       }));
     } catch (error) {
       console.error('[inbox] failed to load history', error);
+      throw error;
     } finally {
       set({ messagesLoading: false });
     }
@@ -187,13 +197,20 @@ export const useInboxStore = create<InboxState>((set, get) => ({
     const token = useAuthStore.getState().token;
     if (!token) return;
 
-    const socket = io(CHAT_SOCKET_URL, {
+    // Through the gateway, so it works behind nginx/ngrok as well as Vite.
+    const socket = io(API_ORIGIN, {
+      path: socketPath('chat'),
       auth: { token },
       transports: ['websocket', 'polling'],
       reconnectionAttempts: 5,
     });
 
-    socket.on('connect', () => set({ connected: true }));
+    socket.on('connect', () => {
+      set({ connected: true });
+      // Rooms do not survive a reconnect; rejoin the open conversation.
+      const { activeChannelId } = get();
+      if (activeChannelId) socket.emit('join_room', activeChannelId);
+    });
     socket.on('disconnect', () => set({ connected: false }));
     socket.on('connect_error', (error) => console.warn('[inbox] socket error', error.message));
 

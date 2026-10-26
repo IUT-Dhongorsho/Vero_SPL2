@@ -1,68 +1,55 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { authService } from '../services/authService';
-import { v4 as uuidv4 } from 'uuid';
 import { Loader2 } from 'lucide-react';
+import { AnimatedButton } from '../components/ui/AnimatedButton';
+import { authClient } from '../lib/auth-client';
+import { useAuthStore } from '../stores/auth.store';
 
+/**
+ * Where Google/GitHub sign-in returns. Better Auth has already set the session
+ * cookie; this page only confirms it with the server and loads the user —
+ * nothing in the URL is trusted as identity.
+ */
 export const AuthCallbackPage: React.FC = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const [error, setError] = useState<string | null>(null);
+  const [params] = useSearchParams();
+  const setAuth = useAuthStore((s) => s.setAuth);
+  const [error, setError] = useState<string | null>(params.get('error'));
 
   useEffect(() => {
-    const completeAuth = async () => {
-      try {
-        const provider = searchParams.get('provider');
-        const token = searchParams.get('token');
-
-        if (!provider || !token) {
-          throw new Error('Invalid authentication response.');
-        }
-
-        // Fake retrieving user profile from the social provider
-        const mockUser = {
-          id: uuidv4(),
-          name: `${provider} User`,
-          email: `user@${provider}.com`,
-        };
-
-        // Store JWT and User data locally
-        authService.setToken(token);
-        authService.setUser(mockUser);
-
-        // Navigate to dashboard
-        navigate('/dashboard', { replace: true });
-      } catch (err: any) {
-        console.error('Callback error:', err);
-        setError(err.message || 'Authentication failed. Please try again.');
+    if (params.get('error')) return;
+    (async () => {
+      const { data, error: failure } = await authClient.getSession();
+      if (failure || !data) {
+        setError('The sign-in did not finish. Try again.');
+        return;
       }
-    };
-
-    completeAuth();
-  }, [navigate, searchParams]);
-
-  if (error) {
-    return (
-      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4">
-        <div className="bg-red-500/10 border border-red-500/30 p-6 rounded-xl text-center max-w-md">
-          <h2 className="text-xl font-bold text-red-500 mb-2">Authentication Failed</h2>
-          <p className="text-muted-foreground mb-4">{error}</p>
-          <button
-            onClick={() => navigate('/login')}
-            className="px-4 py-2 bg-primary text-primary-foreground hover:bg-primary/90 rounded-lg transition-colors cursor-pointer"
-          >
-            Back to Login
-          </button>
-        </div>
-      </div>
-    );
-  }
+      setAuth(
+        { id: data.user.id, name: data.user.name, email: data.user.email, avatar: data.user.image || undefined },
+        (data.session as any)?.authToken || data.session.token
+      );
+      navigate(params.get('next') || '/dashboard', { replace: true });
+    })();
+  }, [navigate, params, setAuth]);
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center">
-      <Loader2 className="w-12 h-12 text-primary animate-spin mb-4" />
-      <h2 className="text-lg font-medium text-foreground">Completing sign-in...</h2>
-      <p className="text-sm text-muted-foreground mt-1">Please wait while we secure your session.</p>
+    <div className="min-h-screen bg-background grid place-items-center p-4">
+      {error ? (
+        <div className="surface rounded-2xl p-8 text-center max-w-md">
+          <h1 className="text-xl font-semibold text-foreground mb-2">Sign-in didn’t work</h1>
+          <p className="text-muted-foreground mb-6">
+            {error === 'access_denied' ? 'Access was declined at the provider.' : error.replace(/_/g, ' ')}
+          </p>
+          <AnimatedButton variant="primary" onClick={() => navigate('/login', { replace: true })}>
+            Back to sign in
+          </AnimatedButton>
+        </div>
+      ) : (
+        <div className="flex flex-col items-center gap-3 text-center">
+          <Loader2 className="w-8 h-8 text-muted-foreground animate-spin" />
+          <p className="font-medium text-foreground">Finishing sign-in…</p>
+        </div>
+      )}
     </div>
   );
 };

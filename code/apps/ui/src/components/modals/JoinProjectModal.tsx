@@ -1,10 +1,11 @@
 import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { X, KeyRound } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Modal } from '../ui/Modal';
+import { Field, inputClass } from '../ui/Field';
 import { AnimatedButton } from '../ui/AnimatedButton';
 import { useProjectStore } from '../../stores/project.store';
-import { useNavigate } from 'react-router-dom';
 import { toast } from '../Providers/ToastProvider';
+import { errorMessage } from '../../utils/errors';
 
 interface JoinProjectModalProps {
   isOpen: boolean;
@@ -14,84 +15,72 @@ interface JoinProjectModalProps {
 export const JoinProjectModal: React.FC<JoinProjectModalProps> = ({ isOpen, onClose }) => {
   const [inviteCode, setInviteCode] = useState('');
   const [loading, setLoading] = useState(false);
-  const { joinProject } = useProjectStore();
+  const [error, setError] = useState<string | null>(null);
+  const joinProject = useProjectStore((s) => s.joinProject);
   const navigate = useNavigate();
+
+  const close = () => {
+    setInviteCode('');
+    setError(null);
+    onClose();
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!inviteCode.trim()) return;
-
     setLoading(true);
+    setError(null);
     try {
       const res = await joinProject(inviteCode.trim().toUpperCase());
-      toast.success('Successfully joined project!');
-      setInviteCode('');
-      onClose();
+      toast.success('You joined the project');
+      close();
       navigate(`/project/${res.projectId}`);
-    } catch (error: any) {
-      toast.error(error.response?.data?.error || 'Failed to join project. Check the code and try again.');
+    } catch (err: any) {
+      // Already a member: just take them there.
+      if (err?.response?.status === 409 && err.response.data?.projectId) {
+        close();
+        navigate(`/project/${err.response.data.projectId}`);
+        return;
+      }
+      setError(errorMessage(err, 'That code did not work. Check it and try again.'));
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <AnimatePresence>
-      {isOpen && (
+    <Modal
+      open={isOpen}
+      onClose={close}
+      title="Join a project"
+      description="Ask a project admin for its six-character invite code."
+      size="sm"
+      footer={
         <>
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-background/80 backdrop-blur-sm z-[60]"
-            onClick={onClose}
-          />
-          <motion.div
-            initial={{ scale: 0.95, opacity: 0, y: 20 }}
-            animate={{ scale: 1, opacity: 1, y: 0 }}
-            exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="fixed left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[60] w-full max-w-md p-4"
-          >
-            <div className="bg-card border border-border rounded-2xl p-6 shadow-2xl">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
-                  <KeyRound className="w-5 h-5 text-primary" /> Join via Invite Code
-                </h2>
-                <button onClick={onClose} className="p-1.5 text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors">
-                  <X className="w-5 h-5" />
-                </button>
-              </div>
-
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-foreground mb-1.5">
-                    Invite Code
-                  </label>
-                  <input
-                    type="text"
-                    value={inviteCode}
-                    onChange={(e) => setInviteCode(e.target.value.toUpperCase())}
-                    placeholder="e.g. X7B92M"
-                    className="w-full px-4 py-2.5 bg-background border border-border rounded-lg text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all placeholder:text-muted-foreground font-mono uppercase tracking-widest"
-                    required
-                    maxLength={20}
-                    autoFocus
-                  />
-                </div>
-
-                <div className="flex gap-3 pt-4">
-                  <AnimatedButton type="button" variant="outline" fullWidth onClick={onClose}>
-                    Cancel
-                  </AnimatedButton>
-                  <AnimatedButton type="submit" variant="primary" fullWidth loading={loading} disabled={!inviteCode.trim()}>
-                    Join Project
-                  </AnimatedButton>
-                </div>
-              </form>
-            </div>
-          </motion.div>
+          <AnimatedButton variant="secondary" onClick={close}>
+            Cancel
+          </AnimatedButton>
+          <AnimatedButton type="submit" form="join-project" variant="primary" loading={loading} disabled={inviteCode.trim().length < 4}>
+            Join project
+          </AnimatedButton>
         </>
-      )}
-    </AnimatePresence>
+      }
+    >
+      <form id="join-project" onSubmit={handleSubmit}>
+        <Field label="Invite code" error={error}>
+          {(props) => (
+            <input
+              {...props}
+              value={inviteCode}
+              onChange={(e) => setInviteCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+              placeholder="ABC123"
+              maxLength={12}
+              autoComplete="off"
+              className={`${inputClass} font-mono text-lg tracking-[0.3em] uppercase`}
+            />
+          )}
+        </Field>
+      </form>
+    </Modal>
   );
 };

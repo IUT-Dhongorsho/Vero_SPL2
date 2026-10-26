@@ -51,3 +51,22 @@ export const groupTasksByDueDate = (tasks: any[]) => {
 
   return groups;
 };
+
+/** "just now", "5 minutes ago", "3 days ago", then a plain date after a month. */
+export const timeAgo = (value: string | Date): string => {
+  const date = typeof value === 'string' ? new Date(value) : value;
+  const seconds = Math.round((Date.now() - date.getTime()) / 1000);
+  if (seconds < 45) return 'just now';
+  const steps: [number, string][] = [
+    [60, 'minute'],
+    [60 * 60, 'hour'],
+    [60 * 60 * 24, 'day'],
+    [60 * 60 * 24 * 7, 'week'],
+  ];
+  if (seconds < 60 * 60 * 24 * 30) {
+    const [size, unit] = [...steps].reverse().find(([size]) => seconds >= size) ?? steps[0];
+    const n = Math.max(1, Math.round(seconds / size));
+    return `${n} ${unit}${n === 1 ? '' : 's'} ago`;
+  }
+  return formatDate(date);
+};

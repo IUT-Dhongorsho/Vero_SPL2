@@ -19,6 +19,8 @@ export interface WorkItem {
   // Project tasks only
   projectId?: string;
   projectName?: string;
+  moduleId?: string;
+  moduleName?: string;
   columnId?: string;
   columnName?: string;
   assigneeId?: string | null;

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { useAuthStore } from '../stores/auth.store';
+import { wsUrl } from '../lib/endpoints';
 
 interface UseYjsOptions {
   documentId: string;
@@ -33,11 +34,9 @@ export function useYjs({ documentId, enabled }: UseYjsOptions) {
     const ydoc = new Y.Doc();
     ydocRef.current = ydoc;
 
-    const defaultProtocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const defaultWsUrl = `${defaultProtocol}//${window.location.host}/api/notes/yjs`;
-    const wsUrl = import.meta.env.VITE_NOTES_WS_URL || (window.location.port === '3000' ? 'ws://localhost:8003/yjs' : defaultWsUrl);
-    
-    const provider = new WebsocketProvider(wsUrl, documentId, ydoc, {
+    const url = import.meta.env.VITE_NOTES_WS_URL || wsUrl('/notes/yjs');
+
+    const provider = new WebsocketProvider(url, documentId, ydoc, {
       connect: false,
       params: { token },
     });

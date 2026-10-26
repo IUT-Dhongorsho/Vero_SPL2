@@ -18,12 +18,14 @@ const ROUTE_LABELS: Record<string, string> = {
   '/dashboard': 'Home',
   '/inbox': 'Inbox',
   '/calendar': 'Calendar',
-  '/tasks': 'Tasks',
-  '/progress': 'Progress',
+  '/work': 'My work',
+  '/work/board': 'My work',
+  '/tasks': 'My work',
+  '/progress': 'My work',
   '/projects': 'Projects',
   '/profile': 'Profile',
   '/settings': 'Settings',
-  '/files': 'Files',
+  '/files': 'Recent files',
 };
 
 function labelForRoute(route: string): string {

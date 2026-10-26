@@ -1,14 +1,10 @@
 import { createAuthClient } from "better-auth/react";
-
-const rawApiUrl = (import.meta.env.VITE_API_URL || '/api').replace(/\/$/, '');
-const origin = typeof window !== 'undefined' ? window.location.origin : 'http://localhost:3000';
-const apiBase = rawApiUrl.startsWith('http') ? rawApiUrl : `${origin}${rawApiUrl}`;
+import { API_BASE } from "./endpoints";
 
 export const authClient = createAuthClient({
-  baseURL: `${apiBase}/better-auth`,
+  baseURL: `${API_BASE}/better-auth`,
   fetchOptions: {
-    headers: {
-      'ngrok-skip-browser-warning': 'true',
-    },
+    // ngrok serves an interstitial page to browsers without this header.
+    headers: { "ngrok-skip-browser-warning": "true" },
   },
 });

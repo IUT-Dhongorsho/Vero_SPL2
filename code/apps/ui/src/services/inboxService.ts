@@ -85,6 +85,12 @@ export const inboxService = {
     return data;
   },
 
+  /** A project module's group channel. 404 while it is still being set up. */
+  async moduleChannel(moduleId: string): Promise<{ id: string; name: string; members: { userId: string; user: ConnectionPerson }[] }> {
+    const { data } = await apiClient.get(`/chat/channels/external/${moduleId}`);
+    return data;
+  },
+
   async history(channelId: string, before?: string): Promise<ChatMessage[]> {
     const { data } = await apiClient.get(`/chat/messages/${channelId}`, {
       params: { limit: 50, ...(before ? { before } : {}) },

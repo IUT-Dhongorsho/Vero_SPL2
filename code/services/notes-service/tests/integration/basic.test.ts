@@ -16,3 +16,14 @@ describe('Notes Service Integration Tests (FR)', () => {
     expect(res.text).toContain('http_request_duration_seconds');
   });
 });
+
+describe('malformed bodies', () => {
+  it('answers invalid JSON with a JSON 400, not an HTML page', async () => {
+    const res = await request(app)
+      .post('/documents/00000000-0000-0000-0000-000000000000/digest')
+      .set('Content-Type', 'application/json')
+      .send('null');
+    expect(res.status).toBe(400);
+    expect(res.body.code).toBe('VALIDATION_FAILED');
+  });
+});

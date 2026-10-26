@@ -9,6 +9,7 @@ router.use(authMiddleware);
 router.post('/', channelController.createChannel);
 router.post('/direct', channelController.openDirectChannel);
 router.get('/', channelController.getUserChannels);
+router.get('/external/:externalId', channelController.getChannelByExternalId);
 router.get('/:id', channelController.getChannelById);
 
 export default router;

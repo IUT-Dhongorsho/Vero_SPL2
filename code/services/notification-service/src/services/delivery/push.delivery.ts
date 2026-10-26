@@ -1,6 +1,8 @@
 import webpush from 'web-push';
 import { env } from '../../config/env.js';
 
+export type PushResult = 'sent' | 'failed' | 'gone';
+
 export class PushDelivery {
   constructor() {
     if (env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY) {
@@ -13,19 +15,23 @@ export class PushDelivery {
     }
   }
 
-  async deliver(subscription: any, payload: any) {
-    if (!env.VAPID_PUBLIC_KEY) {
-      console.warn('⚠️ Push notifications not configured');
-      return false;
+  get enabled() {
+    return !!(env.VAPID_PUBLIC_KEY && env.VAPID_PRIVATE_KEY);
+  }
+
+  /** `gone` means the browser dropped the subscription and it should be deleted. */
+  async deliver(subscription: any, payload: any): Promise<PushResult> {
+    if (!this.enabled) {
+      return 'failed';
     }
 
     try {
       await webpush.sendNotification(subscription, JSON.stringify(payload));
-      console.log(`🚀 Push delivered to endpoint: ${subscription.endpoint}`);
-      return true;
-    } catch (error) {
-      console.error(`❌ Failed to deliver push:`, error);
-      return false;
+      return 'sent';
+    } catch (error: any) {
+      if (error?.statusCode === 404 || error?.statusCode === 410) return 'gone';
+      console.error(`❌ Failed to deliver push:`, error?.message ?? error);
+      return 'failed';
     }
   }
 }

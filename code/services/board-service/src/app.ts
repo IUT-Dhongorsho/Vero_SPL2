@@ -22,8 +22,12 @@ app.use('/api/board/tasks', taskRoutes);
 app.use('/api/board/columns', columnRoutes);
 app.use('/api/board', boardRoutes);
 
-const server = app.listen(env.PORT, () => {
-  console.log(`🚀 Board service running on port ${env.PORT}`);
-});
+// Tests import the app and drive it with supertest instead of a real port.
+const server =
+  env.NODE_ENV === 'test'
+    ? null
+    : app.listen(env.PORT, () => {
+        console.log(`🚀 Board service running on port ${env.PORT}`);
+      });
 
 export { app, server };

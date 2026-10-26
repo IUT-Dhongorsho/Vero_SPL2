@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
 import { connectionService, ensureUserReplicated } from '../services/connection.service.js';
+import { publisherService } from '../services/publisher.service.js';
 
 function forwardedAuthHeaders(req: Request): Record<string, string> {
   const headers: Record<string, string> = {};
@@ -34,6 +35,25 @@ export const connectionController = {
 
       const result = await connectionService.request(userId, targetId, req.body?.message);
       res.status(result.created ? 201 : 200).json(result);
+
+      const me = (req as any).user;
+      if (result.autoAccepted) {
+        // They had already asked us: adding them back accepts, so tell them.
+        await publisherService.connectionEvent('connection.accepted', {
+          connectionId: result.connection.id,
+          requesterId: targetId,
+          targetId: userId,
+          targetName: me.name,
+        });
+      } else if (result.created) {
+        await publisherService.connectionEvent('connection.requested', {
+          connectionId: result.connection.id,
+          requesterId: userId,
+          requesterName: me.name,
+          targetId,
+          message: result.connection.message ?? null,
+        });
+      }
     } catch (error) {
       fail(res, error, 'Failed to send connection request');
     }
@@ -42,8 +62,18 @@ export const connectionController = {
   async accept(req: Request, res: Response) {
     try {
       const id = String(req.params.id);
-      const connection = await connectionService.accept(id, (req as any).user.id);
+      const me = (req as any).user;
+      const connection = await connectionService.accept(id, me.id);
       res.json(connection);
+
+      if (connection) {
+        await publisherService.connectionEvent('connection.accepted', {
+          connectionId: connection.id,
+          requesterId: connection.requesterId,
+          targetId: me.id,
+          targetName: me.name,
+        });
+      }
     } catch (error) {
       fail(res, error, 'Failed to accept connection');
     }

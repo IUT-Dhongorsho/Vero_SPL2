@@ -109,6 +109,37 @@ export class ChannelController {
     }
   }
 
+  /**
+   * GET /channels/external/:externalId — the group channel provisioned for a
+   * project module. 404 while provisioning is still in flight, 403 for anyone
+   * the module has not been shared with.
+   */
+  async getChannelByExternalId(req: Request, res: Response) {
+    try {
+      const externalId = String(req.params.externalId);
+      const userId = (req as any).user.id;
+
+      const channel = await channelService.findByExternalId(externalId);
+      if (!channel) {
+        return res.status(404).json({ error: 'This module has no chat yet' });
+      }
+
+      const isMember = channel.members.some((m: any) => m.userId === userId);
+      if (!isMember) {
+        return res.status(403).json({ error: 'Not a member of this channel' });
+      }
+
+      res.json({
+        ...channel,
+        // The provisioning bot is a member for bookkeeping only.
+        members: channel.members.filter((m: any) => m.userId !== 'system'),
+      });
+    } catch (error) {
+      console.error('Failed to fetch channel by external id:', error);
+      res.status(500).json({ error: 'Failed to fetch channel' });
+    }
+  }
+
   async getChannelById(req: Request, res: Response) {
     try {
       const { id } = req.params;

@@ -36,8 +36,9 @@ out/
 *.sln
 *.swp
 
-*._
+._*
 .turbo/
 .dev-logs/
 bun.lock
 
+*.tsbuildinfo

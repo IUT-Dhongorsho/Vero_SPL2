@@ -1,130 +1,197 @@
-import React, { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Download, Search, Grid3x3, List, FileText, Image, File, Code, X, LayoutDashboard, FolderKanban, CheckSquare, CalendarDays, Files as FilesIcon } from 'lucide-react';
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { ArrowUpRight, Download, Eye, FolderOpen, Search } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
-import { GlassCard } from '../components/ui/GlassCard';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
-import { ThemeToggle } from '../components/ui/ThemeToggle';
+import { Avatar } from '../components/ui/Avatar';
+import { inputClass } from '../components/ui/Field';
+import { RowMenu } from '../components/ui/RowMenu';
+import { ListSkeleton } from '../components/ui/Skeleton';
 import { EmptyState } from '../components/ui/EmptyState';
-import { mockFiles, FileItem } from '../data/mockData';
+import { FileIcon } from '../components/files/FileIcon';
+import { FilePreview } from '../components/files/FilePreview';
+import { FileLibrary } from '../components/files/FileLibrary';
+import { toast } from '../components/Providers/ToastProvider';
+import { fileService, formatBytes, type ProjectFile } from '../services/fileService';
+import { useProjectStore } from '../stores/project.store';
+import { useAuthStore } from '../stores/auth.store';
+import { errorMessage } from '../utils/errors';
+import { timeAgo } from '../utils/dateUtils';
+import { cn } from '../utils/cn';
 
+/**
+ * Files across every project you are on. "Recent" lists the newest from all of
+ * them; choosing a project opens that project's library, folders and all.
+ */
 export const FilesPage: React.FC = () => {
-  const [files, setFiles] = useState<FileItem[]>(mockFiles);
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedFile, setSelectedFile] = useState<FileItem | null>(null);
+  const me = useAuthStore((s) => s.user);
+  const { projects, fetchProjects } = useProjectStore();
+  const [params, setParams] = useSearchParams();
+  const projectId = params.get('project');
+  const project = projects.find((p) => p.id === projectId) ?? null;
 
-  const sidebarItems = [
-    { icon: <LayoutDashboard className="w-4 h-4" />, label: 'Dashboard', href: '/dashboard' },
-    { icon: <FolderKanban className="w-4 h-4" />, label: 'Projects', href: '/projects' },
-    { icon: <CheckSquare className="w-4 h-4" />, label: 'My Tasks', href: '/tasks' },
-    { icon: <CalendarDays className="w-4 h-4" />, label: 'Calendar', href: '/calendar' },
-    { icon: <FilesIcon className="w-4 h-4" />, label: 'Files', href: '/files', active: true },
-  ];
+  const [query, setQuery] = useState('');
+  const [files, setFiles] = useState<ProjectFile[] | null>(null);
+  const [preview, setPreview] = useState<ProjectFile | null>(null);
+  const [actions, setActions] = useState<React.ReactNode>(null);
 
-  const filteredFiles = files.filter(file => file.name.toLowerCase().includes(searchQuery.toLowerCase()));
+  useEffect(() => {
+    fetchProjects();
+  }, [fetchProjects]);
 
-    const getFileIcon = (type: string) => {
-      switch (type) {
-        case 'image': return <Image className="w-8 h-8 text-foreground" />;
-        case 'pdf': return <FileText className="w-8 h-8 text-foreground" />;
-        case 'code': return <Code className="w-8 h-8 text-foreground" />;
-        default: return <File className="w-8 h-8 text-muted-foreground" />;
-      }
-    };
+  // Recent view: search on the server as the person types (debounced).
+  useEffect(() => {
+    if (projectId) return;
+    setFiles(null);
+    const timer = setTimeout(() => {
+      fileService
+        .recent({ q: query.trim() || undefined, limit: 100 })
+        .then(setFiles)
+        .catch((error) => {
+          toast.error(errorMessage(error, 'Could not load files'));
+          setFiles([]);
+        });
+    }, query ? 250 : 0);
+    return () => clearTimeout(timer);
+  }, [projectId, query]);
 
-  const handleUpload = () => alert('File upload would open here');
-  const handleDownload = (file: FileItem) => alert(`Downloading ${file.name}`);
+  const choose = (id: string | null) => {
+    setActions(null);
+    setParams(id ? { project: id } : {}, { replace: true });
+  };
+
+  const sorted = useMemo(() => [...projects].sort((a, b) => a.name.localeCompare(b.name)), [projects]);
+
   return (
-    <PageContainer title="Files" sidebarItems={sidebarItems} topBarActions={
-      <div className="flex gap-3 items-center">
-        <div className="relative group">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
-          <input type="text" placeholder="Search files..." value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} className="pl-9 pr-4 py-2 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary transition-all w-64" />
-        </div>
-        <div className="flex gap-1 bg-muted rounded-lg p-1">
-          <button onClick={() => setViewMode('grid')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'grid' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}><Grid3x3 className="w-4 h-4" /></button>
-          <button onClick={() => setViewMode('list')} className={`p-1.5 rounded-md transition-colors ${viewMode === 'list' ? 'bg-background shadow-sm text-foreground' : 'text-muted-foreground hover:text-foreground'}`}><List className="w-4 h-4" /></button>
-        </div>
-        <AnimatedButton variant="primary" size="sm" onClick={handleUpload}><Upload className="w-4 h-4 mr-1" />Upload</AnimatedButton>
-        <ThemeToggle />
-      </div>
-    }>
-      <div className="max-w-7xl mx-auto">
-        {filteredFiles.length === 0 ? (
-          <EmptyState type="files" actionLabel="Upload File" onAction={handleUpload} />
-        ) : viewMode === 'grid' ? (
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
-            {filteredFiles.map((file, index) => (
-              <motion.div key={file.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.05 }} whileHover={{ y: -4 }}>
-                <div 
-                  className="p-5 bg-card border border-border hover:border-primary/50 shadow-sm hover:shadow-md rounded-2xl text-center cursor-pointer transition-all group flex flex-col items-center relative" 
-                  onClick={() => setSelectedFile(file)}
-                >
-                  <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                    <button onClick={(e) => { e.stopPropagation(); handleDownload(file); }} className="p-1.5 bg-background text-muted-foreground hover:text-primary rounded-lg border border-border shadow-sm"><Download className="w-3.5 h-3.5" /></button>
-                  </div>
-                  <div className="p-4 bg-muted/50 rounded-xl mb-4 transition-colors group-hover:bg-primary/5 text-primary">
-                    {getFileIcon(file.type)}
-                  </div>
-                  <h4 className="font-medium text-sm text-foreground truncate w-full px-2">{file.name}</h4>
-                  <p className="text-xs text-muted-foreground mt-1.5">{file.size}</p>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        ) : (
-          <div className="flex flex-col gap-2">
-            {filteredFiles.map((file, index) => (
-              <motion.div key={file.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: index * 0.03 }}>
-                <div 
-                  className="px-4 py-3 bg-card border border-border hover:border-primary/50 shadow-sm rounded-xl flex items-center justify-between cursor-pointer transition-all group" 
-                  onClick={() => setSelectedFile(file)}
-                >
-                  <div className="flex items-center gap-4 flex-1 min-w-0">
-                    <div className="p-2 bg-muted/50 rounded-lg group-hover:bg-primary/5 text-primary shrink-0">
-                      {getFileIcon(file.type)}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <h4 className="font-medium text-sm text-foreground truncate">{file.name}</h4>
-                      <p className="text-xs text-muted-foreground truncate">{file.projectName}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-6 shrink-0 ml-4">
-                    <span className="text-sm text-muted-foreground hidden sm:block w-20 text-right">{file.size}</span>
-                    <span className="text-sm text-muted-foreground hidden md:block w-32 truncate">{file.uploadedBy}</span>
-                    <span className="text-sm text-muted-foreground hidden lg:block w-24 text-right">{file.uploadedAt}</span>
-                    <button onClick={(e) => { e.stopPropagation(); handleDownload(file); }} className="p-2 text-muted-foreground hover:text-primary rounded-lg hover:bg-muted transition-colors opacity-0 group-hover:opacity-100 focus:opacity-100"><Download className="w-4 h-4" /></button>
-                  </div>
-                </div>
-              </motion.div>
-            ))}
-          </div>
-        )}
+    <PageContainer
+      title="Files"
+      subtitle={project ? project.name : 'Everything shared in your projects'}
+      topBarActions={projectId ? actions : null}
+    >
+      <div className="flex flex-col lg:flex-row gap-6">
+        <nav aria-label="Projects" className="lg:w-56 shrink-0">
+          <ul className="flex lg:flex-col gap-1 overflow-x-auto no-scrollbar -mx-4 px-4 lg:mx-0 lg:px-0">
+            {[{ id: null as string | null, name: 'Recent' }, ...sorted.map((p) => ({ id: p.id as string | null, name: p.name }))].map(
+              (entry) => {
+                const on = (entry.id ?? null) === projectId;
+                return (
+                  <li key={entry.id ?? 'recent'} className="shrink-0">
+                    <button
+                      onClick={() => choose(entry.id)}
+                      aria-current={on ? 'page' : undefined}
+                      className={cn(
+                        'w-full text-left px-3 py-2 rounded-xl text-sm font-medium truncate transition-colors whitespace-nowrap',
+                        on ? 'bg-muted text-foreground border border-border' : 'text-muted-foreground hover:text-foreground hover:bg-muted border border-transparent'
+                      )}
+                    >
+                      {entry.name}
+                    </button>
+                  </li>
+                );
+              }
+            )}
+          </ul>
+        </nav>
 
-        <AnimatePresence>
-          {selectedFile && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-background/80 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setSelectedFile(null)}>
-              <motion.div initial={{ scale: 0.95, opacity: 0, y: 10 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.95, opacity: 0, y: 10 }} className="bg-card border border-border shadow-2xl rounded-2xl p-6 max-w-sm w-full" onClick={(e) => e.stopPropagation()}>
-                <div className="flex justify-between items-start mb-6">
-                  <h3 className="text-lg font-semibold text-foreground break-words pr-4">{selectedFile.name}</h3>
-                  <button onClick={() => setSelectedFile(null)} className="p-1 text-muted-foreground hover:text-foreground bg-muted hover:bg-muted/80 rounded-lg transition-colors shrink-0"><X className="w-4 h-4" /></button>
+        <div className="flex-1 min-w-0">
+          {projectId ? (
+            project ? (
+              <FileLibrary key={project.id} projectId={project.id} projectName={project.name} setActions={setActions} />
+            ) : (
+              <ListSkeleton rows={4} />
+            )
+          ) : (
+            <>
+              <div className="relative max-w-md mb-4">
+                <Search className="w-4 h-4 text-muted-foreground absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
+                <input
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Search file names in all projects"
+                  aria-label="Search files"
+                  className={cn(inputClass, 'pl-10')}
+                />
+              </div>
+
+              {files === null ? (
+                <ListSkeleton rows={5} />
+              ) : files.length === 0 ? (
+                <div className="surface rounded-2xl">
+                  {query ? (
+                    <EmptyState type="files" title={`No file is called “${query}”`} description="Try part of the name, or pick a project on the left." />
+                  ) : projects.length === 0 ? (
+                    <EmptyState type="files" title="No projects yet" description="Files live inside projects. Create or join one first." />
+                  ) : (
+                    <div className="text-center py-14 px-6">
+                      <FolderOpen className="w-10 h-10 mx-auto mb-4 text-subtle-foreground" strokeWidth={1.5} />
+                      <p className="font-semibold text-foreground mb-1">No files in your projects yet</p>
+                      <p className="text-sm text-muted-foreground mb-5">Pick a project to upload the first one.</p>
+                      <AnimatedButton variant="primary" onClick={() => choose(sorted[0].id)}>
+                        Open {sorted[0].name}
+                      </AnimatedButton>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-center py-8 mb-6 bg-muted/30 rounded-xl border border-border/50 text-primary">
-                  {getFileIcon(selectedFile.type)}
-                </div>
-                <div className="space-y-3 mb-6 text-sm">
-                  <div className="flex justify-between"><span className="text-muted-foreground">Size</span><span className="font-medium text-foreground">{selectedFile.size}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Uploaded by</span><span className="font-medium text-foreground">{selectedFile.uploadedBy}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Uploaded at</span><span className="font-medium text-foreground">{selectedFile.uploadedAt}</span></div>
-                  <div className="flex justify-between"><span className="text-muted-foreground">Project</span><span className="font-medium text-foreground">{selectedFile.projectName}</span></div>
-                </div>
-                <AnimatedButton variant="primary" fullWidth onClick={() => handleDownload(selectedFile)}><Download className="w-4 h-4 mr-2" /> Download File</AnimatedButton>
-              </motion.div>
-            </motion.div>
+              ) : (
+                <ul className="surface rounded-2xl divide-y divide-border overflow-hidden">
+                  {files.map((file) => (
+                    <li key={file.id} className="flex items-center gap-3 px-5 py-3 hover:bg-muted/60 transition-colors">
+                      <button onClick={() => setPreview(file)} className="flex items-center gap-3 min-w-0 flex-1 text-left">
+                        <FileIcon name={file.name} mime={file.mime} />
+                        <span className="min-w-0">
+                          <span className="block font-medium text-foreground truncate">{file.name}</span>
+                          <span className="block text-xs text-muted-foreground truncate">
+                            {file.project?.name}
+                            {file.folder ? ` / ${file.folder.name}` : ''}
+                            {' — '}
+                            {formatBytes(file.size)}, {timeAgo(file.createdAt)}
+                          </span>
+                        </span>
+                      </button>
+                      {file.uploader && (
+                        <span className="hidden md:flex items-center gap-2 w-40 shrink-0">
+                          <Avatar name={file.uploader.name} src={file.uploader.avatarUrl} size="xs" />
+                          <span className="text-sm text-muted-foreground truncate">
+                            {file.uploader.id === me?.id ? 'You' : file.uploader.name}
+                          </span>
+                        </span>
+                      )}
+                      <RowMenu
+                        label={`Actions for ${file.name}`}
+                        items={[
+                          { label: 'Preview', icon: Eye, onSelect: () => setPreview(file) },
+                          {
+                            label: 'Download',
+                            icon: Download,
+                            onSelect: () => fileService.download(file).catch((e) => toast.error(errorMessage(e, 'Download failed'))),
+                          },
+                          {
+                            label: 'Show in project',
+                            icon: ArrowUpRight,
+                            onSelect: () =>
+                              setParams(file.folderId ? { project: file.projectId, folder: file.folderId } : { project: file.projectId }),
+                          },
+                        ]}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {projects.length > 0 && (
+                <p className="text-xs text-muted-foreground mt-4">
+                  Uploading happens inside a project — choose one on the left, or open its{' '}
+                  <Link to="/projects" className="text-accent hover:underline">
+                    Files tab
+                  </Link>
+                  .
+                </p>
+              )}
+            </>
           )}
-        </AnimatePresence>
+        </div>
       </div>
+
+      <FilePreview file={preview} onClose={() => setPreview(null)} />
     </PageContainer>
   );
 };

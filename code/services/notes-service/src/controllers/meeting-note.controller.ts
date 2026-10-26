@@ -13,13 +13,16 @@ export const meetingNoteController = {
         return res.status(400).json({ error: 'moduleId is required' });
       }
 
-      const noteTitle = title || `Meeting Minutes — ${new Date().toLocaleDateString('en-US', {
+      const exactTime = new Date().toLocaleString('en-US', {
         month: 'short',
         day: 'numeric',
         year: 'numeric',
-        hour: '2-digit',
+        hour: 'numeric',
         minute: '2-digit',
-      })}`;
+        hour12: true,
+      });
+
+      const noteTitle = title || `Meeting Note — ${exactTime}`;
 
       const doc = await documentService.create(
         {
@@ -34,7 +37,7 @@ export const meetingNoteController = {
       // Seed initial content structure
       const placeholder =
         initialContent ||
-        `# 📋 ${noteTitle}\n\n> **Status**: 🔴 Live Meeting in Progress...\n> **Started**: ${new Date().toLocaleString()}\n\n---\n\n## 🎙️ Live Meeting Transcript\n`;
+        `# 📋 ${noteTitle}\n\n> **Status**: 🔴 Live Meeting in Progress...\n> **Started**: ${exactTime}\n\n---\n`;
       
       await documentService.appendTranscript(doc.id, placeholder);
 

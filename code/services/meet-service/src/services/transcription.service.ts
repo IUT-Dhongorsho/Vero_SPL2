@@ -12,7 +12,9 @@ export interface ActiveTranscription {
   capturerSocketId: string;
   capturerUserId: string;
   capturerName: string;
+  transcriptNoteId: string;
   noteId: string;
+  formattedStart: string;
   transcriptBuffer: TranscriptEntry[];
   startedAt: Date;
 }
@@ -35,28 +37,32 @@ export class TranscriptionService {
   }
 
   /**
-   * Atomically acquires transcription lock and initiates meeting note in notes-service.
+   * Atomically acquires transcription lock and initiates meeting transcript note in notes-service.
    */
   async startTranscription(
     roomId: string,
     moduleId: string,
     user: { id: string; name: string },
     socketId: string
-  ): Promise<{ noteId: string; capturerUserId: string; capturerName: string }> {
+  ): Promise<{ noteId: string; transcriptNoteId: string; capturerUserId: string; capturerName: string }> {
     const existing = this.activeTranscriptions.get(roomId);
     if (existing) {
       throw new Error(`Transcription already in progress by ${existing.capturerName}`);
     }
 
-    // Call notes-service to create the collaborative meeting note
-    let noteId = `note-${Date.now()}`;
-    const formattedDate = new Date().toLocaleDateString('en-US', {
+    const startedAt = new Date();
+    const formattedStart = startedAt.toLocaleString('en-US', {
       month: 'short',
       day: 'numeric',
       year: 'numeric',
-      hour: '2-digit',
+      hour: 'numeric',
       minute: '2-digit',
+      hour12: true,
     });
+
+    // Call notes-service to create the collaborative meeting transcript note
+    let transcriptNoteId = `transcript-${Date.now()}`;
+    const transcriptTitle = `Meeting Transcript — ${formattedStart}`;
 
     try {
       const res = await fetch(`${env.NOTES_SERVICE_URL}/api/notes/internal/meeting-note/init`, {
@@ -67,15 +73,16 @@ export class TranscriptionService {
         },
         body: JSON.stringify({
           moduleId,
-          title: `Meeting Minutes — ${formattedDate}`,
+          title: transcriptTitle,
           creatorId: user.id,
+          initialContent: `# 🎙️ ${transcriptTitle}\n\n> **Started**: ${formattedStart}  \n> **Facilitator**: ${user.name}  \n> **Status**: 🔴 Live Recording in Progress  \n\n---\n`,
         }),
       });
 
       if (res.ok) {
         const data = (await res.json()) as any;
         if (data.documentId) {
-          noteId = data.documentId;
+          transcriptNoteId = data.documentId;
         }
       } else {
         console.warn(`[TranscriptionService] notes-service init returned status ${res.status}`);
@@ -90,18 +97,21 @@ export class TranscriptionService {
       capturerSocketId: socketId,
       capturerUserId: user.id,
       capturerName: user.name || 'Attendee',
-      noteId,
+      transcriptNoteId,
+      noteId: transcriptNoteId,
+      formattedStart,
       transcriptBuffer: [],
-      startedAt: new Date(),
+      startedAt,
     };
 
     this.activeTranscriptions.set(roomId, transcription);
     console.log(
-      `🎙️ [Transcription] Started for room "${roomId}" by ${user.name} (${user.id}) -> Note: ${noteId}`
+      `🎙️ [Transcription] Started for room "${roomId}" by ${user.name} (${user.id}) -> Transcript Note: ${transcriptNoteId}`
     );
 
     return {
-      noteId,
+      noteId: transcriptNoteId,
+      transcriptNoteId,
       capturerUserId: user.id,
       capturerName: user.name,
     };
@@ -154,52 +164,97 @@ export class TranscriptionService {
   }
 
   /**
-   * Stops transcription, invokes Gemini to synthesize Meeting Minutes, and finalizes the note.
+   * Stops transcription, invokes Gemini to synthesize Meeting Minutes,
+   * creates a separate Meeting Minutes note, and updates the Transcript note.
    */
   async stopTranscription(
     roomId: string,
     user?: { id: string; name: string }
-  ): Promise<{ noteId: string; minutesMarkdown: string } | null> {
+  ): Promise<{ noteId: string; transcriptNoteId: string; minutesNoteId: string; minutesMarkdown: string } | null> {
     const active = this.activeTranscriptions.get(roomId);
     if (!active) return null;
 
     this.activeTranscriptions.delete(roomId);
     console.log(`🛑 [Transcription] Stopped for room "${roomId}" (Total entries: ${active.transcriptBuffer.length})`);
 
-    // Synthesize full transcript string
-    const fullTranscript = active.transcriptBuffer
-      .map((entry) => `> **[${entry.timestamp}] ${entry.speakerName}**: ${entry.text}`)
-      .join('\n\n');
+    const endedAt = new Date();
+    const formattedEnd = endedAt.toLocaleTimeString('en-US', {
+      hour: 'numeric',
+      minute: '2-digit',
+      hour12: true,
+    });
+    const durationMins = Math.max(1, Math.round((endedAt.getTime() - active.startedAt.getTime()) / 60000));
 
-    // Generate meeting minutes via Gemini Flash
-    const minutesMarkdown = await this.generateMeetingMinutesWithGemini(
-      active.transcriptBuffer,
-      active.startedAt,
-      new Date()
-    );
-
-    // Finalize note in notes-service
-    if (active.noteId) {
+    // 1. Finalize the Transcript Note with completion status
+    if (active.transcriptNoteId) {
       try {
-        await fetch(`${env.NOTES_SERVICE_URL}/api/notes/internal/meeting-note/${active.noteId}/finalize`, {
+        await fetch(`${env.NOTES_SERVICE_URL}/api/notes/internal/meeting-note/${active.transcriptNoteId}/append`, {
           method: 'PATCH',
           headers: {
             'Content-Type': 'application/json',
             'x-user-id': active.capturerUserId,
           },
           body: JSON.stringify({
-            minutesMarkdown,
-            fullTranscript,
+            text: `\n\n---\n> **Status**: ✅ Meeting Concluded at ${formattedEnd} (Total duration: ${durationMins} min)`,
+            speakerName: 'System',
+            timestamp: formattedEnd,
           }),
         });
-        console.log(`✅ [Transcription] Note ${active.noteId} finalized with AI minutes & transcript`);
       } catch (err: any) {
-        console.error('[Transcription] Failed to finalize note in notes-service:', err.message);
+        console.error('[Transcription] Failed to append end status to transcript note:', err.message);
       }
     }
 
+    // 2. Generate Meeting Minutes via Gemini Flash
+    const minutesMarkdown = await this.generateMeetingMinutesWithGemini(
+      active.transcriptBuffer,
+      active.startedAt,
+      endedAt
+    );
+
+    // 3. Create Second Dedicated Note: Meeting Minutes Note
+    let minutesNoteId = `minutes-${Date.now()}`;
+    const minutesTitle = `Meeting Minutes — ${active.formattedStart}`;
+
+    const minutesBody =
+      `# 📋 ${minutesTitle}\n\n` +
+      `> **Session Duration**: ${durationMins} min  \n` +
+      `> **Recorded Time**: ${active.formattedStart} – ${formattedEnd}  \n` +
+      `> **Facilitator**: ${active.capturerName}  \n` +
+      `> 📄 **Companion Transcript Note**: [Meeting Transcript — ${active.formattedStart}]\n\n` +
+      `---\n\n` +
+      minutesMarkdown;
+
+    try {
+      const res = await fetch(`${env.NOTES_SERVICE_URL}/api/notes/internal/meeting-note/init`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-user-id': active.capturerUserId,
+        },
+        body: JSON.stringify({
+          moduleId: active.moduleId,
+          title: minutesTitle,
+          creatorId: active.capturerUserId,
+          initialContent: minutesBody,
+        }),
+      });
+
+      if (res.ok) {
+        const data = (await res.json()) as any;
+        if (data.documentId) {
+          minutesNoteId = data.documentId;
+        }
+        console.log(`✅ [Transcription] Separate Meeting Minutes Note created: ${minutesNoteId}`);
+      }
+    } catch (err: any) {
+      console.error('[Transcription] Failed to create minutes note in notes-service:', err.message);
+    }
+
     return {
-      noteId: active.noteId,
+      noteId: minutesNoteId,
+      transcriptNoteId: active.transcriptNoteId,
+      minutesNoteId,
       minutesMarkdown,
     };
   }

@@ -17,9 +17,34 @@ export const projectService = {
    * time a board is opened we materialise the row here instead of failing on
    * the foreign key.
    */
-  async ensureProjectReplica(id: string, input: { name?: string; ownerId?: string } = {}) {
+  async ensureProjectReplica(
+    id: string,
+    input: { name?: string; ownerId?: string; parentProjectId?: string; parentProjectName?: string } = {}
+  ) {
     const [existing] = await db.select().from(projects).where(eq(projects.id, id));
-    if (existing) return existing;
+    if (existing) {
+      // Modules and projects get renamed; refresh the copy when it drifts.
+      const name = input.name?.slice(0, 255);
+      const parentName = input.parentProjectName?.slice(0, 255);
+      if (
+        (name && name !== existing.name) ||
+        (input.parentProjectId && input.parentProjectId !== existing.parentProjectId) ||
+        (parentName && parentName !== existing.parentProjectName)
+      ) {
+        const [refreshed] = await db
+          .update(projects)
+          .set({
+            name: name || existing.name,
+            parentProjectId: input.parentProjectId ?? existing.parentProjectId,
+            parentProjectName: parentName ?? existing.parentProjectName,
+            updatedAt: new Date(),
+          })
+          .where(eq(projects.id, id))
+          .returning();
+        return refreshed;
+      }
+      return existing;
+    }
 
     const [created] = await db
       .insert(projects)
@@ -28,6 +53,8 @@ export const projectService = {
         name: input.name?.slice(0, 255) || 'Project',
         description: '',
         ownerId: input.ownerId || 'unknown',
+        parentProjectId: input.parentProjectId ?? null,
+        parentProjectName: input.parentProjectName?.slice(0, 255) ?? null,
       })
       .onConflictDoNothing()
       .returning();

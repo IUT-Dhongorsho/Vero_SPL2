@@ -1,5 +1,4 @@
 import http from 'http';
-import { Server } from 'socket.io';
 import { app } from './app.js';
 import { env } from './config/env.js';
 import { subscriberService } from './services/subscriber.service.js';
@@ -10,26 +9,9 @@ const server = http.createServer(app);
 // Initialize Subscriber
 subscriberService.init().catch(console.error);
 
-// Socket.io for collaboration
-const io = new Server(server, {
-  cors: {
-    origin: true,
-    methods: ['GET', 'POST'],
-    credentials: true
-  }
-});
-
-io.on('connection', (socket) => {
-  console.log(`🔌 [Notes:Socket] New connection: ${socket.id}`);
-  
-  socket.on('disconnect', () => {
-    console.log(`🔌 [Notes:Socket] Disconnected: ${socket.id}`);
-  });
-});
-
+// Live collaboration (Yjs over WebSocket)
 attachYjsServer(server);
 
 server.listen(env.PORT, () => {
     console.log(`🚀 Notes service running on port ${env.PORT} in ${env.NODE_ENV} mode`);
 });
-

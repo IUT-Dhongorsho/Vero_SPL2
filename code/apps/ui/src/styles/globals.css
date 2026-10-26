@@ -105,6 +105,11 @@
     --shadow-lifted: 0 2px 4px rgba(15, 15, 15, 0.05), 0 12px 32px rgba(15, 15, 15, 0.09);
     --glass-bg: rgba(255, 255, 255, 0.72);
     --glass-border: rgba(255, 255, 255, 0.6);
+
+    /* Toasts: frosted glass with a faint indigo tint from the accent. */
+    --toast-bg: linear-gradient(135deg, rgba(238, 240, 255, 0.78), rgba(255, 255, 255, 0.66));
+    --toast-border: rgba(79, 70, 229, 0.16);
+    --toast-shadow: 0 1px 2px rgba(30, 27, 75, 0.06), 0 12px 32px rgba(67, 56, 202, 0.14);
   }
 
   .dark {
@@ -145,6 +150,10 @@
     --shadow-lifted: 0 2px 4px rgba(0, 0, 0, 0.45), 0 12px 32px rgba(0, 0, 0, 0.55);
     --glass-bg: rgba(23, 23, 27, 0.68);
     --glass-border: rgba(255, 255, 255, 0.08);
+
+    --toast-bg: linear-gradient(135deg, rgba(49, 46, 129, 0.42), rgba(23, 23, 27, 0.72));
+    --toast-border: rgba(129, 140, 248, 0.22);
+    --toast-shadow: 0 1px 2px rgba(0, 0, 0, 0.4), 0 12px 32px rgba(30, 27, 75, 0.5);
   }
 }
 
@@ -329,4 +338,53 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
+}
+
+/* ==========================================================================
+   Editor checklists — the typography plugin styles every <ul> as a bulleted
+   list; TipTap task lists need the checkbox and its text side by side.
+   ========================================================================== */
+
+.prose ul[data-type="taskList"] {
+  list-style: none;
+  padding-left: 0;
+}
+
+.prose ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  margin: 0.25rem 0;
+  padding-left: 0;
+}
+
+.prose ul[data-type="taskList"] li::marker {
+  content: none;
+}
+
+.prose ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 0.3rem;
+  user-select: none;
+}
+
+.prose ul[data-type="taskList"] li > label input {
+  width: 1rem;
+  height: 1rem;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.prose ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.prose ul[data-type="taskList"] li > div > p {
+  margin: 0;
+}
+
+.prose ul[data-type="taskList"] li[data-checked="true"] > div {
+  color: var(--muted-foreground);
+  text-decoration: line-through;
 }

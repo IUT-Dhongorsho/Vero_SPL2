@@ -21,10 +21,14 @@ vi.mock('../../src/db/client.js', () => ({
         };
         return await cb(tx);
     }),
+    query: {
+        channelMembers: {
+            // user-3 is already in the channel
+            findMany: vi.fn(async () => [{ userId: 'user-3' }])
+        }
+    },
     insert: vi.fn(() => ({
-        values: vi.fn(() => ({
-            onConflictDoNothing: vi.fn(() => ({ success: true }))
-        }))
+        values: vi.fn(async () => undefined)
     }))
   }
 }));
@@ -46,9 +50,10 @@ describe('Channel Service (FR)', () => {
     expect(result.id).toBe('new-chan-id');
   });
 
-  it('should correctly build member data for addMembers', async () => {
+  it('adds only people who are not already members', async () => {
       const res = await channelService.addMembers('chan-1', ['user-3', 'user-4']);
-      expect(res.success).toBe(true);
-      expect(db.insert).toHaveBeenCalled();
+      expect(res).toEqual({ success: true, added: 1 });
+      const values = vi.mocked(db.insert).mock.results[0].value.values;
+      expect(values).toHaveBeenCalledWith([{ channelId: 'chan-1', userId: 'user-4', role: 'member' }]);
   });
 });

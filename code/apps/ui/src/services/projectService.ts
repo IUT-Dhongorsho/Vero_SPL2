@@ -1,15 +1,27 @@
-import api from '../api/client';
+import { apiClient as api } from '../utils/apiClient';
+
+export type ProjectRole = 'admin' | 'member' | 'viewer';
 
 export interface Project {
   id: string;
   name: string;
   description: string;
   status: 'active' | 'completed';
+  /** Present for admins only. */
   inviteCode?: string;
   memberCount: number;
-  userRole: 'admin' | 'member' | 'viewer';
+  moduleCount?: number;
+  userRole: ProjectRole;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ProjectMember {
+  id: string;
+  userId: string;
+  role: ProjectRole;
+  joinedAt: string;
+  user: { id: string; name: string; avatarUrl: string | null };
 }
 
 export interface CreateProjectData {
@@ -50,5 +62,19 @@ export const projectService = {
   async generateInviteCode(id: string): Promise<Project> {
     const response = await api.post(`/project/projects/${id}/invite-code`);
     return response.data;
+  },
+
+  async getMembers(id: string): Promise<ProjectMember[]> {
+    const response = await api.get(`/project/projects/${id}/members`);
+    return response.data;
+  },
+
+  async setMemberRole(id: string, userId: string, role: ProjectRole): Promise<void> {
+    await api.patch(`/project/projects/${id}/members/${userId}`, { role });
+  },
+
+  /** Removes someone — or, with your own id, leaves the project. */
+  async removeMember(id: string, userId: string): Promise<void> {
+    await api.delete(`/project/projects/${id}/members/${userId}`);
   },
 };

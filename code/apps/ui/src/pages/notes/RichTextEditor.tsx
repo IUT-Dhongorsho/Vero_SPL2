@@ -1,49 +1,82 @@
-import React, { useCallback, useState, useEffect } from 'react';
-import { useEditor, EditorContent } from '@tiptap/react';
+import React, { useCallback, useState, useEffect, useRef } from 'react';
+import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
-import { Bold, Italic, List, ListOrdered, Heading1, Heading2, Code, CheckSquare, LayoutDashboard, Globe, Lock } from 'lucide-react';
+import {
+  Bold,
+  CheckSquare,
+  Code,
+  Heading1,
+  Heading2,
+  Italic,
+  LayoutDashboard,
+  List,
+  ListOrdered,
+  Loader2,
+  Sparkles,
+} from 'lucide-react';
 import { useNotesStore } from '../../stores/notes.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { toast } from '../../components/Providers/ToastProvider';
 import { useYjs } from '../../hooks/useYjs';
 import { AwarenessCursors } from '../../components/notes/AwarenessCursors';
-import { SendToBoardModal } from '../../components/notes/SendToBoardModal';
+import { SendToBoardModal, type DraftTask } from '../../components/notes/SendToBoardModal';
+import { NoteDigestPanel } from '../../components/notes/NoteDigestPanel';
+import { ShareMenu } from '../../components/notes/ShareMenu';
+import { notesService, type AiStatus } from '../../services/notesService';
+import { errorMessage } from '../../utils/errors';
+import { cn } from '../../utils/cn';
 import type { Note } from '../../../../../packages/shared/src/types/notes.types';
-import { useParams } from 'react-router-dom';
 
 interface RichTextEditorProps {
   note: Note;
+  moduleId: string;
+  /** False for viewers of the module: they can read but not add to the board. */
+  canWriteModule: boolean;
 }
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ note }) => {
-  const canCollaborate = note.visibility === 'public' && note.editPermission === 'editable';
+/** One status request per session; the worker's state rarely changes. */
+let aiStatusPromise: Promise<AiStatus> | null = null;
+const loadAiStatus = () => {
+  aiStatusPromise ??= notesService.aiStatus().catch(() => ({ available: false, reason: 'worker_offline', model: null }) as AiStatus);
+  return aiStatusPromise;
+};
+
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({ note, moduleId, canWriteModule }) => {
+  const canCollaborate = note.visibility === 'public' && note.editPermission === 'editable' && note.canEdit !== false;
   const { ydoc, provider, status, awareness } = useYjs({
     documentId: note.id,
     enabled: canCollaborate,
   });
 
   if (canCollaborate && (!ydoc || !provider)) {
-    return <div className="flex-1 flex items-center justify-center text-muted-foreground animate-pulse">Connecting to live collaboration...</div>;
+    return (
+      <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground">
+        <Loader2 className="w-4 h-4 animate-spin" /> Joining the live note…
+      </div>
+    );
   }
 
-  return <RichTextEditorCore 
-    key={ydoc?.clientID || note.id}
-    note={note} 
-    ydoc={ydoc} 
-    provider={provider} 
-    status={status} 
-    awareness={awareness} 
-    canCollaborate={canCollaborate} 
-  />;
+  return (
+    <RichTextEditorCore
+      key={ydoc?.clientID || note.id}
+      note={note}
+      moduleId={moduleId}
+      canWriteModule={canWriteModule}
+      ydoc={ydoc}
+      provider={provider}
+      status={status}
+      awareness={awareness}
+      canCollaborate={canCollaborate}
+    />
+  );
 };
 
-interface RichTextEditorCoreProps {
-  note: Note;
+interface RichTextEditorCoreProps extends RichTextEditorProps {
   ydoc: any;
   provider: any;
   status: string;
@@ -51,211 +84,307 @@ interface RichTextEditorCoreProps {
   canCollaborate: boolean;
 }
 
-const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({ note, ydoc, provider, status, awareness, canCollaborate }) => {
+const ToolButton: React.FC<{ onClick: () => void; active?: boolean; label: string; children: React.ReactNode }> = ({
+  onClick,
+  active,
+  label,
+  children,
+}) => (
+  <button
+    onClick={onClick}
+    title={label}
+    aria-label={label}
+    aria-pressed={active}
+    className={cn(
+      'p-2 rounded-lg transition-colors flex items-center gap-1 text-xs font-semibold',
+      active ? 'bg-muted text-foreground' : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+    )}
+  >
+    {children}
+  </button>
+);
+
+const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
+  note,
+  moduleId,
+  canWriteModule,
+  ydoc,
+  provider,
+  status,
+  awareness,
+  canCollaborate,
+}) => {
   const { updateNoteMeta, updateNoteContent } = useNotesStore();
   const { user } = useAuthStore();
-  const { projectId } = useParams();
-  
-  const [title, setTitle] = useState(note.title);
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveTimeout, setSaveTimeout] = useState<any | null>(null);
-  const [contentSaveTimeout, setContentSaveTimeout] = useState<any | null>(null);
-  
-  const [showBoardModal, setShowBoardModal] = useState(false);
-  const [selectedText, setSelectedText] = useState('');
 
-  const isCreator = note.creatorId === user?.id;
-  const isEditable = canCollaborate || isCreator;
+  const [title, setTitle] = useState(note.title);
+  const [saveState, setSaveState] = useState<'saved' | 'saving' | 'failed'>('saved');
+  const titleTimer = useRef<ReturnType<typeof setTimeout>>();
+  const contentTimer = useRef<ReturnType<typeof setTimeout>>();
+
+  const [boardItems, setBoardItems] = useState<DraftTask[] | null>(null);
+  const [digestOpen, setDigestOpen] = useState(false);
+  const [ai, setAi] = useState<AiStatus | null>(null);
+
+  // The server decides; older responses without the flags fall back to authorship.
+  const canManage = note.canManage ?? note.creatorId === user?.id;
+  const isEditable = note.canEdit ?? (canCollaborate || canManage);
+
+  useEffect(() => {
+    loadAiStatus().then(setAi);
+  }, []);
 
   useEffect(() => {
     setTitle(note.title);
   }, [note.id, note.title]);
 
-  const handleMetaSave = useCallback((newTitle: string) => {
-    if (!isCreator) return;
-    setIsSaving(true);
-    if (saveTimeout) clearTimeout(saveTimeout);
-    const timeout = setTimeout(async () => {
-      try {
-        await updateNoteMeta(note.id, { title: newTitle });
-      } catch (e) {
-        console.error('Failed to update meta', e);
-      } finally {
-        setIsSaving(false);
-      }
-    }, 1000);
-    setSaveTimeout(timeout);
-  }, [note.id, isCreator, updateNoteMeta, saveTimeout]);
-
-  const editor = useEditor({
-    extensions: [
-      StarterKit.configure({ 
-        history: canCollaborate ? false : undefined,
-        heading: { levels: [1, 2, 3] } 
-      }),
-      Placeholder.configure({ placeholder: "Start writing..." }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      ...(canCollaborate && ydoc && provider ? [
-        Collaboration.configure({ document: ydoc }),
-        CollaborationCursor.configure({ provider, user: { name: user?.name || 'Anonymous', color: '#5B5BD6' } })
-      ] : []),
-    ],
-    content: canCollaborate ? undefined : note.contentSnapshot,
-    editable: isEditable,
-    editorProps: {
-      attributes: {
-        class: 'prose max-w-none focus:outline-none min-h-[500px] w-full text-foreground marker:text-foreground prose-p:text-foreground prose-headings:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-a:text-primary prose-table:border-collapse prose-th:border prose-th:border-border prose-th:p-2 prose-td:border prose-td:border-border prose-td:p-2',
-      },
+  useEffect(
+    () => () => {
+      clearTimeout(titleTimer.current);
+      clearTimeout(contentTimer.current);
     },
-    onUpdate: ({ editor }) => {
-      if (!canCollaborate) {
-        setIsSaving(true);
-        if (contentSaveTimeout) clearTimeout(contentSaveTimeout);
-        const timeout = setTimeout(async () => {
-          try {
-            await updateNoteContent(note.id, editor.getHTML());
-          } catch (e) {
-            console.error('Failed to save note content', e);
-          } finally {
-            setIsSaving(false);
-          }
-        }, 1000);
-        setContentSaveTimeout(timeout);
-      }
-    },
-  }, [note.id, canCollaborate, ydoc, provider, isEditable]);
-
+    []
+  );
 
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newTitle = e.target.value;
-    setTitle(newTitle);
-    handleMetaSave(newTitle);
+    const next = e.target.value;
+    setTitle(next);
+    if (!canManage) return;
+    setSaveState('saving');
+    clearTimeout(titleTimer.current);
+    titleTimer.current = setTimeout(async () => {
+      try {
+        await updateNoteMeta(note.id, { title: next });
+        setSaveState('saved');
+      } catch {
+        setSaveState('failed');
+      }
+    }, 800);
   };
 
-  const convertToKanbanTask = () => {
-    if (!editor) return;
-    const { state } = editor;
-    const { selection } = state;
-    const text = state.doc.textBetween(selection.from, selection.to, ' ');
+  const editor = useEditor(
+    {
+      extensions: [
+        StarterKit.configure({
+          history: canCollaborate ? false : undefined,
+          heading: { levels: [1, 2, 3] },
+        }),
+        Placeholder.configure({ placeholder: isEditable ? 'Start writing…' : 'This note is empty.' }),
+        TaskList,
+        TaskItem.configure({ nested: true }),
+        ...(canCollaborate && ydoc && provider
+          ? [
+              Collaboration.configure({ document: ydoc }),
+              CollaborationCursor.configure({ provider, user: { name: user?.name || 'Anonymous', color: '#4f46e5' } }),
+            ]
+          : []),
+      ],
+      content: canCollaborate ? undefined : note.contentSnapshot,
+      editable: isEditable,
+      editorProps: {
+        attributes: {
+          class:
+            'prose max-w-none focus:outline-none min-h-[420px] w-full text-foreground marker:text-foreground prose-p:text-foreground prose-headings:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-a:text-accent',
+        },
+      },
+      onUpdate: ({ editor }) => {
+        if (canCollaborate) return; // the live document saves itself
+        setSaveState('saving');
+        clearTimeout(contentTimer.current);
+        contentTimer.current = setTimeout(async () => {
+          try {
+            await updateNoteContent(note.id, editor.getHTML());
+            setSaveState('saved');
+          } catch (error) {
+            setSaveState('failed');
+            toast.error(errorMessage(error, 'Your last change was not saved'));
+          }
+        }, 900);
+      },
+    },
+    [note.id, canCollaborate, ydoc, provider, isEditable]
+  );
+
+  // A note made shareable after it was written has saved HTML but an empty
+  // live document. The first person in copies the HTML across; the flag lives
+  // in the shared document, so two people arriving together cannot both do it.
+  useEffect(() => {
+    if (!canCollaborate || !editor || !provider || !ydoc || !note.contentSnapshot) return;
+    const seed = (synced: boolean) => {
+      if (!synced) return;
+      const meta = ydoc.getMap('vero');
+      // Ask the shared document, not the editor: the editor renders synced
+      // content a tick later and would still look empty here.
+      if (meta.get('seeded') || ydoc.getXmlFragment('default').length > 0) return;
+      ydoc.transact(() => meta.set('seeded', true));
+      editor.commands.setContent(note.contentSnapshot);
+    };
+    if (provider.synced) seed(true);
+    provider.on('sync', seed);
+    return () => provider.off('sync', seed);
+  }, [canCollaborate, editor, provider, ydoc, note.contentSnapshot]);
+
+  const sendSelectionToBoard = (ed: Editor) => {
+    const { from, to } = ed.state.selection;
+    const text = ed.state.doc.textBetween(from, to, ' ').trim();
     if (!text) {
-      toast.error('Select some text first');
+      toast.error('Select the text you want as a task first', { id: 'select-text-first' });
       return;
     }
-    setSelectedText(text);
-    setShowBoardModal(true);
+    setBoardItems([{ title: text }]);
   };
 
-  const handleTogglePrivacy = async () => {
-    if (!isCreator) return;
-    const newVisibility = note.visibility === 'private' ? 'public' : 'private';
+  const changeSharing = async (next: { visibility: Note['visibility']; editPermission: Note['editPermission'] }) => {
     try {
-      await updateNoteMeta(note.id, { visibility: newVisibility });
-      toast.success(`Note is now ${newVisibility}`);
-    } catch (e) {
-      toast.error('Failed to change visibility');
+      await updateNoteMeta(note.id, next);
+      toast.success(
+        next.visibility === 'private'
+          ? 'Only you can see this note now'
+          : next.editPermission === 'editable'
+            ? 'The module can now edit this note with you'
+            : 'The module can now read this note'
+      );
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not change who can see it'));
     }
   };
 
   if (!editor) return null;
 
+  const aiHint = !ai
+    ? 'Checking whether AI is available…'
+    : ai.available
+      ? 'Summarise this note and pull out its action items'
+      : ai.reason === 'not_configured'
+        ? 'AI summaries need a Gemini API key on the server'
+        : 'The AI worker is not running on the server';
+
   return (
-    <div className="flex flex-col h-full bg-card">
-      <div className="px-8 md:px-12 pt-8 pb-4 border-b border-border bg-card/90 backdrop-blur z-10 flex flex-col gap-4">
-        <div className="flex items-center justify-between">
+    <div className="flex flex-col h-full min-h-0">
+      <div className="px-6 md:px-10 pt-6 pb-3 border-b border-border flex flex-col gap-3">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
           <input
             type="text"
             value={title}
             onChange={handleTitleChange}
-            disabled={!isCreator}
-            className="text-3xl font-bold bg-transparent text-foreground focus:outline-none w-full placeholder:text-muted-foreground disabled:opacity-80"
-            placeholder="Untitled Note"
+            readOnly={!canManage}
+            aria-label="Note title"
+            className="text-2xl md:text-3xl font-semibold tracking-tight bg-transparent text-foreground focus:outline-none w-full min-w-0 placeholder:text-subtle-foreground"
+            placeholder="Untitled note"
           />
-          <div className="flex items-center gap-4 shrink-0 ml-4">
+          <div className="flex items-center gap-2 shrink-0 flex-wrap">
+            {canCollaborate && <AwarenessCursors awareness={awareness} />}
             {canCollaborate && (
-              <AwarenessCursors awareness={awareness} />
-            )}
-            
-            {status === 'connected' && (
-              <span className="flex items-center gap-1.5 text-xs font-semibold text-emerald-500 bg-emerald-500/10 px-2 py-1 rounded-full">
-                <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
-                Live
+              <span
+                className={cn(
+                  'flex items-center gap-1.5 text-xs font-medium px-2.5 py-1 rounded-full',
+                  status === 'connected' ? 'bg-success-soft text-success' : 'bg-warning-soft text-warning'
+                )}
+              >
+                <span className={cn('w-1.5 h-1.5 rounded-full', status === 'connected' ? 'bg-success' : 'bg-warning animate-pulse')} />
+                {status === 'connected' ? 'Live' : 'Reconnecting'}
               </span>
             )}
-
+            <ShareMenu
+              visibility={note.visibility}
+              editPermission={note.editPermission}
+              canChange={canManage}
+              onChange={changeSharing}
+            />
             <button
-              onClick={handleTogglePrivacy}
-              disabled={!isCreator}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-colors border ${note.visibility === 'private' ? 'bg-muted border-border text-muted-foreground hover:bg-muted/80' : 'bg-primary/10 border-primary/20 text-primary hover:bg-primary/20'} disabled:cursor-not-allowed`}
-              title={note.visibility === 'private' ? "Make Public" : "Make Private"}
+              onClick={() => setDigestOpen(true)}
+              disabled={!ai?.available}
+              title={aiHint}
+              className="flex items-center gap-1.5 h-8 px-3 rounded-full border border-border bg-card text-xs font-medium text-foreground hover:bg-muted transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {note.visibility === 'private' ? (
-                <><Lock className="w-3.5 h-3.5" /> Private</>
-              ) : (
-                <><Globe className="w-3.5 h-3.5" /> Public</>
-              )}
+              <Sparkles className="w-3.5 h-3.5 text-accent" />
+              Summarise
             </button>
-            <span className={`text-xs font-medium transition-opacity duration-300 ${isSaving ? 'text-muted-foreground opacity-100' : 'text-emerald-500 opacity-70'}`}>
-              {isSaving ? 'Saving...' : 'Saved'}
-            </span>
+            {!canCollaborate && isEditable && (
+              <span
+                className={cn('text-xs w-14 text-right', saveState === 'failed' ? 'text-danger' : 'text-muted-foreground')}
+                aria-live="polite"
+              >
+                {saveState === 'saving' ? 'Saving…' : saveState === 'failed' ? 'Not saved' : 'Saved'}
+              </span>
+            )}
           </div>
         </div>
-        
-        {isEditable && (
-          <div className="flex items-center gap-1 overflow-x-auto pb-1">
-            <button onClick={() => editor.chain().focus().toggleBold().run()} className={`p-2 rounded hover:bg-muted ${editor.isActive('bold') ? 'bg-muted text-primary' : 'text-muted-foreground'}`} title="Bold">
-              <Bold className="w-4 h-4" />
-            </button>
-            <button onClick={() => editor.chain().focus().toggleItalic().run()} className={`p-2 rounded hover:bg-muted ${editor.isActive('italic') ? 'bg-muted text-primary' : 'text-muted-foreground'}`} title="Italic">
-              <Italic className="w-4 h-4" />
-            </button>
-            <div className="w-px h-4 bg-border mx-2" />
-            <button onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} className={`p-2 rounded hover:bg-muted flex items-center gap-1 text-xs font-semibold ${editor.isActive('heading', { level: 1 }) ? 'bg-muted text-primary' : 'text-muted-foreground'}`} title="Heading 1">
-              <Heading1 className="w-4 h-4" /> H1
-            </button>
-            <button onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} className={`p-2 rounded hover:bg-muted flex items-center gap-1 text-xs font-semibold ${editor.isActive('heading', { level: 2 }) ? 'bg-muted text-primary' : 'text-muted-foreground'}`} title="Heading 2">
-              <Heading2 className="w-4 h-4" /> H2
-            </button>
-            <div className="w-px h-4 bg-border mx-2" />
-            <button onClick={() => editor.chain().focus().toggleBulletList().run()} className={`p-2 rounded hover:bg-muted ${editor.isActive('bulletList') ? 'bg-muted text-primary' : 'text-muted-foreground'}`} title="Bullet List">
-              <List className="w-4 h-4" />
-            </button>
-            <button onClick={() => editor.chain().focus().toggleOrderedList().run()} className={`p-2 rounded hover:bg-muted ${editor.isActive('orderedList') ? 'bg-muted text-primary' : 'text-muted-foreground'}`} title="Numbered List">
-              <ListOrdered className="w-4 h-4" />
-            </button>
-            <button onClick={() => editor.chain().focus().toggleTaskList().run()} className={`p-2 rounded hover:bg-muted ${editor.isActive('taskList') ? 'bg-muted text-primary' : 'text-muted-foreground'}`} title="Checklist">
-              <CheckSquare className="w-4 h-4" />
-            </button>
-            <button onClick={() => editor.chain().focus().toggleCodeBlock().run()} className={`p-2 rounded hover:bg-muted ${editor.isActive('codeBlock') ? 'bg-muted text-primary' : 'text-muted-foreground'}`} title="Code Block">
-              <Code className="w-4 h-4" />
-            </button>
 
-            <div className="w-px h-4 bg-border mx-2" />
-            
-            <button 
-              onClick={convertToKanbanTask} 
-              className="p-1.5 px-3 rounded-lg bg-primary/10 hover:bg-primary/20 text-primary text-xs font-semibold flex items-center gap-1.5 transition-colors ml-auto" 
-              title="Convert selected text to Kanban Task"
+        {isEditable ? (
+          <div className="flex items-center gap-0.5 overflow-x-auto no-scrollbar -mx-2" role="toolbar" aria-label="Formatting">
+            <ToolButton label="Bold" active={editor.isActive('bold')} onClick={() => editor.chain().focus().toggleBold().run()}>
+              <Bold className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton label="Italic" active={editor.isActive('italic')} onClick={() => editor.chain().focus().toggleItalic().run()}>
+              <Italic className="w-4 h-4" />
+            </ToolButton>
+            <span className="w-px h-4 bg-border mx-1.5" />
+            <ToolButton
+              label="Heading 1"
+              active={editor.isActive('heading', { level: 1 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()}
             >
-              <LayoutDashboard className="w-3.5 h-3.5" /> Send to Board
-            </button>
+              <Heading1 className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton
+              label="Heading 2"
+              active={editor.isActive('heading', { level: 2 })}
+              onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()}
+            >
+              <Heading2 className="w-4 h-4" />
+            </ToolButton>
+            <span className="w-px h-4 bg-border mx-1.5" />
+            <ToolButton label="Bulleted list" active={editor.isActive('bulletList')} onClick={() => editor.chain().focus().toggleBulletList().run()}>
+              <List className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton label="Numbered list" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
+              <ListOrdered className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton label="Checklist" active={editor.isActive('taskList')} onClick={() => editor.chain().focus().toggleTaskList().run()}>
+              <CheckSquare className="w-4 h-4" />
+            </ToolButton>
+            <ToolButton label="Code block" active={editor.isActive('codeBlock')} onClick={() => editor.chain().focus().toggleCodeBlock().run()}>
+              <Code className="w-4 h-4" />
+            </ToolButton>
+
+            {canWriteModule && (
+              <button
+                onClick={() => sendSelectionToBoard(editor)}
+                className="ml-auto shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-accent hover:bg-accent-soft transition-colors"
+                title="Turn the selected text into a task on this module's board"
+              >
+                <LayoutDashboard className="w-3.5 h-3.5" /> Selection to board
+              </button>
+            )}
           </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            {canWriteModule ? 'Only the author can edit this note.' : 'You can read this note; viewers cannot edit.'}
+          </p>
         )}
       </div>
 
-      <div className="flex-1 overflow-y-auto cursor-text px-8 md:px-12 py-6">
-        <EditorContent editor={editor} className="w-full" />
+      <div className="flex-1 overflow-y-auto cursor-text px-6 md:px-10 py-6">
+        <EditorContent editor={editor} className="w-full max-w-3xl" />
       </div>
 
-      {showBoardModal && (
-        <SendToBoardModal
-          isOpen={showBoardModal}
-          onClose={() => setShowBoardModal(false)}
-          selectedText={selectedText}
-          noteId={note.id}
-          projectId={projectId}
-        />
-      )}
+      <SendToBoardModal
+        isOpen={!!boardItems}
+        onClose={() => setBoardItems(null)}
+        moduleId={moduleId}
+        noteTitle={note.title}
+        items={boardItems ?? []}
+      />
+
+      <NoteDigestPanel
+        open={digestOpen}
+        onClose={() => setDigestOpen(false)}
+        noteId={note.id}
+        noteTitle={note.title}
+        moduleId={moduleId}
+        canAddTasks={canWriteModule}
+      />
     </div>
   );
 };

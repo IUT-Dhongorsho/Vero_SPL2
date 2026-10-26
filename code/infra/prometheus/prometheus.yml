@@ -1,0 +1,20 @@
+# Scrapes every service that exposes /metrics (prom-client). Used by the
+# `monitoring` profile in docker/docker-compose.yml.
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  - job_name: vero
+    metrics_path: /metrics
+    static_configs:
+      - targets: ['auth-service:8001']
+        labels: { service: auth }
+      - targets: ['notes-service:8003']
+        labels: { service: notes }
+      - targets: ['project-service:8004']
+        labels: { service: project }
+      - targets: ['chat-service:8005']
+        labels: { service: chat }
+      - targets: ['meet-service:8007']
+        labels: { service: meet }

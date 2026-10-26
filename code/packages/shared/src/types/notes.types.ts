@@ -12,6 +12,10 @@ export interface Note {
   editPermission: NoteEditPermission;
   createdAt: string;
   updatedAt: string;
+  /** Server-decided: may the caller change the body? */
+  canEdit?: boolean;
+  /** Server-decided: may the caller rename, share or delete it? */
+  canManage?: boolean;
 }
 
 export interface NoteListItem extends Omit<Note, 'yjsState' | 'contentSnapshot'> {

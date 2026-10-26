@@ -8,7 +8,6 @@ import {
   FolderKanban,
   Home,
   Inbox,
-  LayoutGrid,
   LogOut,
   Menu,
   Moon,
@@ -23,7 +22,9 @@ import { useTheme } from '../Providers/ThemeProvider';
 import { useAuthStore } from '../../stores/auth.store';
 import { useNavigationStore } from '../../stores/navigationStore';
 import { useInboxStore } from '../../stores/inbox.store';
+import { useProjectStore } from '../../stores/project.store';
 import { authClient } from '../../lib/auth-client';
+import { projectHref } from '../../lib/routes';
 import { Avatar } from '../ui/Avatar';
 import { VeroLogo } from '../ui/VeroLogo';
 import { springSoft } from '../../lib/motion';
@@ -37,14 +38,16 @@ interface NavEntry {
   badge?: 'inbox';
 }
 
+// What is yours, across every project. Project work lives under Projects.
 const PRIMARY_NAV: NavEntry[] = [
   { to: '/dashboard', icon: Home, label: 'Home' },
   { to: '/inbox', icon: Inbox, label: 'Inbox', badge: 'inbox' },
+  { to: '/work', icon: CheckSquare, label: 'My work' },
   { to: '/calendar', icon: CalendarDays, label: 'Calendar' },
-  { to: '/tasks', icon: CheckSquare, label: 'Tasks' },
-  { to: '/progress', icon: LayoutGrid, label: 'Progress' },
-  { to: '/projects', icon: FolderKanban, label: 'Projects' },
 ];
+
+/** How many projects the sidebar lists before "All projects" takes over. */
+const SIDEBAR_PROJECTS = 6;
 
 const SECONDARY_NAV: NavEntry[] = [
   { to: '/profile', icon: UserRound, label: 'Profile' },
@@ -56,11 +59,13 @@ const NavItem: React.FC<{
   collapsed: boolean;
   badgeCount?: number;
   onClick?: () => void;
-}> = ({ entry, collapsed, badgeCount = 0, onClick }) => {
+  /** Only highlight on this exact path, not the pages beneath it. */
+  end?: boolean;
+}> = ({ entry, collapsed, badgeCount = 0, onClick, end }) => {
   const { icon: Icon, label, to } = entry;
 
   return (
-    <NavLink to={to} onClick={onClick} title={collapsed ? label : undefined} className="block">
+    <NavLink to={to} end={end} onClick={onClick} title={collapsed ? label : undefined} className="block">
       {({ isActive }) => (
         <div
           className={cn(
@@ -108,6 +113,36 @@ const NavItem: React.FC<{
   );
 };
 
+/** One project in the sidebar; it stays highlighted on any page inside it. */
+const ProjectItem: React.FC<{
+  id: string;
+  name: string;
+  collapsed: boolean;
+  active: boolean;
+  onClick?: () => void;
+}> = ({ id, name, collapsed, active, onClick }) => (
+  <NavLink to={projectHref(id)} onClick={onClick} title={collapsed ? name : undefined} className="block">
+    <div
+      className={cn(
+        'relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-150',
+        collapsed && 'justify-center px-0',
+        active ? 'text-foreground bg-muted' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+      )}
+    >
+      <span
+        className={cn(
+          'w-[18px] h-[18px] rounded-md grid place-items-center shrink-0 text-[0.625rem] font-semibold uppercase',
+          active ? 'bg-accent text-accent-foreground' : 'bg-secondary text-muted-foreground'
+        )}
+        aria-hidden
+      >
+        {name.trim().charAt(0) || '?'}
+      </span>
+      {!collapsed && <span className="truncate flex-1">{name}</span>}
+    </div>
+  </NavLink>
+);
+
 function useSidebarData() {
   const user = useAuthStore((state) => state.user);
   const clearAuth = useAuthStore((state) => state.clearAuth);
@@ -116,10 +151,14 @@ function useSidebarData() {
   const incomingRequests = useInboxStore((state) => state.connections.incoming.length);
   const unreadMessages = useInboxStore((state) => state.totalUnread());
   const loadConnections = useInboxStore((state) => state.loadConnections);
+  const fetchProjects = useProjectStore((state) => state.fetchProjects);
 
   useEffect(() => {
-    if (user?.id) loadConnections();
-  }, [user?.id, loadConnections]);
+    if (user?.id) {
+      loadConnections();
+      fetchProjects();
+    }
+  }, [user?.id, loadConnections, fetchProjects]);
 
   const handleLogout = async () => {
     try {
@@ -143,15 +182,18 @@ const SidebarBody: React.FC<{
 }> = ({ collapsed, inboxBadge, user, onLogout, onNavigate }) => {
   const { theme, toggleTheme } = useTheme();
   const navigate = useNavigate();
+  const location = useLocation();
+  const projects = useProjectStore((state) => state.projects);
+  const activeProjectId = location.pathname.match(/^\/project\/([^/]+)/)?.[1];
+
+  // The open project always shows, even when it is not among the first few.
+  const listed = projects.slice(0, SIDEBAR_PROJECTS);
+  const openProject = projects.find((p) => p.id === activeProjectId);
+  if (openProject && !listed.includes(openProject)) listed.push(openProject);
 
   return (
     <>
       <nav className="flex-1 overflow-y-auto no-scrollbar px-3 py-4 flex flex-col gap-1">
-        {!collapsed && (
-          <p className="px-3 pb-2 text-2xs font-semibold uppercase tracking-widest text-subtle-foreground">
-            Workspace
-          </p>
-        )}
         {PRIMARY_NAV.map((entry) => (
           <NavItem
             key={entry.to}
@@ -164,11 +206,34 @@ const SidebarBody: React.FC<{
 
         <div className="my-3 h-px bg-border mx-1" />
 
-        {!collapsed && (
-          <p className="px-3 pb-2 text-2xs font-semibold uppercase tracking-widest text-subtle-foreground">
-            Account
-          </p>
+        <NavItem
+          entry={{ to: '/projects', icon: FolderKanban, label: 'Projects' }}
+          collapsed={collapsed}
+          onClick={onNavigate}
+          end
+        />
+        {listed.map((project) => (
+          <ProjectItem
+            key={project.id}
+            id={project.id}
+            name={project.name}
+            collapsed={collapsed}
+            active={project.id === activeProjectId}
+            onClick={onNavigate}
+          />
+        ))}
+        {!collapsed && projects.length > listed.length && (
+          <NavLink
+            to="/projects"
+            onClick={onNavigate}
+            className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+          >
+            {projects.length - listed.length} more
+          </NavLink>
         )}
+
+        <div className="my-3 h-px bg-border mx-1" />
+
         {SECONDARY_NAV.map((entry) => (
           <NavItem key={entry.to} entry={entry} collapsed={collapsed} onClick={onNavigate} />
         ))}

@@ -5,6 +5,7 @@ import { SocketEvents } from '../types.js';
 import { registerMessageHandlers } from './message.handler.js';
 import { registerTypingHandlers } from './typing.handler.js';
 import { registerReceiptHandlers } from './receipt.handler.js';
+import { channelService } from '../../services/channel.service.js';
 import { socketConnectionsTotal } from '../../monitoring/metrics.js';
 
 export const handleConnection = async (io: Server, socket: AuthSocket) => {
@@ -33,8 +34,14 @@ export const handleConnection = async (io: Server, socket: AuthSocket) => {
     socket.broadcast.emit('user_presence', { userId, status: 'offline' });
   });
 
-  socket.on(SocketEvents.JOIN_ROOM, (channelId: string) => {
+  socket.on(SocketEvents.JOIN_ROOM, async (channelId: string) => {
     console.log(`🏠 [WS:Room] User ${userId} attempting to join room: ${channelId}`);
+    // A room is a live feed of the channel, so it carries the same membership
+    // rule as reading its history.
+    if (typeof channelId !== 'string' || !(await channelService.isMember(channelId, userId))) {
+      socket.emit(SocketEvents.ERROR, { message: 'Not a member of this channel' });
+      return;
+    }
     socket.join(channelId);
     console.log(`✅ [WS:Room] User ${userId} joined room: ${channelId}`);
   });

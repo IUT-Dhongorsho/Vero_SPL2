@@ -1,0 +1,43 @@
+{
+  "title": "Vero overview",
+  "uid": "vero-overview",
+  "schemaVersion": 39,
+  "time": { "from": "now-1h", "to": "now" },
+  "refresh": "30s",
+  "panels": [
+    {
+      "type": "stat", "title": "Services up", "gridPos": { "x": 0, "y": 0, "w": 6, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum(up{job=\"vero\"})", "legendFormat": "up" }]
+    },
+    {
+      "type": "timeseries", "title": "Requests per second", "gridPos": { "x": 6, "y": 0, "w": 18, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (app) (rate(http_request_duration_seconds_count[5m]))", "legendFormat": "{{app}}" }]
+    },
+    {
+      "type": "timeseries", "title": "p95 latency (seconds)", "gridPos": { "x": 0, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "histogram_quantile(0.95, sum by (app, le) (rate(http_request_duration_seconds_bucket[5m])))", "legendFormat": "{{app}}" }]
+    },
+    {
+      "type": "timeseries", "title": "Server errors (5xx) per second", "gridPos": { "x": 12, "y": 8, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "expr": "sum by (app) (rate(http_request_duration_seconds_count{code=~\"5..\"}[5m]))", "legendFormat": "{{app}}" }]
+    },
+    {
+      "type": "timeseries", "title": "Chat", "gridPos": { "x": 0, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "expr": "rate(socket_connections_total[5m])", "legendFormat": "socket connections / s" },
+        { "expr": "rate(messages_sent_total[5m])", "legendFormat": "messages / s" }
+      ]
+    },
+    {
+      "type": "timeseries", "title": "Memory (RSS)", "gridPos": { "x": 12, "y": 16, "w": 12, "h": 8 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "unit": "bytes",
+      "targets": [{ "expr": "process_resident_memory_bytes{job=\"vero\"}", "legendFormat": "{{service}}" }]
+    }
+  ]
+}

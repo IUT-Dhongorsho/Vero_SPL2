@@ -5,3 +5,10 @@ node_modules
 apps/ui/node_modules
 services/*/node_modules
 packages/*/node_modules
+**/node_modules
+**/dist
+**/.env
+**/uploads
+**/._*
+.dev-logs
+apps/desktop/release

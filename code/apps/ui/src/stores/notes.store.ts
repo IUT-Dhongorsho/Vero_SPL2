@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { notesService } from '../services/notesService';
+import { htmlToText } from '../utils/html';
 import type { Note, NoteListItem, CreateNoteDTO, UpdateNoteMetaDTO } from '../../../../packages/shared/src/types/notes.types';
 
 interface NotesState {
@@ -48,7 +49,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     const note = await notesService.create(dto);
     const noteListItem: NoteListItem = {
       ...note,
-      previewText: note.contentSnapshot?.substring(0, 150) || ''
+      previewText: htmlToText(note.contentSnapshot ?? '').slice(0, 160)
     };
     set((s) => ({ notes: [noteListItem, ...s.notes], activeNote: note }));
     return note;
@@ -65,7 +66,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   updateNoteContent: async (id, content) => {
     const updated = await notesService.updateContent(id, content);
     set((s) => ({
-      notes: s.notes.map(n => n.id === id ? { ...n, previewText: content.substring(0, 150) } : n),
+      notes: s.notes.map(n => n.id === id ? { ...n, previewText: htmlToText(content).slice(0, 160), updatedAt: updated.updatedAt } : n),
       activeNote: s.activeNote?.id === id ? { ...s.activeNote, contentSnapshot: content } : s.activeNote,
     }));
   },
@@ -79,15 +80,18 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   duplicateNote: async (note) => {
-    const dup = await notesService.create({
+    // The list item has no body; fetch it so the copy is a real copy.
+    const source = await notesService.getById(note.id);
+    let dup = await notesService.create({
       moduleId: note.moduleId,
-      title: `${note.title} (Copy)`,
-      visibility: note.visibility,
+      title: `${note.title} (copy)`,
+      visibility: 'private',
       editPermission: note.editPermission,
     });
+    if (source.contentSnapshot) dup = await notesService.updateContent(dup.id, source.contentSnapshot);
     const dupListItem: NoteListItem = {
       ...dup,
-      previewText: dup.contentSnapshot?.substring(0, 150) || ''
+      previewText: htmlToText(dup.contentSnapshot ?? '').slice(0, 160)
     };
     set((s) => ({ notes: [dupListItem, ...s.notes] }));
     return dup;

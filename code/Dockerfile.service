@@ -1,32 +1,33 @@
-# Build Stage
+# One image recipe for every Node service and ai-worker.
+#
+#   docker build -f Dockerfile.service \
+#     --build-arg SERVICE_NAME=notes-service \
+#     --build-arg SERVICE_PATH=services/notes-service .
+#
+# Built from the monorepo root so workspace packages (@repo/shared) resolve.
+
 FROM node:22-alpine AS builder
-
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
+RUN corepack enable && corepack prepare pnpm@8.15.0 --activate
 WORKDIR /app
 
-# Copy the entire monorepo
-COPY . .
-
-# Install workspace dependencies
-RUN pnpm install --frozen-lockfile --ignore-scripts
-
-# Build the specific service
 ARG SERVICE_NAME
-RUN pnpm --filter ${SERVICE_NAME} run build
+ARG SERVICE_PATH
 
-# Deploy the service and its dependencies to /out
-RUN pnpm --filter ${SERVICE_NAME} --prod deploy /out
+COPY . .
+# Only this service and the workspace packages it depends on.
+RUN pnpm install --frozen-lockfile --filter "${SERVICE_NAME}..."
+RUN pnpm --filter "${SERVICE_NAME}..." run build
+# tsc does not copy the SQL migrations next to the compiled migrator.
+RUN if [ -d "${SERVICE_PATH}/src/db/migrations" ]; then \
+      mkdir -p "${SERVICE_PATH}/dist/db" && cp -R "${SERVICE_PATH}/src/db/migrations" "${SERVICE_PATH}/dist/db/"; \
+    fi
 
-# Production Stage
 FROM node:22-alpine AS runner
-
-RUN corepack enable && corepack prepare pnpm@latest --activate
-
+ENV NODE_ENV=production
+ARG SERVICE_PATH
 WORKDIR /app
+COPY --from=builder /app /app
+WORKDIR /app/${SERVICE_PATH}
 
-# Copy the isolated service from the deploy command
-COPY --from=builder /out ./
-
-# Use pnpm to run the start script
-CMD ["pnpm", "run", "start"]
+# Bring the schema up to date, then start the service.
+CMD ["sh", "-c", "if [ -f dist/db/migrate.js ]; then node dist/db/migrate.js; fi && exec npm start --silent"]

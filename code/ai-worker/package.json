@@ -1,0 +1,26 @@
+{
+  "name": "ai-worker",
+  "version": "1.0.0",
+  "description": "Background AI jobs (note summaries and action items) on a BullMQ queue",
+  "main": "dist/worker.js",
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch src/worker.ts",
+    "build": "tsc",
+    "start": "node dist/worker.js",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@repo/shared": "workspace:*",
+    "bullmq": "^5.21.2",
+    "dotenv": "^16.4.5",
+    "ioredis": "^5.4.1",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.9.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}
