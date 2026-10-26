@@ -218,10 +218,10 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
     <motion.div
       layout
       onDoubleClick={onToggleSpotlight}
-      className={`group relative bg-gradient-to-br from-gray-800 to-gray-900 rounded-2xl flex items-center justify-center overflow-hidden border transition-all duration-300 select-none cursor-pointer ${
+      className={`group relative bg-card/90 dark:bg-card border rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-300 select-none cursor-pointer ${
         isSpeaking
           ? 'ring-2 ring-emerald-500 border-emerald-500/80 shadow-[0_0_25px_rgba(16,185,129,0.35)]'
-          : 'border-white/10 hover:border-white/20'
+          : 'border-border hover:border-border-strong'
       } ${className}`}
     >
       {/* Video or Avatar */}
@@ -232,12 +232,12 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
           <div
             className={`${
               isCompact ? 'w-10 h-10 text-base' : isSpotlight ? 'w-24 h-24 text-3xl' : 'w-16 h-16 text-xl'
-            } rounded-full bg-indigo-600 flex items-center justify-center text-white font-bold shadow-lg ring-4 ring-white/5`}
+            } rounded-full bg-accent text-accent-foreground flex items-center justify-center font-bold shadow-md ring-4 ring-border`}
           >
             {avatar}
           </div>
           {!isCompact && (
-            <span className="text-white/80 text-xs md:text-sm font-medium">{name}</span>
+            <span className="text-foreground text-xs md:text-sm font-medium">{name}</span>
           )}
         </div>
       )}
@@ -245,22 +245,22 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
       {/* Top Left: Individual Volume Control (remote participants only) */}
       {!isLocal && onVolumeChange && (
         <div
-          className={`absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-white/10 transition-opacity ${
+          className={`absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-background/80 dark:bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-border transition-opacity ${
             showVolumeSlider ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
           <button
             onClick={() => onVolumeChange(volume === 0 ? 100 : 0)}
-            className="text-white/80 hover:text-white transition-colors"
+            className="text-foreground/80 hover:text-foreground transition-colors"
             title={volume === 0 ? 'Unmute locally' : 'Mute locally'}
           >
             {volume === 0 ? (
-              <VolumeX className="w-3.5 h-3.5 text-red-400" />
+              <VolumeX className="w-3.5 h-3.5 text-destructive" />
             ) : volume < 50 ? (
-              <Volume1 className="w-3.5 h-3.5 text-white/80" />
+              <Volume1 className="w-3.5 h-3.5 text-foreground/80" />
             ) : (
-              <Volume2 className="w-3.5 h-3.5 text-white/80" />
+              <Volume2 className="w-3.5 h-3.5 text-foreground/80" />
             )}
           </button>
           <input
@@ -269,11 +269,11 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
             max="100"
             value={volume}
             onChange={(e) => onVolumeChange(Number(e.target.value))}
-            className="w-16 h-1 bg-white/20 accent-indigo-500 rounded-lg cursor-pointer"
+            className="w-16 h-1 bg-border accent-accent rounded-lg cursor-pointer"
             onMouseEnter={() => setShowVolumeSlider(true)}
             onMouseLeave={() => setShowVolumeSlider(false)}
           />
-          <span className="text-[10px] text-white/60 font-mono w-6 text-right">{volume}%</span>
+          <span className="text-[10px] text-muted-foreground font-mono w-6 text-right">{volume}%</span>
         </div>
       )}
 
@@ -286,7 +286,7 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
               onToggleSpotlight();
             }}
             title={isSpotlight ? 'Exit Spotlight' : 'Spotlight card (double-click)'}
-            className="bg-black/60 hover:bg-black/80 backdrop-blur-md p-1.5 rounded-full border border-white/15 text-white/80 hover:text-white transition-all shadow-md"
+            className="bg-background/80 hover:bg-background dark:bg-black/60 dark:hover:bg-black/80 backdrop-blur-md p-1.5 rounded-full border border-border text-foreground/80 hover:text-foreground transition-all shadow-md"
           >
             {isSpotlight ? (
               <Minimize2 className="w-3.5 h-3.5" />
@@ -298,17 +298,17 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
       )}
 
       {/* Bottom Left: Name Badge & Speaking Waveform */}
-      <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5 bg-black/65 backdrop-blur-md px-2.5 py-1 rounded-lg border border-white/10 max-w-[85%]">
+      <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5 bg-background/85 dark:bg-black/65 backdrop-blur-md px-2.5 py-1 rounded-lg border border-border max-w-[85%] shadow-sm">
         {isMuted ? (
-          <MicOff className="w-3.5 h-3.5 text-red-400 shrink-0" />
+          <MicOff className="w-3.5 h-3.5 text-destructive shrink-0" />
         ) : isSpeaking ? (
           <div className="flex items-center gap-0.5 px-0.5">
-            <span className="w-1 h-2.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:0ms]" />
-            <span className="w-1 h-3.5 bg-emerald-400 rounded-full animate-bounce [animation-delay:150ms]" />
-            <span className="w-1 h-2 bg-emerald-400 rounded-full animate-bounce [animation-delay:300ms]" />
+            <span className="w-1 h-2.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:0ms]" />
+            <span className="w-1 h-3.5 bg-emerald-500 rounded-full animate-bounce [animation-delay:150ms]" />
+            <span className="w-1 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:300ms]" />
           </div>
         ) : null}
-        <span className="text-white text-xs font-medium truncate">
+        <span className="text-foreground text-xs font-medium truncate">
           {name}{isLocal ? ' (You)' : ''}
         </span>
       </div>
@@ -349,26 +349,26 @@ const PreJoinScreen: React.FC<{ onJoin: () => void; onCancel: () => void }> = ({
   }, []);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-gray-950 p-4">
-      <div className="w-full max-w-md bg-gray-900/80 backdrop-blur-xl border border-white/10 rounded-2xl p-6 shadow-2xl">
-        <h2 className="text-xl font-bold text-white mb-1">Ready to join?</h2>
-        <p className="text-white/50 text-sm mb-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm p-4">
+      <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl text-foreground">
+        <h2 className="text-xl font-bold text-foreground mb-1">Ready to join?</h2>
+        <p className="text-muted-foreground text-sm mb-6">
           Check your camera and microphone before entering the meeting.
         </p>
 
         {/* Video preview */}
-        <div className="relative aspect-video rounded-xl overflow-hidden bg-gray-800 mb-6">
+        <div className="relative aspect-video rounded-xl overflow-hidden bg-muted border border-border mb-6">
           {status === 'checking' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-              <Loader2 className="w-8 h-8 text-indigo-400 animate-spin" />
-              <span className="text-white/60 text-sm">Requesting camera access…</span>
+              <Loader2 className="w-8 h-8 text-accent animate-spin" />
+              <span className="text-muted-foreground text-sm">Requesting camera access…</span>
             </div>
           )}
           {status === 'denied' && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center">
-              <AlertTriangle className="w-8 h-8 text-yellow-400" />
-              <p className="text-white/80 text-sm font-medium">Camera/Microphone access was denied.</p>
-              <p className="text-white/50 text-xs">
+              <AlertTriangle className="w-8 h-8 text-amber-500" />
+              <p className="text-foreground text-sm font-medium">Camera/Microphone access was denied.</p>
+              <p className="text-muted-foreground text-xs">
                 You can still join without media. Enable permissions in your browser settings to use your camera and mic.
               </p>
             </div>
@@ -382,16 +382,16 @@ const PreJoinScreen: React.FC<{ onJoin: () => void; onCancel: () => void }> = ({
                 muted
                 className="w-full h-full object-cover scale-x-[-1]"
               />
-              <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-black/60 px-2 py-1 rounded-full">
-                <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
-                <span className="text-xs text-white">Camera ready</span>
+              <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-background/80 dark:bg-black/60 px-2.5 py-1 rounded-full border border-border text-foreground">
+                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+                <span className="text-xs font-medium">Camera ready</span>
               </div>
             </>
           )}
           {/* Avatar fallback overlay when no video */}
           {status !== 'ready' && (
             <div className="absolute inset-0 flex items-center justify-center">
-              <div className="w-16 h-16 rounded-full bg-indigo-600 flex items-center justify-center text-white text-2xl font-bold">
+              <div className="w-16 h-16 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-2xl font-bold shadow-md">
                 {user?.name?.charAt(0).toUpperCase() || 'U'}
               </div>
             </div>
@@ -401,13 +401,13 @@ const PreJoinScreen: React.FC<{ onJoin: () => void; onCancel: () => void }> = ({
         <div className="flex gap-3">
           <button
             onClick={onCancel}
-            className="flex-1 py-3 rounded-xl border border-white/10 text-white/70 hover:text-white hover:bg-white/5 text-sm font-medium transition-all"
+            className="flex-1 py-2.5 rounded-xl border border-border text-foreground/80 hover:text-foreground hover:bg-muted text-sm font-medium transition-all"
           >
             Cancel
           </button>
           <button
             onClick={onJoin}
-            className="flex-1 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-bold transition-all shadow-[0_0_20px_rgba(99,102,241,0.4)]"
+            className="flex-1 py-2.5 rounded-xl bg-accent hover:opacity-90 text-accent-foreground text-sm font-bold transition-all shadow-md"
           >
             Join Meeting
           </button>
@@ -867,7 +867,7 @@ export const MeetPage: React.FC = () => {
   // IN-CALL VIEW
   // ═══════════════════════════════════════════════════════════════
   return (
-    <div className="fixed inset-0 bg-gray-950 flex flex-col overflow-hidden select-none">
+    <div className="fixed inset-0 bg-background text-foreground flex flex-col overflow-hidden select-none">
       {/* Invisible audio sinks for remote peers with dynamic per-participant volume */}
       {remotePeersWithAudio.map((p) => (
         <RemoteAudio key={p.id} track={p.audioTrack!} volume={getVolume(p.id) / 100} />
@@ -881,7 +881,7 @@ export const MeetPage: React.FC = () => {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
             onClick={unlockAudio}
-            className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-indigo-600 hover:bg-indigo-500 text-white px-4 py-2 rounded-full shadow-lg cursor-pointer flex items-center gap-2 text-sm font-medium animate-bounce"
+            className="fixed top-16 left-1/2 -translate-x-1/2 z-50 bg-accent hover:opacity-90 text-accent-foreground px-4 py-2 rounded-full shadow-lg cursor-pointer flex items-center gap-2 text-sm font-medium animate-bounce"
           >
             <Mic className="w-4 h-4" />
             <span>Tap anywhere to enable meeting audio</span>
@@ -890,14 +890,14 @@ export const MeetPage: React.FC = () => {
       </AnimatePresence>
 
       {/* ── Top Bar ─────────────────────────────────────────── */}
-      <div className="flex items-center justify-between px-4 py-3 bg-gray-900/80 backdrop-blur-md border-b border-white/5 shrink-0 z-20">
+      <div className="flex items-center justify-between px-4 py-3 bg-card/80 backdrop-blur-md border-b border-border shrink-0 z-20">
         <div className="flex items-center gap-3">
-          <div className="w-2.5 h-2.5 bg-emerald-400 rounded-full animate-pulse shadow-[0_0_8px_rgba(52,211,153,0.6)]" />
-          <span className="text-white font-semibold text-sm">
+          <div className="w-2.5 h-2.5 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
+          <span className="text-foreground font-semibold text-sm">
             Meeting · {participantList.length} participant{participantList.length !== 1 ? 's' : ''}
           </span>
           {spotlightId && (
-            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-indigo-500/20 text-indigo-300 border border-indigo-500/30">
+            <span className="hidden sm:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-medium bg-accent-soft text-accent border border-accent/20">
               <Pin className="w-3 h-3 rotate-45" />
               Spotlight Active
             </span>
@@ -906,16 +906,16 @@ export const MeetPage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           {isRecording && (
-            <div className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/30 px-3 py-1 rounded-full">
-              <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
-              <span className="text-red-400 text-xs font-mono">{formatTime(recordingTime)}</span>
+            <div className="flex items-center gap-1.5 bg-destructive/15 border border-destructive/30 px-3 py-1 rounded-full">
+              <div className="w-1.5 h-1.5 bg-destructive rounded-full animate-pulse" />
+              <span className="text-destructive text-xs font-mono">{formatTime(recordingTime)}</span>
             </div>
           )}
 
           {isTranscribing && (
-            <div className="flex items-center gap-2 bg-indigo-500/20 border border-indigo-500/30 px-3 py-1 rounded-full">
-              <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
-              <span className="text-indigo-200 text-xs font-medium">
+            <div className="flex items-center gap-2 bg-accent-soft border border-accent/30 px-3 py-1 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
+              <span className="text-accent text-xs font-medium">
                 {isCapturer ? 'Transcribing to Notes' : `Transcribing (${capturerName || 'Attendee'})`}
               </span>
               {meetingNoteId && (
@@ -923,7 +923,7 @@ export const MeetPage: React.FC = () => {
                   href={`/project/${projectId}/module/${moduleId}/notes`}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-xs text-indigo-300 hover:text-white underline ml-1"
+                  className="text-xs text-accent hover:underline ml-1 font-semibold"
                 >
                   View Note
                 </a>
@@ -936,8 +936,8 @@ export const MeetPage: React.FC = () => {
             onClick={() => setShowSidebar((v) => !v)}
             className={`hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-xs font-medium transition-all ${
               showSidebar
-                ? 'bg-indigo-600 border-indigo-500 text-white shadow-md'
-                : 'bg-white/5 border-white/10 text-white/70 hover:text-white hover:bg-white/10'
+                ? 'bg-accent border-accent text-accent-foreground shadow-sm'
+                : 'bg-secondary border-border text-secondary-foreground hover:bg-muted'
             }`}
           >
             <Users className="w-3.5 h-3.5" />
@@ -952,7 +952,7 @@ export const MeetPage: React.FC = () => {
         <div className="flex md:hidden flex-1 flex-col overflow-y-auto p-3 pb-24 w-full">
           {/* Screen share banner on mobile if local sharing */}
           {isScreenSharing && localScreenTrack && (
-            <div className="mb-3 relative rounded-xl overflow-hidden bg-gray-900 aspect-video shrink-0 border border-white/10">
+            <div className="mb-3 relative rounded-xl overflow-hidden bg-card aspect-video shrink-0 border border-border">
               <VideoRenderer track={localScreenTrack} isLocal />
               <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
                 Sharing Screen
@@ -982,7 +982,7 @@ export const MeetPage: React.FC = () => {
                 />
                 <button
                   onClick={() => setSpotlightId(null)}
-                  className="absolute top-2 right-2 z-30 bg-black/70 hover:bg-black/90 text-white text-xs px-2.5 py-1 rounded-full border border-white/20 flex items-center gap-1 backdrop-blur-md"
+                  className="absolute top-2 right-2 z-30 bg-card/90 dark:bg-black/70 hover:bg-card dark:hover:bg-black/90 text-foreground dark:text-white text-xs px-2.5 py-1 rounded-full border border-border flex items-center gap-1 backdrop-blur-md shadow-md"
                 >
                   <Minimize2 className="w-3.5 h-3.5" />
                   <span>Exit</span>
@@ -991,7 +991,7 @@ export const MeetPage: React.FC = () => {
 
               {otherParticipants.length > 0 && (
                 <div className="flex flex-col gap-3 pt-2">
-                  <div className="text-xs font-semibold text-white/50 uppercase tracking-wider px-1">
+                  <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
                     Other Attendees ({otherParticipants.length})
                   </div>
                   {otherParticipants.map((p) => (
@@ -1066,7 +1066,7 @@ export const MeetPage: React.FC = () => {
                 {/* Exit Spotlight Floating Button */}
                 <button
                   onClick={() => setSpotlightId(null)}
-                  className="absolute top-7 right-7 z-30 bg-black/70 hover:bg-black/90 text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-white/20 flex items-center gap-1.5 backdrop-blur-md transition-all shadow-lg hover:scale-105"
+                  className="absolute top-7 right-7 z-30 bg-card/90 dark:bg-black/70 hover:bg-card dark:hover:bg-black/90 text-foreground dark:text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-border flex items-center gap-1.5 backdrop-blur-md transition-all shadow-lg hover:scale-105"
                 >
                   <Minimize2 className="w-4 h-4" />
                   <span>Exit Spotlight (Esc)</span>
@@ -1074,8 +1074,8 @@ export const MeetPage: React.FC = () => {
               </div>
 
               {/* Right Collapsed Single Column */}
-              <div className="w-72 lg:w-80 flex flex-col gap-3 overflow-y-auto p-4 shrink-0 border-l border-white/5 bg-gray-900/40">
-                <div className="text-xs font-semibold text-white/50 uppercase tracking-wider px-1">
+              <div className="w-72 lg:w-80 flex flex-col gap-3 overflow-y-auto p-4 shrink-0 border-l border-border bg-card/40">
+                <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-1">
                   Attendees ({otherParticipants.length})
                 </div>
                 {otherParticipants.map((p) => (
@@ -1094,7 +1094,7 @@ export const MeetPage: React.FC = () => {
                     onVolumeChange={p.isLocal ? undefined : (vol) => setVolume(p.id, vol)}
                     onToggleSpotlight={() => setSpotlightId(p.id)}
                     onSpeakingChange={handleSpeakingChange}
-                    className="w-full aspect-video shrink-0 hover:ring-2 hover:ring-indigo-400"
+                    className="w-full aspect-video shrink-0 hover:ring-2 hover:ring-accent"
                   />
                 ))}
               </div>
@@ -1104,9 +1104,9 @@ export const MeetPage: React.FC = () => {
             <div className="flex-1 h-full min-h-0 relative flex flex-col justify-center items-center overflow-hidden p-4">
               {/* Screen share banner if active */}
               {isScreenSharing && localScreenTrack && (
-                <div className="mb-3 relative rounded-xl overflow-hidden bg-gray-900 max-w-xl w-full aspect-video shrink-0 border border-white/10">
+                <div className="mb-3 relative rounded-xl overflow-hidden bg-card max-w-xl w-full aspect-video shrink-0 border border-border">
                   <VideoRenderer track={localScreenTrack} isLocal />
-                  <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded-full font-medium">
+                  <div className="absolute top-2 left-2 bg-destructive text-destructive-foreground text-xs px-2 py-0.5 rounded-full font-medium">
                     You are sharing your screen
                   </div>
                 </div>
@@ -1116,7 +1116,7 @@ export const MeetPage: React.FC = () => {
               {totalPages > 1 && currentPage > 0 && (
                 <button
                   onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
-                  className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-black/60 hover:bg-black/90 border border-white/20 text-white shadow-xl backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+                  className="absolute left-4 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-card/90 hover:bg-card border border-border text-foreground shadow-xl backdrop-blur-md transition-all hover:scale-110 active:scale-95"
                   title="Previous page (Left arrow)"
                 >
                   <ChevronLeft className="w-6 h-6" />
@@ -1127,7 +1127,7 @@ export const MeetPage: React.FC = () => {
               {totalPages > 1 && currentPage < totalPages - 1 && (
                 <button
                   onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-black/60 hover:bg-black/90 border border-white/20 text-white shadow-xl backdrop-blur-md transition-all hover:scale-110 active:scale-95"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 z-30 p-3 rounded-full bg-card/90 hover:bg-card border border-border text-foreground shadow-xl backdrop-blur-md transition-all hover:scale-110 active:scale-95"
                   title="Next page (Right arrow)"
                 >
                   <ChevronRight className="w-6 h-6" />
@@ -1183,7 +1183,7 @@ export const MeetPage: React.FC = () => {
 
               {/* Pagination Dots & Page Indicator */}
               {totalPages > 1 && (
-                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-white/10 text-xs text-white/70 shadow-lg">
+                <div className="absolute bottom-2 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2.5 bg-card/90 dark:bg-black/60 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-border dark:border-white/10 text-xs text-foreground/80 dark:text-white/70 shadow-lg">
                   <span className="font-mono text-[11px]">
                     Page {currentPage + 1} of {totalPages}
                   </span>
@@ -1193,7 +1193,7 @@ export const MeetPage: React.FC = () => {
                         key={idx}
                         onClick={() => setCurrentPage(idx)}
                         className={`h-2 rounded-full transition-all ${
-                          idx === currentPage ? 'w-5 bg-indigo-500' : 'w-2 bg-white/30 hover:bg-white/60'
+                          idx === currentPage ? 'w-5 bg-accent' : 'w-2 bg-border dark:bg-white/30 hover:bg-muted-foreground/60'
                         }`}
                         title={`Go to page ${idx + 1}`}
                       />
@@ -1213,18 +1213,18 @@ export const MeetPage: React.FC = () => {
               animate={{ width: 320, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="hidden md:flex flex-col bg-gray-900/80 backdrop-blur-md border-l border-white/10 shrink-0 overflow-hidden z-30"
+              className="hidden md:flex flex-col bg-card/95 backdrop-blur-md border-l border-border shrink-0 overflow-hidden z-30 text-foreground"
             >
               {/* Sidebar Header & Tabs */}
-              <div className="flex items-center border-b border-white/5 shrink-0 px-2">
+              <div className="flex items-center border-b border-border shrink-0 px-2">
                 {(['participants', 'chat'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActivePanel(tab)}
                     className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${
                       activePanel === tab
-                        ? 'text-white border-b-2 border-indigo-500'
-                        : 'text-white/40 hover:text-white/70'
+                        ? 'text-foreground border-b-2 border-accent'
+                        : 'text-muted-foreground hover:text-foreground'
                     }`}
                   >
                     {tab === 'participants' ? (
@@ -1242,7 +1242,7 @@ export const MeetPage: React.FC = () => {
                 ))}
                 <button
                   onClick={() => setShowSidebar(false)}
-                  className="p-1.5 text-white/40 hover:text-white rounded-lg hover:bg-white/5 transition-colors ml-1"
+                  className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted transition-colors ml-1"
                   title="Close sidebar"
                 >
                   <X className="w-4 h-4" />
@@ -1256,34 +1256,34 @@ export const MeetPage: React.FC = () => {
                     {participantList.map((p) => (
                       <div
                         key={p.id}
-                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-white/5 transition-colors border border-transparent hover:border-white/5"
+                        className="flex items-center gap-3 p-2.5 rounded-xl hover:bg-muted/60 transition-colors border border-transparent hover:border-border"
                       >
-                        <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-xs font-bold shrink-0">
+                        <div className="w-9 h-9 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-xs font-bold shrink-0">
                           {p.avatar}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white font-medium truncate">
+                          <p className="text-sm text-foreground font-medium truncate">
                             {p.name}
                             {p.isLocal ? ' (You)' : ''}
                           </p>
                           <div className="flex items-center gap-1.5 mt-0.5">
                             {p.isMuted ? (
-                              <MicOff className="w-3 h-3 text-red-400" />
+                              <MicOff className="w-3 h-3 text-destructive" />
                             ) : p.isSpeaking ? (
-                              <span className="text-[10px] text-emerald-400 font-medium">Speaking</span>
+                              <span className="text-[10px] text-emerald-500 font-medium">Speaking</span>
                             ) : (
-                              <Mic className="w-3 h-3 text-white/40" />
+                              <Mic className="w-3 h-3 text-muted-foreground" />
                             )}
-                            {p.isVideoOff && <VideoOff className="w-3 h-3 text-red-400" />}
+                            {p.isVideoOff && <VideoOff className="w-3 h-3 text-destructive" />}
                           </div>
                         </div>
                         {!p.isLocal && (
                           <button
                             onClick={() => setSpotlightId((curr) => (curr === p.id ? null : p.id))}
-                            className="p-1.5 text-white/40 hover:text-white rounded-lg hover:bg-white/10"
+                            className="p-1.5 text-muted-foreground hover:text-foreground rounded-lg hover:bg-muted"
                             title={spotlightId === p.id ? 'Exit Spotlight' : 'Spotlight user'}
                           >
-                            <Pin className={`w-3.5 h-3.5 ${spotlightId === p.id ? 'text-indigo-400' : ''}`} />
+                            <Pin className={`w-3.5 h-3.5 ${spotlightId === p.id ? 'text-accent' : ''}`} />
                           </button>
                         )}
                       </div>
@@ -1295,7 +1295,7 @@ export const MeetPage: React.FC = () => {
                   <div className="flex flex-col h-full">
                     <div className="flex-1 p-3 space-y-3 overflow-y-auto">
                       {messages.length === 0 && (
-                        <p className="text-white/30 text-sm text-center mt-8">No messages yet.</p>
+                        <p className="text-muted-foreground text-sm text-center mt-8">No messages yet.</p>
                       )}
                       {messages.map((m) => (
                         <div
@@ -1305,12 +1305,12 @@ export const MeetPage: React.FC = () => {
                           <div
                             className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ${
                               m.userId === user?.id
-                                ? 'bg-indigo-600 text-white rounded-tr-none'
-                                : 'bg-white/10 text-white rounded-tl-none border border-white/5'
+                                ? 'bg-accent text-accent-foreground rounded-tr-none'
+                                : 'bg-secondary text-secondary-foreground rounded-tl-none border border-border'
                             }`}
                           >
                             {m.userId !== user?.id && (
-                              <p className="text-[11px] font-semibold mb-0.5 text-indigo-300">
+                              <p className="text-[11px] font-semibold mb-0.5 text-accent">
                                 {m.userName}
                               </p>
                             )}
@@ -1319,17 +1319,17 @@ export const MeetPage: React.FC = () => {
                         </div>
                       ))}
                     </div>
-                    <div className="p-3 border-t border-white/5 flex gap-2 bg-gray-900/60">
+                    <div className="p-3 border-t border-border flex gap-2 bg-card/80">
                       <input
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                         placeholder="Message everyone…"
-                        className="flex-1 bg-white/10 border border-white/10 rounded-xl px-3 py-2 text-sm text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       />
                       <button
                         onClick={sendMessage}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors shadow-md"
+                        className="bg-accent hover:opacity-90 text-accent-foreground px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
                       >
                         Send
                       </button>
@@ -1343,7 +1343,7 @@ export const MeetPage: React.FC = () => {
       </div>
 
       {/* ── Control Bar ─────────────────────────────────────── */}
-      <div className="shrink-0 bg-gray-900/90 backdrop-blur-md border-t border-white/5 px-4 py-3 pb-safe-bottom z-20">
+      <div className="shrink-0 bg-card/95 backdrop-blur-md border-t border-border px-4 py-3 pb-safe-bottom z-20 shadow-lg">
         <div className="flex items-center justify-center gap-2 md:gap-3 max-w-xl mx-auto">
           {/* Mic */}
           <ControlButton
@@ -1432,15 +1432,15 @@ export const MeetPage: React.FC = () => {
                 onClick={stopTranscription}
                 active={true}
                 danger={true}
-                icon={<StopCircle className="w-5 h-5 text-red-400 animate-pulse" />}
+                icon={<StopCircle className="w-5 h-5 text-destructive animate-pulse" />}
                 label="Stop Transcribe"
-                className="bg-red-500/20 border border-red-500/30"
+                className="bg-destructive/15 border border-destructive/30"
               />
             ) : (
               <ControlButton
                 onClick={() => {}}
                 active={false}
-                icon={<FileText className="w-5 h-5 text-amber-400" />}
+                icon={<FileText className="w-5 h-5 text-amber-500" />}
                 label={capturerName ? `Transcribing (${capturerName})` : 'Transcribing...'}
                 className="opacity-60 cursor-not-allowed"
               />
@@ -1449,7 +1449,7 @@ export const MeetPage: React.FC = () => {
             <ControlButton
               onClick={() => startTranscription(moduleId)}
               active={false}
-              icon={<FileText className="w-5 h-5 text-indigo-400" />}
+              icon={<FileText className="w-5 h-5 text-accent" />}
               label="Transcribe"
             />
           )}
@@ -1457,7 +1457,7 @@ export const MeetPage: React.FC = () => {
           {/* Leave */}
           <button
             onClick={endCall}
-            className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl bg-red-600 hover:bg-red-500 text-white transition-all shadow-[0_0_15px_rgba(220,38,38,0.4)]"
+            className="flex flex-col items-center gap-1 px-4 py-2 rounded-xl bg-destructive hover:opacity-90 text-destructive-foreground transition-all shadow-md"
           >
             <PhoneOff className="w-5 h-5" />
             <span className="text-[10px] font-semibold">Leave</span>
@@ -1475,7 +1475,7 @@ export const MeetPage: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setShowPanel(false)}
-              className="md:hidden fixed inset-0 bg-black/60 z-40 backdrop-blur-sm"
+              className="md:hidden fixed inset-0 bg-background/80 z-40 backdrop-blur-sm"
             />
             <motion.div
               key="panel"
@@ -1483,26 +1483,26 @@ export const MeetPage: React.FC = () => {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-gray-900 border-t border-white/10 rounded-t-2xl overflow-hidden shadow-2xl"
+              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border rounded-t-2xl overflow-hidden shadow-2xl text-foreground"
               style={{ maxHeight: '75vh' }}
             >
               <div className="flex justify-center pt-3 pb-2">
-                <div className="w-10 h-1 bg-white/20 rounded-full" />
+                <div className="w-10 h-1 bg-border rounded-full" />
               </div>
 
-              <div className="flex border-b border-white/10 px-4">
+              <div className="flex border-b border-border px-4">
                 {(['participants', 'chat'] as const).map((tab) => (
                   <button
                     key={tab}
                     onClick={() => setActivePanel(tab)}
                     className={`flex-1 py-3 text-sm font-semibold transition-colors capitalize ${
-                      activePanel === tab ? 'text-white border-b-2 border-indigo-500' : 'text-white/40'
+                      activePanel === tab ? 'text-foreground border-b-2 border-accent' : 'text-muted-foreground'
                     }`}
                   >
                     {tab === 'participants' ? `Participants (${participantList.length})` : 'Chat'}
                   </button>
                 ))}
-                <button onClick={() => setShowPanel(false)} className="p-2 text-white/40 hover:text-white">
+                <button onClick={() => setShowPanel(false)} className="p-2 text-muted-foreground hover:text-foreground">
                   <X className="w-5 h-5" />
                 </button>
               </div>
@@ -1511,18 +1511,18 @@ export const MeetPage: React.FC = () => {
                 {activePanel === 'participants' && (
                   <div className="p-4 space-y-2">
                     {participantList.map((p) => (
-                      <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-white/5">
-                        <div className="w-9 h-9 rounded-full bg-indigo-600 flex items-center justify-center text-white text-sm font-bold shrink-0">
+                      <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/60">
+                        <div className="w-9 h-9 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-bold shrink-0">
                           {p.avatar}
                         </div>
                         <div className="flex-1 min-w-0">
-                          <p className="text-sm text-white font-medium truncate">
+                          <p className="text-sm text-foreground font-medium truncate">
                             {p.name}
                             {p.isLocal ? ' (You)' : ''}
                           </p>
                           <div className="flex gap-1 mt-0.5">
-                            {p.isMuted && <MicOff className="w-3 h-3 text-red-400" />}
-                            {p.isVideoOff && <VideoOff className="w-3 h-3 text-red-400" />}
+                            {p.isMuted && <MicOff className="w-3 h-3 text-destructive" />}
+                            {p.isVideoOff && <VideoOff className="w-3 h-3 text-destructive" />}
                           </div>
                         </div>
                       </div>
@@ -1533,7 +1533,7 @@ export const MeetPage: React.FC = () => {
                   <div>
                     <div className="p-4 space-y-3">
                       {messages.length === 0 && (
-                        <p className="text-white/30 text-sm text-center mt-4">No messages yet.</p>
+                        <p className="text-muted-foreground text-sm text-center mt-4">No messages yet.</p>
                       )}
                       {messages.map((m) => (
                         <div
@@ -1542,28 +1542,28 @@ export const MeetPage: React.FC = () => {
                         >
                           <div
                             className={`max-w-[80%] rounded-xl px-3 py-2 ${
-                              m.userId === user?.id ? 'bg-indigo-600 text-white' : 'bg-white/10 text-white'
+                              m.userId === user?.id ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground border border-border'
                             }`}
                           >
                             {m.userId !== user?.id && (
-                              <p className="text-xs font-semibold mb-1 text-indigo-300">{m.userName}</p>
+                              <p className="text-xs font-semibold mb-1 text-accent">{m.userName}</p>
                             )}
                             <p className="text-sm">{m.message}</p>
                           </div>
                         </div>
                       ))}
                     </div>
-                    <div className="sticky bottom-0 p-4 bg-gray-900 border-t border-white/5 flex gap-2">
+                    <div className="sticky bottom-0 p-4 bg-card border-t border-border flex gap-2">
                       <input
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
                         onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
                         placeholder="Message…"
-                        className="flex-1 bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-sm text-white placeholder-white/30 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                        className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
                       />
                       <button
                         onClick={sendMessage}
-                        className="bg-indigo-600 hover:bg-indigo-500 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
+                        className="bg-accent hover:opacity-90 text-accent-foreground px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
                       >
                         Send
                       </button>
@@ -1592,10 +1592,10 @@ const ControlButton: React.FC<{
     onClick={onClick}
     className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all ${
       danger
-        ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+        ? 'bg-destructive/15 text-destructive hover:bg-destructive/25 border border-destructive/20'
         : active
-        ? 'bg-white/10 text-white hover:bg-white/20'
-        : 'bg-white/5 text-white/60 hover:bg-white/10 hover:text-white'
+        ? 'bg-accent/15 text-accent border border-accent/30 hover:bg-accent/25'
+        : 'bg-secondary/70 hover:bg-secondary text-muted-foreground hover:text-foreground border border-border/50'
     } ${className}`}
   >
     {icon}

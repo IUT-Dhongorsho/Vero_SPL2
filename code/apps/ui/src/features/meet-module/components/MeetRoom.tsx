@@ -73,8 +73,8 @@ export const MeetRoom: React.FC<MeetRoomProps> = ({ moduleId }) => {
 
   if (permissionError) {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 text-white p-8">
-        <div className="bg-red-500/10 border border-red-500/20 text-red-400 p-4 rounded-xl text-center max-w-md">
+      <div className="w-full h-full flex flex-col items-center justify-center bg-background text-foreground p-8">
+        <div className="bg-destructive/10 border border-destructive/20 text-destructive p-4 rounded-xl text-center max-w-md">
           <h3 className="font-semibold text-lg mb-2">Permission Denied</h3>
           <p>{permissionError}</p>
         </div>
@@ -84,8 +84,8 @@ export const MeetRoom: React.FC<MeetRoomProps> = ({ moduleId }) => {
 
   if (!hasPermissions || connectionState === 'connecting') {
     return (
-      <div className="w-full h-full flex flex-col items-center justify-center bg-gray-950 text-white">
-        <Loader2 className="animate-spin mb-4 text-indigo-500" size={48} />
+      <div className="w-full h-full flex flex-col items-center justify-center bg-background text-foreground">
+        <Loader2 className="animate-spin mb-4 text-accent" size={48} />
         <h2 className="text-xl font-medium tracking-tight">
           {!hasPermissions ? 'Requesting Camera...' : 'Joining Room...'}
         </h2>
@@ -101,7 +101,7 @@ export const MeetRoom: React.FC<MeetRoomProps> = ({ moduleId }) => {
   else if (totalParticipants > 9) gridClass = "grid-cols-2 md:grid-cols-3 lg:grid-cols-4";
 
   return (
-    <div className="relative w-full h-full bg-gray-950 p-4 sm:p-6 lg:p-8 flex flex-col">
+    <div className="relative w-full h-full bg-background p-4 sm:p-6 lg:p-8 flex flex-col">
       <div className={`grid ${gridClass} gap-4 w-full h-full max-h-[85vh] auto-rows-fr`}>
         
         {/* Local Video */}
