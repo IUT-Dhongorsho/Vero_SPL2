@@ -23,6 +23,9 @@ vi.mock('../../src/db/client.js', () => ({
       meetings: {
         findFirst: vi.fn().mockResolvedValue(null),
       },
+      meetingParticipants: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
     },
     insert: vi.fn().mockReturnValue({
       values: vi.fn().mockReturnValue({
@@ -88,7 +91,7 @@ describe('SignalService (Integration-ish)', () => {
     expect(db.insert).toHaveBeenCalledTimes(2); 
 
     // Verify real room service recorded the peer
-    const peer = roomService.getPeer(roomId, 'test-user-1');
+    const peer = roomService.getPeer(roomId, socket.id);
     expect(peer).toBeDefined();
 
     expect(socket.emit).toHaveBeenCalledWith('room-joined', expect.any(Object));
@@ -96,10 +99,11 @@ describe('SignalService (Integration-ish)', () => {
 
   it('handleDisconnect should clean up peer and update DB leftAt', async () => {
     socket.data.roomId = roomId;
+    socket.data.peerId = socket.id;
     
     // Connect them first so room service knows about them
     await roomService.getOrCreateRoom(roomId);
-    roomService.addPeer(roomId, 'test-user-1', socket.id);
+    roomService.addPeer(roomId, socket.id, 'test-user-1', socket.id);
 
     await signalService.handleDisconnect(io, socket);
 
@@ -107,7 +111,7 @@ describe('SignalService (Integration-ish)', () => {
     expect(db.update).toHaveBeenCalled();
     
     // Verify room service cleaned them up
-    const peer = roomService.getPeer(roomId, 'test-user-1');
+    const peer = roomService.getPeer(roomId, socket.id);
     expect(peer).toBeUndefined();
   });
 });

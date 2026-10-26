@@ -5,7 +5,7 @@ import { and, eq, gt, or } from 'drizzle-orm';
 
 import { env } from '../config/env.js';
 import { db } from '../db/client.js';
-import { sessions } from '../models/meeting.model.js';
+import { users, sessions } from '../models/meeting.model.js';
 import { registerSignalHandlers } from './message-router.js';
 
 export interface AuthSocket extends Socket {
@@ -36,6 +36,62 @@ const authMiddleware = async (
     });
 
     if (!activeSession?.user) {
+      // Fallback: Query auth-service /internal/verify in case session replication lagged
+      try {
+        const verifyRes = await fetch(`${env.AUTH_SERVICE_URL}/internal/verify`, {
+          headers: { authorization: `Bearer ${token}` },
+        });
+        if (verifyRes.ok) {
+          const data = (await verifyRes.json()) as any;
+          if (data?.user?.id) {
+            await db
+              .insert(users)
+              .values({
+                id: data.user.id,
+                name: data.user.name || 'User',
+                avatarUrl: data.user.image || null,
+                updatedAt: new Date(),
+              })
+              .onConflictDoUpdate({
+                target: users.id,
+                set: {
+                  name: data.user.name || 'User',
+                  avatarUrl: data.user.image || null,
+                  updatedAt: new Date(),
+                },
+              });
+
+            await db
+              .insert(sessions)
+              .values({
+                id: data.session?.id || `ext-${data.user.id}`,
+                token: data.session?.token || token,
+                userId: data.user.id,
+                authToken: data.session?.authToken || token,
+                expiresAt: new Date(
+                  data.session?.expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000
+                ),
+                createdAt: new Date(),
+              })
+              .onConflictDoUpdate({
+                target: sessions.id,
+                set: {
+                  authToken: data.session?.authToken || token,
+                  expiresAt: new Date(
+                    data.session?.expiresAt || Date.now() + 7 * 24 * 60 * 60 * 1000
+                  ),
+                },
+              });
+
+            socket.user = data.user;
+            console.log(`✅ [Meet:Auth] Authenticated via /internal/verify fallback: ${data.user.id}`);
+            return next();
+          }
+        }
+      } catch (verifyErr: any) {
+        console.warn('[Meet:Auth] /internal/verify fallback check failed:', verifyErr.message);
+      }
+
       console.warn(`[Meet:Auth] No active session for token ${token.slice(0, 12)}...`);
       return next(new Error('Authentication error: invalid or expired session'));
     }

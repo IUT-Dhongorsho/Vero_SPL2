@@ -1,10 +1,16 @@
 import { Router } from 'express';
 import { documentController } from '../controllers/document.controller.js';
+import { meetingNoteController } from '../controllers/meeting-note.controller.js';
 import { authMiddleware } from '../middleware/auth.js';
 
 export const documentRouter = Router();
 
 documentRouter.use(authMiddleware);
+
+// Internal/service endpoints for live meeting transcripts & minutes
+documentRouter.post('/internal/meeting-note/init', meetingNoteController.initMeetingNote);
+documentRouter.patch('/internal/meeting-note/:id/append', meetingNoteController.appendTranscript);
+documentRouter.patch('/internal/meeting-note/:id/finalize', meetingNoteController.finalizeMinutes);
 
 documentRouter.get('/modules/:moduleId/documents', documentController.list);
 documentRouter.post('/modules/:moduleId/documents', documentController.create);

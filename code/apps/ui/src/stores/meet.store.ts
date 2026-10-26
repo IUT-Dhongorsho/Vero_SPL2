@@ -35,6 +35,16 @@ interface MeetState {
   isVideoOff: boolean;
   isScreenSharing: boolean;
 
+  // Live Transcription & Minutes State
+  isTranscribing: boolean;
+  isCapturer: boolean;
+  capturerUserId: string | null;
+  capturerName: string | null;
+  meetingNoteId: string | null;
+
+  startTranscription: (moduleId?: string) => void;
+  stopTranscription: () => void;
+
   // Internal queue for consume events arriving before recv transport is ready
   _consumeQueue: any[];
   _isRecvTransportReady: boolean;
@@ -74,6 +84,26 @@ export const useMeetStore = create<MeetState>((set, get) => ({
   isVideoOff: true,
   isScreenSharing: false,
 
+  isTranscribing: false,
+  isCapturer: false,
+  capturerUserId: null,
+  capturerName: null,
+  meetingNoteId: null,
+
+  startTranscription: (moduleId?: string) => {
+    const { socket } = get();
+    if (!socket) return;
+    const currentRoomId = (socket as any)._currentRoomId || moduleId;
+    socket.emit('start-transcription', { roomId: currentRoomId, moduleId });
+  },
+
+  stopTranscription: () => {
+    const { socket } = get();
+    if (!socket) return;
+    const currentRoomId = (socket as any)._currentRoomId;
+    socket.emit('stop-transcription', { roomId: currentRoomId });
+  },
+
   _consumeQueue: [],
   _isRecvTransportReady: false,
   _consumerMap: new Map(),
@@ -111,6 +141,7 @@ export const useMeetStore = create<MeetState>((set, get) => ({
       auth: { token },
       transports: ['websocket'],
     });
+    (socket as any)._currentRoomId = roomId;
 
     set({
       socket,
@@ -243,7 +274,18 @@ export const useMeetStore = create<MeetState>((set, get) => ({
       });
     });
 
-    socket.on('room-joined', async ({ existingPeers }: any) => {
+    socket.on('room-joined', async ({ existingPeers, transcription }: any) => {
+      if (transcription?.isTranscribing) {
+        const myUserId = useAuthStore.getState().user?.id;
+        set({
+          isTranscribing: true,
+          capturerUserId: transcription.capturerUserId,
+          capturerName: transcription.capturerName,
+          meetingNoteId: transcription.noteId,
+          isCapturer: transcription.capturerUserId === myUserId,
+        });
+      }
+
       // Immediately populate participant list with known peers (even if media-less)
       if (existingPeers?.length > 0) {
         set((state) => {
@@ -409,6 +451,42 @@ export const useMeetStore = create<MeetState>((set, get) => ({
         };
       });
     });
+
+    // ─── Transcription Events ──────────────────────────────────────
+    socket.on('transcription-started', ({ capturerUserId, capturerName, noteId }: any) => {
+      const myUserId = useAuthStore.getState().user?.id;
+      const amCapturer = capturerUserId === myUserId;
+      set({
+        isTranscribing: true,
+        isCapturer: amCapturer,
+        capturerUserId,
+        capturerName,
+        meetingNoteId: noteId,
+      });
+      if (amCapturer) {
+        toast.success('Live transcription started — recording meeting audio');
+      } else {
+        toast(`Meeting transcription started by ${capturerName || 'an attendee'}`, { icon: 'ℹ️' });
+      }
+    });
+
+    socket.on('transcription-stopped', ({ noteId, reason }: any) => {
+      set({
+        isTranscribing: false,
+        isCapturer: false,
+        capturerUserId: null,
+        capturerName: null,
+      });
+      if (reason === 'capturer-disconnected') {
+        toast('Transcription stopped: recording attendee disconnected', { icon: 'ℹ️' });
+      } else {
+        toast.success('Meeting minutes & transcript saved to module Notes!');
+      }
+    });
+
+    socket.on('transcription-error', ({ message }: any) => {
+      toast.error(message || 'Failed to start transcription');
+    });
   },
 
   disconnect: () => {
@@ -420,6 +498,14 @@ export const useMeetStore = create<MeetState>((set, get) => ({
     try { audioProducer?.close(); } catch (_) {}
     try { screenProducer?.close(); } catch (_) {}
     socket?.disconnect();
+
+    set({
+      isTranscribing: false,
+      isCapturer: false,
+      capturerUserId: null,
+      capturerName: null,
+      meetingNoteId: null,
+    });
 
     set({
       socket: null,

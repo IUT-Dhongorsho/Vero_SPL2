@@ -3,7 +3,7 @@ import { useParams, useBeforeUnload } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mic, MicOff, Video, VideoOff, PhoneOff,
-  ScreenShare, StopCircle, MessageSquare, Users,
+  ScreenShare, StopCircle, MessageSquare, Users, FileText,
   CalendarDays, X, CheckCircle2, Loader2, AlertTriangle,
   Maximize2, Minimize2, Pin, Volume2, Volume1, VolumeX,
   ChevronLeft, ChevronRight, Activity,
@@ -16,6 +16,7 @@ import { useChatStore } from '../../stores/chat.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { useMeetStore } from '../../stores/meet.store';
 import { meetService, RoomStatus } from '../../services/meetService';
+import { useMeetingAudioCapture } from '../../features/meet-module/hooks/useMeetingAudioCapture';
 
 // ─── Web Audio Activity Hook ──────────────────────────────────────────────────
 function useAudioActivity(track?: MediaStreamTrack | null): boolean {
@@ -462,7 +463,12 @@ export const MeetPage: React.FC = () => {
     localVideoTrack, localAudioTrack, localScreenTrack,
     isMuted, isVideoOff, isScreenSharing,
     toggleMute, toggleVideo, toggleScreenShare,
+    isTranscribing, isCapturer, capturerName, meetingNoteId,
+    startTranscription, stopTranscription,
   } = useMeetStore();
+
+  // Active audio capture streamer when this attendee is the capturer
+  useMeetingAudioCapture(moduleId);
 
   const isInCall = meetingMode === 'in-call';
 
@@ -901,6 +907,25 @@ export const MeetPage: React.FC = () => {
             <div className="flex items-center gap-1.5 bg-red-500/20 border border-red-500/30 px-3 py-1 rounded-full">
               <div className="w-1.5 h-1.5 bg-red-400 rounded-full animate-pulse" />
               <span className="text-red-400 text-xs font-mono">{formatTime(recordingTime)}</span>
+            </div>
+          )}
+
+          {isTranscribing && (
+            <div className="flex items-center gap-2 bg-indigo-500/20 border border-indigo-500/30 px-3 py-1 rounded-full">
+              <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" />
+              <span className="text-indigo-200 text-xs font-medium">
+                {isCapturer ? 'Transcribing to Notes' : `Transcribing (${capturerName || 'Attendee'})`}
+              </span>
+              {meetingNoteId && (
+                <a
+                  href={`/project/${projectId}/module/${moduleId}/notes`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-indigo-300 hover:text-white underline ml-1"
+                >
+                  View Note
+                </a>
+              )}
             </div>
           )}
 
@@ -1397,6 +1422,35 @@ export const MeetPage: React.FC = () => {
             icon={<MessageSquare className="w-5 h-5" />}
             label="Chat"
           />
+
+          {/* Live Transcription Button */}
+          {isTranscribing ? (
+            isCapturer ? (
+              <ControlButton
+                onClick={stopTranscription}
+                active={true}
+                danger={true}
+                icon={<StopCircle className="w-5 h-5 text-red-400 animate-pulse" />}
+                label="Stop Transcribe"
+                className="bg-red-500/20 border border-red-500/30"
+              />
+            ) : (
+              <ControlButton
+                onClick={() => {}}
+                active={false}
+                icon={<FileText className="w-5 h-5 text-amber-400" />}
+                label={capturerName ? `Transcribing (${capturerName})` : 'Transcribing...'}
+                className="opacity-60 cursor-not-allowed"
+              />
+            )
+          ) : (
+            <ControlButton
+              onClick={() => startTranscription(moduleId)}
+              active={false}
+              icon={<FileText className="w-5 h-5 text-indigo-400" />}
+              label="Transcribe"
+            />
+          )}
 
           {/* Leave */}
           <button

@@ -11,8 +11,13 @@ const envSchema = z.object({
   BETTER_AUTH_SECRET: z.string(),
   AUTH_SERVICE_URL: z.string().default('http://localhost:8001'),
   CLIENT_URL: z.string().default('http://localhost:3000'),
+  NOTES_SERVICE_URL: z.string().default('http://localhost:8003'),
 
-  MEDIASOUP_ANNOUNCED_IP: z.string().default('127.0.0.1'),
+  GROQ_API_KEY: z.string().optional(),
+  OPENAI_API_KEY: z.string().optional(),
+  GEMINI_API_KEY: z.string().optional(),
+
+  MEDIASOUP_ANNOUNCED_IP: z.string().default('auto'),
   MEDIASOUP_MIN_PORT: z.string().default('40000').transform(Number),
   MEDIASOUP_MAX_PORT: z.string().default('49999').transform(Number),
 

@@ -137,5 +137,48 @@ export const documentService = {
         updatedAt: new Date()
       })
       .where(eq(documents.id, id));
+  },
+
+  async appendTranscript(id: string, text: string) {
+    const doc = await this.getRawById(id);
+    if (!doc) throw new Error('Document not found');
+
+    const updatedContent = doc.contentSnapshot
+      ? `${doc.contentSnapshot}\n\n${text}`
+      : text;
+
+    const [updated] = await db
+      .update(documents)
+      .set({
+        contentSnapshot: updatedContent,
+        updatedAt: new Date(),
+      })
+      .where(eq(documents.id, id))
+      .returning();
+
+    return updated;
+  },
+
+  async finalizeMeetingMinutes(id: string, minutesMarkdown: string, fullTranscript?: string) {
+    const doc = await this.getRawById(id);
+    if (!doc) throw new Error('Document not found');
+
+    let finalContent = minutesMarkdown;
+    if (fullTranscript) {
+      finalContent = `${minutesMarkdown}\n\n---\n\n## 🎙️ Full Meeting Transcript\n\n${fullTranscript}`;
+    } else if (doc.contentSnapshot) {
+      finalContent = `${minutesMarkdown}\n\n---\n\n## 🎙️ Full Meeting Transcript\n\n${doc.contentSnapshot}`;
+    }
+
+    const [updated] = await db
+      .update(documents)
+      .set({
+        contentSnapshot: finalContent,
+        updatedAt: new Date(),
+      })
+      .where(eq(documents.id, id))
+      .returning();
+
+    return updated;
   }
 };

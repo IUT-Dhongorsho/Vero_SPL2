@@ -5,6 +5,7 @@ import { and, eq, isNull } from 'drizzle-orm';
 
 import { roomService } from './room.service.js';
 import { publisherService } from './publisher.service.js';
+import { transcriptionService } from './transcription.service.js';
 import { createWebRtcTransport } from '../sfu/transport.js';
 import { createConsumer } from '../sfu/producer-consumer.js';
 import { db } from '../db/client.js';
@@ -137,7 +138,19 @@ export const signalService = {
       }));
 
     socket.to(roomId).emit('peer-joined', { peerId, userId, userName });
-    socket.emit('room-joined', { existingProducers, existingPeers: existingPeersList });
+    const activeTx = transcriptionService.getActive(roomId);
+    socket.emit('room-joined', {
+      existingProducers,
+      existingPeers: existingPeersList,
+      transcription: activeTx
+        ? {
+            isTranscribing: true,
+            capturerUserId: activeTx.capturerUserId,
+            capturerName: activeTx.capturerName,
+            noteId: activeTx.noteId,
+          }
+        : { isTranscribing: false },
+    });
     console.log(
       `✅ [Signal] ${userId} (${peerId}) joined room "${roomId}" — ${room.peers.size} peers, ${existingProducers.length} existing producers`
     );

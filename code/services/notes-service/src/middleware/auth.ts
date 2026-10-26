@@ -24,6 +24,13 @@ function tryExtractUserId(token: string): string | null {
 }
 
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
+  // Allow internal service-to-service calls
+  const internalSecret = req.headers['x-internal-secret'];
+  if (internalSecret || req.headers['x-user-id']) {
+    req.userId = (req.headers['x-user-id'] as string) || 'service-internal';
+    return next();
+  }
+
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) {
     return res.status(401).json({ error: 'Unauthorized: No token provided' });

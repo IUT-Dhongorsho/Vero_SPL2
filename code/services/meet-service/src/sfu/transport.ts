@@ -1,16 +1,13 @@
 import type { types as mediasoupTypes } from 'mediasoup';
-import { env } from '../config/env.js';
+import { getTransportListenIps } from './network.js';
 
 export async function createWebRtcTransport(
   router: mediasoupTypes.Router
 ): Promise<mediasoupTypes.WebRtcTransport> {
+  const listenIps = await getTransportListenIps();
+
   const transport = await router.createWebRtcTransport({
-    listenIps: [
-      {
-        ip: '0.0.0.0',
-        announcedIp: env.MEDIASOUP_ANNOUNCED_IP,
-      },
-    ],
+    listenIps,
     enableUdp: true,
     enableTcp: true,
     preferUdp: true,

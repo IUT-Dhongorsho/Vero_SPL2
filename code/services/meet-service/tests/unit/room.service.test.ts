@@ -49,27 +49,27 @@ describe('RoomService (Unit)', () => {
 
   it('should add and retrieve peers correctly', async () => {
     await roomService.getOrCreateRoom(roomId);
-    const peer = roomService.addPeer(roomId, 'user1', 'socket1');
+    const peer = roomService.addPeer(roomId, 'peer1', 'user1', 'socket1');
 
     expect(peer.userId).toBe('user1');
     expect(peer.socketId).toBe('socket1');
     
-    const retrieved = roomService.getPeer(roomId, 'user1');
+    const retrieved = roomService.getPeer(roomId, 'peer1');
     expect(retrieved).toBe(peer);
   });
 
   it('should delete the room when the last peer leaves', async () => {
     const initialCount = roomService.getRoomCount();
     await roomService.getOrCreateRoom(roomId);
-    roomService.addPeer(roomId, 'user1', 'socket1');
-    roomService.addPeer(roomId, 'user2', 'socket2');
+    roomService.addPeer(roomId, 'peer1', 'user1', 'socket1');
+    roomService.addPeer(roomId, 'peer2', 'user2', 'socket2');
 
     expect(roomService.getRoomCount()).toBe(initialCount + 1);
 
-    roomService.removePeer(roomId, 'user1');
+    roomService.removePeer(roomId, 'peer1');
     expect(roomService.getRoomCount()).toBe(initialCount + 1); // Room still active
 
-    roomService.removePeer(roomId, 'user2');
+    roomService.removePeer(roomId, 'peer2');
     expect(roomService.getRoomCount()).toBe(initialCount); // Room deleted
   });
 });
