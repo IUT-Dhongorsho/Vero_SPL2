@@ -15,8 +15,15 @@
     "noUnusedLocals": false,
     "noUnusedParameters": false,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vite/client"]
+    "types": ["vite/client"],
+    "baseUrl": ".",
+    "paths": {
+      "@repo/ui/src/*": ["../ui/src/*"],
+      "@repo/ui/*": ["../ui/src/*"],
+      "@repo/ui": ["../ui/src/index.ts"],
+      "@/*": ["../ui/src/*"]
+    }
   },
-  "include": ["src"],
+  "include": ["src", "../ui/src"],
   "references": [{ "path": "./tsconfig.node.json" }]
 }

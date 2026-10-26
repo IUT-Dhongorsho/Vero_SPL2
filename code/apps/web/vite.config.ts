@@ -1,6 +1,7 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
 
 export default defineConfig({
   plugins: [
@@ -8,6 +9,11 @@ export default defineConfig({
     tailwindcss(),
   ],
   resolve: {
+    alias: [
+      { find: '@repo/ui/src', replacement: path.resolve(__dirname, '../ui/src') },
+      { find: '@repo/ui', replacement: path.resolve(__dirname, '../ui/src') },
+      { find: '@', replacement: path.resolve(__dirname, '../ui/src') },
+    ],
     dedupe: ['yjs', 'y-protocols', 'y-websocket', '@tiptap/extension-collaboration', '@tiptap/extension-collaboration-cursor'],
   },
   server: {

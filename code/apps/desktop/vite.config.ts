@@ -2,6 +2,7 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import electron from 'vite-plugin-electron';
 import tailwindcss from '@tailwindcss/vite';
+import path from 'path';
 
 export default defineConfig({
   base: './',
@@ -37,6 +38,11 @@ export default defineConfig({
     ]),
   ],
   resolve: {
+    alias: [
+      { find: '@repo/ui/src', replacement: path.resolve(__dirname, '../ui/src') },
+      { find: '@repo/ui', replacement: path.resolve(__dirname, '../ui/src/index.ts') },
+      { find: '@', replacement: path.resolve(__dirname, '../ui/src') },
+    ],
     dedupe: ['yjs', 'y-protocols', 'y-websocket', '@tiptap/extension-collaboration', '@tiptap/extension-collaboration-cursor'],
   },
   server: {
