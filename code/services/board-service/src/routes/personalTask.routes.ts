@@ -16,5 +16,7 @@ router.delete('/personal-tasks/:id', requireAuth, personalTaskController.remove)
 // Personal Progress board: assigned project tasks + own tasks in one payload
 router.get('/my/work', requireAuth, myWorkController.assigned);
 router.get('/my/stats', requireAuth, myWorkController.stats);
+// Calendar: every deadline in the projects the caller administers
+router.get('/my/admin-deadlines', requireAuth, myWorkController.adminDeadlines);
 
 export default router;

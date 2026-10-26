@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, Copy, RefreshCw, UserPlus } from 'lucide-react';
+import { Check, Copy, RefreshCw } from 'lucide-react';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { Avatar } from '../../components/ui/Avatar';
 import { Badge } from '../../components/ui/Badge';
@@ -73,14 +73,38 @@ const InviteCard: React.FC<{ code?: string; onRegenerate: () => Promise<void> }>
   );
 };
 
-export const MembersTab: React.FC<ProjectTabProps> = ({ project, refresh, setActions }) => {
+/** Retires the current code; `refresh` reloads the project so the new one shows. */
+async function regenerateInvite(projectId: string, refresh: () => Promise<void>) {
+  try {
+    await projectService.generateInviteCode(projectId);
+    await refresh();
+    toast.success('New invite code ready — the old one no longer works');
+  } catch (error) {
+    toast.error(errorMessage(error, 'Could not make a new code'));
+  }
+}
+
+/** The invite code in a dialog, so admins can reach it from any project tab. */
+export const InviteModal: React.FC<
+  Pick<ProjectTabProps, 'project' | 'refresh'> & { open: boolean; onClose: () => void }
+> = ({ project, refresh, open, onClose }) => (
+  <Modal
+    open={open}
+    onClose={onClose}
+    title={`Invite people to ${project.name}`}
+    description="Send them this code. They enter it under Projects → Join and arrive as members; change their role under Members afterwards."
+  >
+    <InviteCard code={project.inviteCode} onRegenerate={() => regenerateInvite(project.id, refresh)} />
+  </Modal>
+);
+
+export const MembersTab: React.FC<ProjectTabProps> = ({ project, refresh }) => {
   const navigate = useNavigate();
   const me = useAuthStore((s) => s.user);
   const fetchProjects = useProjectStore((s) => s.fetchProjects);
   const isAdmin = project.userRole === 'admin';
 
   const [members, setMembers] = useState<ProjectMember[] | null>(null);
-  const [inviteOpen, setInviteOpen] = useState(false);
   const [removing, setRemoving] = useState<ProjectMember | null>(null);
   const [leaving, setLeaving] = useState(false);
 
@@ -97,17 +121,6 @@ export const MembersTab: React.FC<ProjectTabProps> = ({ project, refresh, setAct
     load();
   }, [load]);
 
-  useEffect(() => {
-    setActions(
-      isAdmin ? (
-        <AnimatedButton size="sm" variant="accent" onClick={() => setInviteOpen(true)}>
-          <UserPlus className="w-4 h-4" />
-          <span className="hidden sm:inline">Invite</span>
-        </AnimatedButton>
-      ) : null
-    );
-  }, [isAdmin, setActions]);
-
   const changeRole = async (member: ProjectMember, role: ProjectRole) => {
     const previous = member.role;
     setMembers((list) => list?.map((m) => (m.id === member.id ? { ...m, role } : m)) ?? null);
@@ -121,19 +134,11 @@ export const MembersTab: React.FC<ProjectTabProps> = ({ project, refresh, setAct
     }
   };
 
-  const regenerate = async () => {
-    try {
-      await projectService.generateInviteCode(project.id);
-      await refresh();
-      toast.success('New invite code ready — the old one no longer works');
-    } catch (error) {
-      toast.error(errorMessage(error, 'Could not make a new code'));
-    }
-  };
-
   return (
     <div className="space-y-6">
-      {isAdmin && <InviteCard code={project.inviteCode} onRegenerate={regenerate} />}
+      {isAdmin && (
+        <InviteCard code={project.inviteCode} onRegenerate={() => regenerateInvite(project.id, refresh)} />
+      )}
 
       {members === null ? (
         <ListSkeleton rows={3} />
@@ -190,15 +195,6 @@ export const MembersTab: React.FC<ProjectTabProps> = ({ project, refresh, setAct
           })}
         </ul>
       )}
-
-      <Modal
-        open={inviteOpen}
-        onClose={() => setInviteOpen(false)}
-        title={`Invite people to ${project.name}`}
-        description="Send them this code. They enter it under Projects → Join and arrive as members; change their role here afterwards."
-      >
-        <InviteCard code={project.inviteCode} onRegenerate={regenerate} />
-      </Modal>
 
       <ConfirmDialog
         open={!!removing}

@@ -56,6 +56,12 @@ export const workService = {
     return data;
   },
 
+  /** Every dated task in the projects you administer, whoever it is assigned to. */
+  async adminDeadlines(): Promise<WorkItem[]> {
+    const { data } = await apiClient.get('/board/my/admin-deadlines');
+    return data;
+  },
+
   async myStats(): Promise<WorkStats> {
     const { data } = await apiClient.get('/board/my/stats');
     return data;

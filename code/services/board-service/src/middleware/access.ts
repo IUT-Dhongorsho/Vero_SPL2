@@ -63,7 +63,27 @@ export async function lookupBoardAccess(req: AuthedRequest, boardId: string): Pr
   return access;
 }
 
-type BoardIdResolver = (req: BoardRequest) => Promise<string | null> | string | null;
+/**
+ * Ids of the projects the caller administers, as project-service answers for
+ * GET /project/projects with the caller's own credentials. Null when it could
+ * not be asked, so an outage is not mistaken for "admin of nothing".
+ */
+export async function lookupAdminProjectIds(req: AuthedRequest): Promise<string[] | null> {
+  const authorization = req.headers.authorization;
+  if (!authorization) return null;
+
+  try {
+    const res = await fetch(`${env.PROJECT_SERVICE_URL}/project/projects`, { headers: { authorization } });
+    if (!res.ok) return null;
+    const projects = (await res.json()) as { id: string; userRole: string }[];
+    return projects.filter((p) => p.userRole === 'admin').map((p) => p.id);
+  } catch (error: any) {
+    console.error('[board-service:access] project-service lookup failed:', error.message);
+    return null;
+  }
+}
+
+type BoardIdResolver =(req: BoardRequest) => Promise<string | null> | string | null;
 
 /** Board id straight from a route parameter (`/tasks/:projectId`). */
 export const fromParam = (name: string): BoardIdResolver => (req) => String(req.params[name] ?? '') || null;

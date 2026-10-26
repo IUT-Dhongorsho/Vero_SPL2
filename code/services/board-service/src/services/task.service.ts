@@ -2,7 +2,7 @@ import { db } from '../db/client.js';
 import { tasks } from '../models/task.model.js';
 import { columns } from '../models/column.model.js';
 import { projects } from '../models/project.model.js';
-import { eq, asc, count, and, inArray, isNotNull, sql } from 'drizzle-orm';
+import { eq, asc, count, and, inArray, isNotNull, sql, type SQL } from 'drizzle-orm';
 
 export interface CreateTaskInput {
   title: string;
@@ -30,6 +30,51 @@ export interface MoveTaskInput {
   order: number;
 }
 
+/**
+ * Project tasks in the shape of a My work item, enriched with the column and
+ * project each belongs to.
+ */
+async function selectWorkItems(where: SQL) {
+  const rows = await db
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      description: tasks.description,
+      status: tasks.status,
+      priority: tasks.priority,
+      dueDate: tasks.dueDate,
+      labels: tasks.labels,
+      order: tasks.order,
+      assigneeId: tasks.assigneeId,
+      creatorId: tasks.creatorId,
+      createdAt: tasks.createdAt,
+      updatedAt: tasks.updatedAt,
+      columnId: tasks.columnId,
+      columnName: columns.name,
+      boardId: columns.projectId,
+      moduleName: projects.name,
+      parentProjectId: projects.parentProjectId,
+      parentProjectName: projects.parentProjectName,
+    })
+    .from(tasks)
+    .innerJoin(columns, eq(tasks.columnId, columns.id))
+    .leftJoin(projects, eq(columns.projectId, projects.id))
+    .where(where)
+    .orderBy(asc(tasks.order));
+
+  // Boards are per module: `moduleId` is the board, `projectId` its project,
+  // which together give the board route in the app.
+  return rows.map(({ boardId, moduleName, parentProjectId, parentProjectName, ...row }) => ({
+    ...row,
+    source: 'project' as const,
+    labels: row.labels ? row.labels.split(',').filter(Boolean) : [],
+    moduleId: boardId,
+    moduleName: moduleName ?? 'Module',
+    projectId: parentProjectId ?? boardId,
+    projectName: parentProjectName ?? moduleName ?? 'Untitled project',
+  }));
+}
+
 export const taskService = {
   async getTasksByProject(projectId: string) {
     const projectColumns = await db
@@ -49,48 +94,20 @@ export const taskService = {
   },
 
   /**
-   * Every project task assigned to this user, across all boards, enriched with
-   * the column and project it belongs to. Backs the personal Progress board.
+   * Every project task assigned to this user, across all boards. Backs the
+   * personal Progress board.
    */
   async getTasksAssignedTo(userId: string) {
-    const rows = await db
-      .select({
-        id: tasks.id,
-        title: tasks.title,
-        description: tasks.description,
-        status: tasks.status,
-        priority: tasks.priority,
-        dueDate: tasks.dueDate,
-        labels: tasks.labels,
-        order: tasks.order,
-        assigneeId: tasks.assigneeId,
-        creatorId: tasks.creatorId,
-        createdAt: tasks.createdAt,
-        updatedAt: tasks.updatedAt,
-        columnId: tasks.columnId,
-        columnName: columns.name,
-        boardId: columns.projectId,
-        moduleName: projects.name,
-        parentProjectId: projects.parentProjectId,
-        parentProjectName: projects.parentProjectName,
-      })
-      .from(tasks)
-      .innerJoin(columns, eq(tasks.columnId, columns.id))
-      .leftJoin(projects, eq(columns.projectId, projects.id))
-      .where(eq(tasks.assigneeId, userId))
-      .orderBy(asc(tasks.order));
+    return selectWorkItems(eq(tasks.assigneeId, userId));
+  },
 
-    // Boards are per module: `moduleId` is the board, `projectId` its project,
-    // which together give the board route in the app.
-    return rows.map(({ boardId, moduleName, parentProjectId, parentProjectName, ...row }) => ({
-      ...row,
-      source: 'project' as const,
-      labels: row.labels ? row.labels.split(',').filter(Boolean) : [],
-      moduleId: boardId,
-      moduleName: moduleName ?? 'Module',
-      projectId: parentProjectId ?? boardId,
-      projectName: parentProjectName ?? moduleName ?? 'Untitled project',
-    }));
+  /**
+   * Every dated task on the boards of these projects, whoever it is assigned
+   * to. Lets project admins see all of a project's deadlines on the calendar.
+   */
+  async getDeadlinesInProjects(projectIds: string[]) {
+    if (projectIds.length === 0) return [];
+    return selectWorkItems(and(inArray(projects.parentProjectId, projectIds), isNotNull(tasks.dueDate))!);
   },
 
   /** Aggregate counts for the profile statistics panel. */

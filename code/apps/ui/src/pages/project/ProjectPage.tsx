@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { FileText, FolderKanban, Settings2, Users } from 'lucide-react';
+import { FileText, FolderKanban, Settings2, UserPlus, Users } from 'lucide-react';
 import { PageContainer } from '../../components/Layout/PageContainer';
 import { Badge } from '../../components/ui/Badge';
 import { Skeleton } from '../../components/ui/Skeleton';
@@ -11,7 +11,7 @@ import { springSoft } from '../../lib/motion';
 import { projectCrumbs } from '../../lib/routes';
 import { cn } from '../../utils/cn';
 import { ModulesTab } from './ModulesTab';
-import { MembersTab } from './MembersTab';
+import { InviteModal, MembersTab } from './MembersTab';
 import { FilesTab } from './FilesTab';
 import { SettingsTab } from './SettingsTab';
 
@@ -43,6 +43,7 @@ export const ProjectPage: React.FC = () => {
   const [project, setProject] = useState<Project | null>(null);
   const [missing, setMissing] = useState(false);
   const [actions, setActions] = useState<React.ReactNode>(null);
+  const [inviteOpen, setInviteOpen] = useState(false);
 
   const refresh = useCallback(async () => {
     if (!projectId) return;
@@ -101,10 +102,18 @@ export const ProjectPage: React.FC = () => {
                   </Badge>
                 </div>
               </div>
-              <span className="text-sm text-muted-foreground">
-                You are {project.userRole === 'admin' ? 'an' : 'a'}{' '}
-                <span className="font-medium text-foreground">{ROLE_LABEL[project.userRole].toLowerCase()}</span>
-              </span>
+              <div className="flex items-center gap-3">
+                <span className="text-sm text-muted-foreground">
+                  You are {project.userRole === 'admin' ? 'an' : 'a'}{' '}
+                  <span className="font-medium text-foreground">{ROLE_LABEL[project.userRole].toLowerCase()}</span>
+                </span>
+                {project.userRole === 'admin' && (
+                  <AnimatedButton size="sm" variant="secondary" onClick={() => setInviteOpen(true)}>
+                    <UserPlus className="w-4 h-4" />
+                    Invite
+                  </AnimatedButton>
+                )}
+              </div>
             </div>
           ) : (
             <div className="space-y-3">
@@ -153,6 +162,10 @@ export const ProjectPage: React.FC = () => {
             {tab === 'files' && <FilesTab project={project} refresh={refresh} setActions={setActions} />}
             {tab === 'settings' && <SettingsTab project={project} refresh={refresh} setActions={setActions} />}
           </section>
+        )}
+
+        {project && (
+          <InviteModal project={project} refresh={refresh} open={inviteOpen} onClose={() => setInviteOpen(false)} />
         )}
       </div>
     </PageContainer>

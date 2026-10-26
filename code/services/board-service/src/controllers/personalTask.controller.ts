@@ -1,5 +1,6 @@
 import { Response } from 'express';
 import type { AuthedRequest } from '../middleware/auth.js';
+import { lookupAdminProjectIds } from '../middleware/access.js';
 import {
   PERSONAL_TASK_STATUSES,
   TASK_PRIORITIES,
@@ -130,6 +131,20 @@ export const myWorkController = {
     } catch (error) {
       console.error('[myWork:assigned]', error);
       res.status(500).json({ error: 'Failed to fetch assigned work' });
+    }
+  },
+
+  /** Every dated task in the projects the caller administers, for the calendar. */
+  async adminDeadlines(req: AuthedRequest, res: Response) {
+    try {
+      const projectIds = await lookupAdminProjectIds(req);
+      if (projectIds === null) {
+        return res.status(502).json({ error: 'Could not reach project-service' });
+      }
+      res.json(await taskService.getDeadlinesInProjects(projectIds));
+    } catch (error) {
+      console.error('[myWork:adminDeadlines]', error);
+      res.status(500).json({ error: 'Failed to fetch project deadlines' });
     }
   },
 

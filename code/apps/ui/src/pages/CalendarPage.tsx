@@ -13,9 +13,11 @@ import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Badge, PriorityBadge } from '../components/ui/Badge';
 import { TaskEditorModal } from '../components/tasks/TaskEditorModal';
 import { toast } from '../components/Providers/ToastProvider';
+import { useNavigate } from 'react-router-dom';
 import { useWorkStore } from '../stores/work.store';
-import type { WorkItem } from '../services/workService';
+import { workService, type WorkItem } from '../services/workService';
 import { fadeUp, stagger } from '../lib/motion';
+import { taskHref } from '../lib/routes';
 import { cn } from '../utils/cn';
 
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
@@ -45,15 +47,29 @@ export const CalendarPage: React.FC = () => {
   const [selected, setSelected] = useState<Date>(() => new Date());
   const [creatingOn, setCreatingOn] = useState<Date | null>(null);
   const [editing, setEditing] = useState<WorkItem | null>(null);
+  // Deadlines in projects you administer, including other people's tasks.
+  const [adminDeadlines, setAdminDeadlines] = useState<WorkItem[]>([]);
+  const navigate = useNavigate();
 
   useEffect(() => {
     load();
+    workService.adminDeadlines().then(setAdminDeadlines).catch(() => setAdminDeadlines([]));
   }, [load]);
+
+  /** Your tasks first, then the rest of your projects' deadlines. */
+  const allTasks = useMemo(() => {
+    const mine = new Set(projectTasks.map((t) => t.id));
+    return [...projectTasks, ...personalTasks, ...adminDeadlines.filter((t) => !mine.has(t.id))];
+  }, [projectTasks, personalTasks, adminDeadlines]);
+
+  /** Only your own tasks can be ticked off here; the rest open on their board. */
+  const isMine = (task: WorkItem) =>
+    task.source === 'personal' || projectTasks.some((t) => t.id === task.id);
 
   /** Every dated item, bucketed by day so the grid is a single lookup. */
   const byDay = useMemo(() => {
     const map = new Map<string, WorkItem[]>();
-    for (const task of [...projectTasks, ...personalTasks]) {
+    for (const task of allTasks) {
       if (!task.dueDate) continue;
       const date = new Date(task.dueDate);
       if (Number.isNaN(date.getTime())) continue;
@@ -64,7 +80,7 @@ export const CalendarPage: React.FC = () => {
       list.sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
     }
     return map;
-  }, [projectTasks, personalTasks]);
+  }, [allTasks]);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -95,11 +111,11 @@ export const CalendarPage: React.FC = () => {
 
   const upcoming = useMemo(() => {
     const now = Date.now();
-    return [...projectTasks, ...personalTasks]
+    return allTasks
       .filter((t) => t.dueDate && t.status !== 'done' && new Date(t.dueDate).getTime() >= now)
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
       .slice(0, 6);
-  }, [projectTasks, personalTasks]);
+  }, [allTasks]);
 
   const monthLabel = cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
@@ -273,26 +289,36 @@ export const CalendarPage: React.FC = () => {
                         exit={{ opacity: 0 }}
                         className="rounded-xl border border-border p-3 flex items-start gap-3"
                       >
-                        <button
-                          onClick={async () => {
-                            try {
-                              await move(task.id, task.status === 'done' ? 'backlog' : 'done');
-                            } catch {
-                              toast.error('Could not update that task');
-                            }
-                          }}
-                          className="mt-0.5 shrink-0 cursor-pointer"
-                          aria-label="Toggle completion"
-                        >
-                          {task.status === 'done' ? (
-                            <CheckCircle2 className="w-4.5 h-4.5 text-success" />
-                          ) : (
-                            <Circle className="w-4.5 h-4.5 text-muted-foreground hover:text-foreground transition-colors" />
-                          )}
-                        </button>
+                        {isMine(task) ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await move(task.id, task.status === 'done' ? 'backlog' : 'done');
+                              } catch {
+                                toast.error('Could not update that task');
+                              }
+                            }}
+                            className="mt-0.5 shrink-0 cursor-pointer"
+                            aria-label="Toggle completion"
+                          >
+                            {task.status === 'done' ? (
+                              <CheckCircle2 className="w-4.5 h-4.5 text-success" />
+                            ) : (
+                              <Circle className="w-4.5 h-4.5 text-muted-foreground hover:text-foreground transition-colors" />
+                            )}
+                          </button>
+                        ) : (
+                          <span className="mt-0.5 shrink-0" title="Assigned to someone else">
+                            {task.status === 'done' ? (
+                              <CheckCircle2 className="w-4.5 h-4.5 text-success" />
+                            ) : (
+                              <Circle className="w-4.5 h-4.5 text-subtle-foreground" />
+                            )}
+                          </span>
+                        )}
 
                         <button
-                          onClick={() => task.source === 'personal' && setEditing(task)}
+                          onClick={() => (task.source === 'personal' ? setEditing(task) : navigate(taskHref(task)))}
                           className="flex-1 min-w-0 text-left cursor-pointer"
                         >
                           <p
