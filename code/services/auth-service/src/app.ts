@@ -66,6 +66,9 @@ app.use(express.json({ limit: "2mb" }));
 
 // Core Session & JWT Entry point (Modular HS256)
 app.get("/auth/session", authController.getSession);
+app.get("/auth/health", (_req, res) => {
+    res.json({ status: "ok" });
+});
 
 // User Profile routes
 app.get("/user/profile", requireSession, getProfileController);

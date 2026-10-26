@@ -1,69 +1,142 @@
 #!/usr/bin/env bash
 #
-# Starts every Vero service plus the Vite dev server for local development using bun dev.
+# ==============================================================================
+# Vero Multi-Instance Clustered Stack & Public Ingress Tunnel Runner
+# ==============================================================================
 #
-#   ./scripts/dev-stack.sh          start everything, ai-worker included (logs in .dev-logs/)
-#   ./scripts/dev-stack.sh stop     stop everything on the Vero ports
-#   ./scripts/dev-stack.sh status   show what is listening
+# Steps executed:
+#   1. Build the web application (@repo/shared and apps/web -> dist/)
+#   2. Kill all processes utilizing the cluster ports (3000, 8001-8007, 8011-8017, 5005, 5015)
+#   3. Start all primary & secondary services on their designated ports, plus Nginx gateway
+#   4. Validate zrok2 installation & environment status (with setup guide if missing)
+#   5. Establish public tunnel via: zrok2 share public http://localhost:3000 -n public:vero-spl2
 #
-# Requires PostgreSQL and Redis to already be running locally.
+# Commands:
+#   ./scripts/dev-stack.sh              Full startup with build, clustering, and zrok2 tunnel
+#   ./scripts/dev-stack.sh --no-tunnel  Start services and Nginx without launching zrok2
+#   ./scripts/dev-stack.sh stop         Terminate all cluster processes and Nginx
+#   ./scripts/dev-stack.sh status       Display real-time listener status for all ports
+#
 
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LOG_DIR="$ROOT/.dev-logs"
-PORTS=(3000 8001 8002 8003 8004 8005 8006 8007 5005)
 
-# service:port
+# Primary ports (8001-8007, 5005)
+PRIMARY_PORTS=(8001 8002 8003 8004 8005 8006 8007 5005)
+# Secondary ports (8011-8017, 5015)
+SECONDARY_PORTS=(8011 8012 8013 8014 8015 8016 8017 5015)
+# Gateway port
+GATEWAY_PORT=3000
+
+ALL_PORTS=("$GATEWAY_PORT" "${PRIMARY_PORTS[@]}" "${SECONDARY_PORTS[@]}")
+
+# Service registry: name:primary_port:secondary_port
 SERVICES=(
-  "auth-service:8001"
-  "board-service:8002"
-  "notes-service:8003"
-  "project-service:8004"
-  "chat-service:8005"
-  "notification-service:8006"
-  "meet-service:8007"
+  "auth-service:8001:8011"
+  "board-service:8002:8012"
+  "notes-service:8003:8013"
+  "project-service:8004:8014"
+  "chat-service:8005:8015"
+  "notification-service:8006:8016"
+  "meet-service:8007:8017"
 )
 
+# ------------------------------------------------------------------------------
+# Process cleanup & Port Release
+# ------------------------------------------------------------------------------
 free_ports() {
-  echo "→ Releasing Vero ports…"
-  for port in "${PORTS[@]}"; do
-    # `lsof -t` lists only pids, which is all we need to signal.
+  echo "→ [Step 2] Releasing all Vero ports and stopping previous processes…"
+
+  # Stop Nginx cleanly if running
+  if [[ -f "$ROOT/infra/nginx/temp/nginx.pid" ]]; then
+    nginx -p "$ROOT/infra/nginx" -s stop 2>/dev/null || true
+  fi
+  pkill -f "nginx.*nginx.conf" 2>/dev/null || true
+  pkill -f "zrok.*share public.*3000" 2>/dev/null || true
+
+  for port in "${ALL_PORTS[@]}"; do
     pids="$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)"
     if [[ -n "$pids" ]]; then
-      echo "   port $port → killing $(echo "$pids" | tr '\n' ' ')"
+      echo "   port $port → terminating $(echo "$pids" | tr '\n' ' ')"
       # shellcheck disable=SC2086
       kill $pids 2>/dev/null || true
     fi
   done
-  # `tsx watch` parents respawn their server when it is killed, and ai-worker
-  # listens on no port at all — stop every watcher of this checkout by its
-  # command line, or old copies keep fighting over the ports.
+
+  # Terminate leftover watchers and Node/Bun background processes for this workspace
   pkill -f "$ROOT/.*tsx/dist/cli.mjs watch" 2>/dev/null || true
   pkill -f "$ROOT/.*vite/bin/vite.js" 2>/dev/null || true
-  sleep 2
-  for port in "${PORTS[@]}"; do
-    pids="$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)"
-    # shellcheck disable=SC2086
-    [[ -n "$pids" ]] && kill -9 $pids 2>/dev/null || true
-  done
-}
+  pkill -f "$ROOT/services/.*" 2>/dev/null || true
+  pkill -f "$ROOT/ai-worker/.*" 2>/dev/null || true
 
-status() {
-  printf '%-8s %s\n' PORT STATE
-  for port in "${PORTS[@]}"; do
-    if lsof -t -iTCP:"$port" -sTCP:LISTEN >/dev/null 2>&1; then
-      printf '%-8s %s\n' "$port" "listening"
-    else
-      printf '%-8s %s\n' "$port" "-"
+  sleep 1
+
+  # Force-kill any stubborn remaining listeners
+  for port in "${ALL_PORTS[@]}"; do
+    pids="$(lsof -t -iTCP:"$port" -sTCP:LISTEN 2>/dev/null || true)"
+    if [[ -n "$pids" ]]; then
+      # shellcheck disable=SC2086
+      kill -9 $pids 2>/dev/null || true
     fi
   done
 }
 
+# ------------------------------------------------------------------------------
+# Cluster Status Report
+# ------------------------------------------------------------------------------
+status() {
+  echo "=== Vero Cluster Port Status ==="
+  printf '%-8s %-24s %-12s %s\n' "PORT" "SERVICE" "ROLE" "STATE"
+  printf '%-8s %-24s %-12s %s\n' "----" "-------" "----" "-----"
+
+  # Gateway
+  if lsof -t -iTCP:"$GATEWAY_PORT" -sTCP:LISTEN >/dev/null 2>&1; then
+    printf '%-8s %-24s %-12s %s\n' "$GATEWAY_PORT" "nginx-gateway" "edge" "listening"
+  else
+    printf '%-8s %-24s %-12s %s\n' "$GATEWAY_PORT" "nginx-gateway" "edge" "OFFLINE"
+  fi
+
+  # Primary and Secondary
+  for entry in "${SERVICES[@]}"; do
+    IFS=: read -r name p_port s_port <<<"$entry"
+    
+    # Primary check
+    if lsof -t -iTCP:"$p_port" -sTCP:LISTEN >/dev/null 2>&1; then
+      printf '%-8s %-24s %-12s %s\n' "$p_port" "$name" "primary" "listening"
+    else
+      printf '%-8s %-24s %-12s %s\n' "$p_port" "$name" "primary" "OFFLINE"
+    fi
+
+    # Secondary check
+    if lsof -t -iTCP:"$s_port" -sTCP:LISTEN >/dev/null 2>&1; then
+      printf '%-8s %-24s %-12s %s\n' "$s_port" "$name" "replica-2" "listening"
+    else
+      printf '%-8s %-24s %-12s %s\n' "$s_port" "$name" "replica-2" "OFFLINE"
+    fi
+  done
+
+  # gRPC ports
+  for gport in 5005 5015; do
+    role="primary"
+    [[ "$gport" == "5015" ]] && role="replica-2"
+    if lsof -t -iTCP:"$gport" -sTCP:LISTEN >/dev/null 2>&1; then
+      printf '%-8s %-24s %-12s %s\n' "$gport" "chat-service-grpc" "$role" "listening"
+    else
+      printf '%-8s %-24s %-12s %s\n' "$gport" "chat-service-grpc" "$role" "OFFLINE"
+    fi
+  done
+  echo
+}
+
+# ------------------------------------------------------------------------------
+# Handle Subcommands
+# ------------------------------------------------------------------------------
 case "${1:-start}" in
   stop)
     free_ports
-    echo "✓ Stopped."
+    echo "✓ All Vero services and Nginx gateway stopped."
     exit 0
     ;;
   status)
@@ -72,47 +145,177 @@ case "${1:-start}" in
     ;;
 esac
 
-command -v bun >/dev/null 2>&1 || { echo "❌ bun is required but not installed or not found in PATH."; exit 1; }
-command -v psql >/dev/null 2>&1 && psql -lqt >/dev/null 2>&1 || echo "⚠️  PostgreSQL does not look reachable."
-redis-cli ping >/dev/null 2>&1 || echo "⚠️  Redis does not look reachable on :6379."
+# ------------------------------------------------------------------------------
+# Prerequisite Checks
+# ------------------------------------------------------------------------------
+command -v bun >/dev/null 2>&1 || { echo "❌ bun is required but not found in PATH."; exit 1; }
+command -v nginx >/dev/null 2>&1 || { echo "❌ nginx is required but not found in PATH."; exit 1; }
 
-free_ports
+# Locate zrok2 or zrok binary
+ZROK_BIN=""
+if command -v zrok2 >/dev/null 2>&1; then
+  ZROK_BIN="zrok2"
+elif command -v zrok >/dev/null 2>&1; then
+  ZROK_BIN="zrok"
+fi
+
+# ------------------------------------------------------------------------------
+# [Step 1] Build the web/apps
+# ------------------------------------------------------------------------------
+echo "→ [Step 1] Building production web SPA (dist/)…"
 mkdir -p "$LOG_DIR"
 
-# macOS litters non-APFS drives with ._* AppleDouble files, which globs such as
-# *.model.ts and *.test.ts then pick up as source.
-find "$ROOT" -name '._*' -not -path '*/node_modules/*' -delete 2>/dev/null || true
+if [[ -d "$ROOT/packages/shared" ]]; then
+  echo "   Building @repo/shared…"
+  ( cd "$ROOT/packages/shared" && bun run build >"$LOG_DIR/shared-build.log" 2>&1 ) || echo "⚠️  @repo/shared build had warnings (see $LOG_DIR/shared-build.log)"
+fi
 
-echo "→ Building @repo/shared…"
-( cd "$ROOT/packages/shared" && bun run build >"$LOG_DIR/shared.log" 2>&1 ) || echo "⚠️  @repo/shared failed to build — see $LOG_DIR/shared.log"
+echo "   Building apps/web with bun run build…"
+if ( cd "$ROOT/apps/web" && bun run build >"$LOG_DIR/web-build.log" 2>&1 ); then
+  echo "✓ apps/web built successfully (code/apps/web/dist generated)."
+else
+  echo "❌ apps/web build failed! Check $LOG_DIR/web-build.log"
+  tail -n 20 "$LOG_DIR/web-build.log"
+  exit 1
+fi
 
-echo "→ Starting services with bun dev…"
+# ------------------------------------------------------------------------------
+# [Step 2] Release Ports
+# ------------------------------------------------------------------------------
+free_ports
+
+# ------------------------------------------------------------------------------
+# [Step 3] Start All Services (Primary + Secondary) & Nginx Gateway
+# ------------------------------------------------------------------------------
+echo "→ [Step 3] Starting microservice clusters on designated ports…"
+
+# Start Primary Instances (8001 - 8007)
 for entry in "${SERVICES[@]}"; do
-  IFS=: read -r name port <<<"$entry"
-  ( cd "$ROOT/services/$name" && bun dev >"$LOG_DIR/$name.log" 2>&1 & )
-  echo "   $name → :$port"
+  IFS=: read -r name p_port _ <<<"$entry"
+  case "$name" in
+    chat-service)
+      ( cd "$ROOT/services/$name" && PORT="$p_port" GRPC_PORT=5005 nohup bun dev >"$LOG_DIR/$name.log" 2>&1 & )
+      ;;
+    meet-service)
+      ( cd "$ROOT/services/$name" && PORT="$p_port" MEDIASOUP_MIN_PORT=40000 MEDIASOUP_MAX_PORT=44999 nohup bun dev >"$LOG_DIR/$name.log" 2>&1 & )
+      ;;
+    *)
+      ( cd "$ROOT/services/$name" && PORT="$p_port" nohup bun dev >"$LOG_DIR/$name.log" 2>&1 & )
+      ;;
+  esac
+  echo "   [Primary]   $name → :$p_port"
 done
 
-echo "→ Starting ai-worker with bun dev…"
-( cd "$ROOT/ai-worker" && bun dev >"$LOG_DIR/ai-worker.log" 2>&1 & )
+# Start Secondary Replicas (8011 - 8017)
+for entry in "${SERVICES[@]}"; do
+  IFS=: read -r name _ s_port <<<"$entry"
+  case "$name" in
+    chat-service)
+      ( cd "$ROOT/services/$name" && PORT="$s_port" GRPC_PORT=5015 nohup bun dev >"$LOG_DIR/$name-2.log" 2>&1 & )
+      ;;
+    meet-service)
+      ( cd "$ROOT/services/$name" && PORT="$s_port" MEDIASOUP_MIN_PORT=45000 MEDIASOUP_MAX_PORT=49999 nohup bun dev >"$LOG_DIR/$name-2.log" 2>&1 & )
+      ;;
+    *)
+      ( cd "$ROOT/services/$name" && PORT="$s_port" nohup bun dev >"$LOG_DIR/$name-2.log" 2>&1 & )
+      ;;
+  esac
+  echo "   [Replica-2] $name → :$s_port"
+done
 
-echo "→ Starting the web app with bun dev…"
-( cd "$ROOT/apps/web" && bun dev --host >"$LOG_DIR/web.log" 2>&1 & )
+# Start background AI worker
+if [[ -d "$ROOT/ai-worker" ]]; then
+  echo "   [Worker]    ai-worker (background job processor)"
+  ( cd "$ROOT/ai-worker" && nohup bun dev >"$LOG_DIR/ai-worker.log" 2>&1 & )
+fi
 
-echo "→ Waiting for health checks…"
+# Start Nginx Gateway on port 3000
+echo "   [Gateway]   Nginx reverse proxy on :$GATEWAY_PORT (serving apps/web/dist)"
+mkdir -p "$ROOT/infra/nginx/temp"
+nginx -p "$ROOT/infra/nginx" -c nginx.conf
+
+# Wait for primary and secondary instances to report healthy
+echo "→ Waiting for health checks on all clusters…"
+HTTP_PORTS=(8001 8002 8003 8004 8005 8006 8007 8011 8012 8013 8014 8015 8016 8017)
 for _ in {1..30}; do
   ready=0
-  for entry in "${SERVICES[@]}"; do
-    IFS=: read -r _ port <<<"$entry"
+  for port in "${HTTP_PORTS[@]}"; do
     curl -sf -m 1 "http://localhost:$port/health" >/dev/null 2>&1 && ready=$((ready + 1))
   done
-  [[ $ready -ge ${#SERVICES[@]} ]] && break
-  sleep 2
+  [[ $ready -ge 14 ]] && break
+  sleep 1
 done
 
 echo
 status
+
+echo "===================================================================="
+echo "  🚀 Vero Clustered Gateway Active"
+echo "===================================================================="
+echo "  Local Edge Gateway:  http://localhost:3000"
+echo "  Target Public URL:   https://vero-spl2.shares.zrok.io"
+echo "  Google OAuth URL:    https://vero-spl2.shares.zrok.io/api/better-auth/callback/google"
+echo "  Service Instances:   14 active replicas load-balanced via Nginx"
+echo "  Logs:                $LOG_DIR/*.log"
+echo "  Stop command:        ./scripts/dev-stack.sh stop"
+echo "===================================================================="
 echo
-echo "✓ Web app:  http://localhost:3000"
-echo "  Logs:     $LOG_DIR/*.log"
-echo "  Stop:     ./scripts/dev-stack.sh stop"
+
+# If user specified --no-tunnel, stop here without launching zrok
+if [[ "${1:-}" == "--no-tunnel" || "${2:-}" == "--no-tunnel" ]]; then
+  echo "ℹ️  --no-tunnel specified; cluster is running in the background."
+  exit 0
+fi
+
+# ------------------------------------------------------------------------------
+# [Step 4] Validate zrok2 installation & configuration
+# ------------------------------------------------------------------------------
+echo "→ [Step 4] Validating zrok2 installation & account environment…"
+
+if [[ -z "$ZROK_BIN" ]]; then
+  echo "❌ zrok2 (or zrok) is not installed on this system."
+  echo "   To install zrok2:"
+  echo "     curl -sSLf https://get.zrok.io | bash"
+  echo "   Once installed, enable your zrok account:"
+  echo "     zrok2 invite"
+  echo "     zrok2 enable <your-account-token>"
+  echo "   Then re-run this script."
+  exit 1
+fi
+
+if ! "$ZROK_BIN" status >/dev/null 2>&1; then
+  echo "❌ $ZROK_BIN is installed, but no enabled environment was found."
+  echo "   Please log in and set up $ZROK_BIN before continuing:"
+  echo "     1. Grab your account token from https://zrok.io"
+  echo "     2. Run: $ZROK_BIN enable <your-token>"
+  echo "   Then re-run this script."
+  exit 1
+fi
+
+echo "✓ $ZROK_BIN detected and active account environment confirmed."
+
+# ------------------------------------------------------------------------------
+# [Step 5] Tunnel with zrok2
+# ------------------------------------------------------------------------------
+echo "→ [Step 5] Launching public tunnel:"
+echo "   $ZROK_BIN share public http://localhost:3000 -n public:vero-spl2"
+echo
+echo "   Target domain: https://vero-spl2.shares.zrok.io/"
+echo "   (Press Ctrl+C to stop tunnel and shut down all background cluster services)"
+echo
+
+# Trap Ctrl+C (SIGINT/SIGTERM) to clean up all services on exit
+cleanup() {
+  echo -e "\n→ Signal received: shutting down Vero cluster…"
+  free_ports
+  echo "✓ Everything stopped cleanly."
+  exit 0
+}
+trap cleanup INT TERM
+
+# Run zrok2 share public
+if [[ -t 1 ]]; then
+  "$ZROK_BIN" share public http://localhost:3000 -n public:vero-spl2
+else
+  "$ZROK_BIN" share public http://localhost:3000 -n public:vero-spl2 --headless
+fi

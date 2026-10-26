@@ -39,6 +39,7 @@ out/
 ._*
 .turbo/
 .dev-logs/
+infra/nginx/temp/
 bun.lock
 
 *.tsbuildinfo
