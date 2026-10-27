@@ -125,6 +125,7 @@ export const useInboxStore = create<InboxState>((set, get) => ({
       set((state) => ({
         messagesByChannel: { ...state.messagesByChannel, [channelId]: messages },
       }));
+      inboxService.markRead(channelId).catch(() => {});
     } catch (error) {
       console.error('[inbox] failed to load history', error);
       throw error;
@@ -243,6 +244,8 @@ export const useInboxStore = create<InboxState>((set, get) => ({
 
         const isForeign = message.senderId !== me?.id;
         const isBackground = message.channelId !== activeChannelId;
+        // Seen as it arrives in the open conversation.
+        if (isForeign && !isBackground) inboxService.markRead(message.channelId).catch(() => {});
 
         return {
           messagesByChannel: { ...state.messagesByChannel, [message.channelId]: merged },

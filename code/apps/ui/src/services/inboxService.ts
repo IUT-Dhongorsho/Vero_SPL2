@@ -54,6 +54,17 @@ export type ChatNotice =
   | { kind: 'task'; title: string; due: string | null }
   | { kind: 'reminder'; text: string; at: string };
 
+export interface UnreadConversation {
+  channelId: string;
+  type: 'direct' | 'group';
+  name: string | null;
+  /** The module a group channel belongs to. */
+  externalId: string | null;
+  peer: ConnectionPerson | null;
+  unread: number;
+  latest: { id: string; content: string; type: ChatMessage['type']; createdAt: string; sender: ConnectionPerson };
+}
+
 export interface UploadedAttachment {
   url: string;
   name: string;
@@ -96,6 +107,16 @@ export const inboxService = {
   async moduleChannel(moduleId: string): Promise<{ id: string; name: string; members: { userId: string; user: ConnectionPerson }[] }> {
     const { data } = await apiClient.get(`/chat/channels/external/${moduleId}`);
     return data;
+  },
+
+  /** Conversations with unread messages, newest first. */
+  async unread(): Promise<{ total: number; conversations: UnreadConversation[] }> {
+    const { data } = await apiClient.get('/chat/channels/unread');
+    return data;
+  },
+
+  async markRead(channelId: string): Promise<void> {
+    await apiClient.post(`/chat/channels/${channelId}/read`);
   },
 
   async history(channelId: string, before?: string): Promise<ChatMessage[]> {
