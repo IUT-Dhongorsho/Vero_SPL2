@@ -23,7 +23,7 @@ export const tasks = pgTable('tasks', {
 export const taskAssignees = pgTable('task_assignees', {
   id: uuid('id').primaryKey().defaultRandom(),
   taskId: uuid('task_id').references(() => tasks.id, { onDelete: 'cascade' }).notNull(),
-  userId: text('user_id').references(() => users.id, { onDelete: 'cascade' }).notNull(),
+  userId: text('user_id').notNull(),
   assignedAt: timestamp('assigned_at').defaultNow().notNull(),
 }, (table) => ({
   taskUserIdx: uniqueIndex('task_assignees_task_user_idx').on(table.taskId, table.userId),

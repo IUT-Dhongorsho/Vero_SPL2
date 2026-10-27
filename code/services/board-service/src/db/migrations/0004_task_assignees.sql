@@ -11,12 +11,6 @@ EXCEPTION
  WHEN duplicate_object THEN null;
 END $$;
 --> statement-breakpoint
-DO $$ BEGIN
- ALTER TABLE "task_assignees" ADD CONSTRAINT "task_assignees_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;
-EXCEPTION
- WHEN duplicate_object THEN null;
-END $$;
---> statement-breakpoint
 CREATE UNIQUE INDEX IF NOT EXISTS "task_assignees_task_user_idx" ON "task_assignees" ("task_id", "user_id");
 --> statement-breakpoint
 -- Backfill any existing single assignees from tasks table into junction table
