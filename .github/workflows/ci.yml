@@ -1,5 +1,9 @@
 # Typechecks every package, runs every service's tests against throwaway
 # Postgres databases, and builds the web and desktop apps.
+#
+# There is no workspace: each package installs its own dependencies with bun,
+# as scripts/dev-stack.sh does locally. Lockfiles are not committed, so the
+# install resolves from each package.json.
 name: CI
 
 on:
@@ -10,6 +14,13 @@ on:
 defaults:
   run:
     working-directory: code
+
+env:
+  # Shared first: the others depend on it through file:../packages/shared.
+  PACKAGES: >-
+    packages/shared apps/ui apps/web apps/desktop
+    services/auth-service services/board-service services/chat-service services/notes-service
+    services/notification-service services/project-service services/meet-service ai-worker
 
 jobs:
   test:
@@ -33,23 +44,32 @@ jobs:
       PGPASSWORD: postgres
     steps:
       - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-        with:
-          version: 8.15.0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-          cache: pnpm
-          cache-dependency-path: code/pnpm-lock.yaml
       - uses: oven-sh/setup-bun@v2
-      - run: pnpm install --frozen-lockfile
+        with:
+          bun-version: 1.3.14
+
+      # Bun's download cache, keyed on every package.json.
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-${{ runner.os }}-${{ hashFiles('code/**/package.json', '!code/**/node_modules/**') }}
+          restore-keys: bun-${{ runner.os }}-
+
+      - name: Install
+        run: |
+          for pkg in $PACKAGES; do
+            echo "::group::$pkg" && (cd "$pkg" && bun install) && echo "::endgroup::" || exit 1
+          done
 
       - name: Typecheck
         run: |
-          (cd packages/shared && pnpm run build)
+          (cd packages/shared && bun run build)
           for pkg in apps/ui services/auth-service services/board-service services/chat-service \
                      services/notes-service services/notification-service services/project-service ai-worker; do
-            echo "::group::$pkg" && (cd "$pkg" && npx tsc --noEmit -p .) && echo "::endgroup::"
+            echo "::group::$pkg" && (cd "$pkg" && ./node_modules/.bin/tsc --noEmit -p .) && echo "::endgroup::" || exit 1
           done
 
       - name: Tests
@@ -57,5 +77,5 @@ jobs:
 
       - name: Build web and desktop
         run: |
-          (cd apps/web && pnpm run build)
-          (cd apps/desktop && pnpm run build)
+          (cd apps/web && bun run build)
+          (cd apps/desktop && bun run build)
