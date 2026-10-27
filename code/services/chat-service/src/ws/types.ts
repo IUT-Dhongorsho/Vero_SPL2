@@ -25,6 +25,12 @@ export interface MessagePayload {
   replyToId?: string;
   /** Echoed back so the sender can reconcile its optimistic bubble. */
   clientId?: string;
+  /** User ids @mentioned in the message; only channel members are notified. */
+  mentions?: string[];
+  /** @all: notify everyone in the channel. */
+  mentionsAll?: boolean;
+  /** In-app path the mention notification opens (the page the chat is on). */
+  link?: string;
 }
 
 export interface TypingPayload {

@@ -1,5 +1,8 @@
 import { Response } from 'express';
+import { randomUUID } from 'crypto';
 import { db } from '../db/client.js';
+import { schedulerService } from '../services/scheduler.service.js';
+import { inAppLink } from '../utils/in-app-link.js';
 import { notifications } from '../models/notification.model.js';
 import { users } from '../models/user.model.js';
 import { pushSubscriptions } from '../models/push-subscription.model.js';
@@ -158,4 +161,38 @@ export const notificationController = {
       res.status(500).json({ error: 'Failed to remove push subscription' });
     }
   },
+
+  /**
+   * POST /notifications/reminders { text, remindAt, link? } — `/remind` in chat.
+   * Notifies the signed-in user at `remindAt`; the notification opens `link`.
+   */
+  async createReminder(req: AuthedRequest, res: Response) {
+    const text = typeof req.body?.text === 'string' ? req.body.text.trim() : '';
+    const remindAt = new Date(req.body?.remindAt);
+    if (!text || text.length > 200) {
+      return res.status(400).json({ error: 'Say what to remind you about, in 200 characters or fewer' });
+    }
+    if (isNaN(remindAt.getTime()) || remindAt.getTime() <= Date.now()) {
+      return res.status(400).json({ error: 'Pick a time in the future' });
+    }
+    if (remindAt.getTime() > Date.now() + MAX_REMINDER_AHEAD_MS) {
+      return res.status(400).json({ error: 'Reminders can be set up to a year ahead' });
+    }
+
+    try {
+      const id = randomUUID();
+      await schedulerService.schedule({
+        type: 'reminder.due',
+        entityId: id,
+        userId: req.userId!,
+        scheduledFor: remindAt,
+        data: { text, link: inAppLink(req.body?.link) },
+      });
+      res.status(201).json({ id, remindAt: remindAt.toISOString() });
+    } catch (error) {
+      res.status(500).json({ error: 'Failed to set the reminder' });
+    }
+  },
 };
+
+const MAX_REMINDER_AHEAD_MS = 366 * 24 * 60 * 60 * 1000;

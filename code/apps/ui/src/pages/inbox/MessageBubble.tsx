@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Check, CheckCheck, Clock, Download, FileText, Trash2 } from 'lucide-react';
 import { formatFileSize, type ChatMessage } from '../../services/inboxService';
+import { CommandNotice } from '../../components/chat/CommandNotice';
 import { cn } from '../../utils/cn';
 
 interface MessageBubbleProps {
@@ -11,14 +12,40 @@ interface MessageBubbleProps {
   grouped: boolean;
   senderName: string;
   onDelete?: (id: string) => void;
+  /** Splits @mentions out of the text for highlighting; null when the chat has none. */
+  mentionPattern?: RegExp | null;
+  /** The message mentions the person reading it. */
+  mentionsMe?: boolean;
 }
 
 function timeOf(iso: string): string {
   return new Date(iso).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 }
 
-/** Renders ||spoiler|| segments as click-to-reveal. */
-const MessageText: React.FC<{ content: string }> = ({ content }) => {
+/** Highlights @mentions in a run of plain text. */
+const Mentions: React.FC<{ text: string; pattern?: RegExp | null; mine: boolean }> = ({ text, pattern, mine }) => {
+  if (!pattern) return <>{text}</>;
+  return (
+    <>
+      {text.split(pattern).map((part, index) =>
+        index % 2 === 1 ? (
+          <span key={index} className={cn('font-semibold', !mine && 'text-accent')}>
+            {part}
+          </span>
+        ) : (
+          part
+        )
+      )}
+    </>
+  );
+};
+
+/** Renders ||spoiler|| segments (from older messages) as click-to-reveal, and highlights mentions. */
+const MessageText: React.FC<{ content: string; mentionPattern?: RegExp | null; mine: boolean }> = ({
+  content,
+  mentionPattern,
+  mine,
+}) => {
   const [revealed, setRevealed] = useState<Record<number, boolean>>({});
   const parts = content.split(/(\|\|[^|]+\|\|)/g);
 
@@ -26,7 +53,11 @@ const MessageText: React.FC<{ content: string }> = ({ content }) => {
     <>
       {parts.map((part, index) => {
         if (!/^\|\|.+\|\|$/.test(part)) {
-          return <span key={index}>{part}</span>;
+          return (
+            <span key={index}>
+              <Mentions text={part} pattern={mentionPattern} mine={mine} />
+            </span>
+          );
         }
         const text = part.slice(2, -2);
         const isRevealed = revealed[index];
@@ -94,8 +125,12 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
   grouped,
   senderName,
   onDelete,
+  mentionPattern,
+  mentionsMe,
 }) => {
-  // Action messages (/me) read as narration rather than speech.
+  if (message.notice) return <CommandNotice notice={message.notice} mentions={Boolean(mentionPattern)} />;
+
+  // Action messages (older /me posts) read as narration rather than speech.
   if (message.type === 'action') {
     return (
       <motion.div
@@ -146,6 +181,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
           mine
             ? 'bg-accent text-accent-foreground rounded-br-md'
             : 'bg-card border border-border text-foreground rounded-bl-md',
+          !mine && mentionsMe && 'border-accent/60 ring-1 ring-accent/25',
           message.pending && 'opacity-70'
         )}
       >
@@ -157,7 +193,7 @@ export const MessageBubble: React.FC<MessageBubbleProps> = ({
 
         {message.content && (
           <p className={cn('whitespace-pre-wrap break-words leading-relaxed', hasAttachment && 'mt-2')}>
-            <MessageText content={message.content} />
+            <MessageText content={message.content} mentionPattern={mentionPattern} mine={mine} />
           </p>
         )}
 

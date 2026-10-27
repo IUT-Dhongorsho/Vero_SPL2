@@ -9,8 +9,11 @@ export class PublisherService {
     await redisClient.publish(channel, JSON.stringify(message));
   }
 
-  /** Connection request lifecycle, for notification-service. Never throws. */
-  async connectionEvent(type: 'connection.requested' | 'connection.accepted', data: Record<string, unknown>) {
+  /** Connection requests and @mentions, for notification-service. Never throws. */
+  async connectionEvent(
+    type: 'connection.requested' | 'connection.accepted' | 'message.mentioned',
+    data: Record<string, unknown>
+  ) {
     try {
       await this.publish(REDIS_CHANNELS.CHAT_EVENTS, { type, data, timestamp: new Date().toISOString() });
     } catch (error: any) {

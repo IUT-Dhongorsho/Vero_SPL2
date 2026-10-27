@@ -45,7 +45,14 @@ export interface ChatMessage {
   clientId?: string;
   pending?: boolean;
   failed?: boolean;
+  /** Local-only output of a slash command, shown to the person who ran it. */
+  notice?: ChatNotice;
 }
+
+export type ChatNotice =
+  | { kind: 'help' }
+  | { kind: 'task'; title: string; due: string | null }
+  | { kind: 'reminder'; text: string; at: string };
 
 export interface UploadedAttachment {
   url: string;

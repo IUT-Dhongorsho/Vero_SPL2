@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Loader2, MessageSquare } from 'lucide-react';
 import { PageContainer } from '../../components/Layout/PageContainer';
@@ -34,7 +34,8 @@ export const ChatPage: React.FC = () => {
   const attempts = useRef(0);
 
   const channelId = state === 'ready' ? activeChannelId : null;
-  const { messages, addNotice, clearView, scrollRef, typingNames } = useConversation(channelId);
+  const { messages, addNotice, scrollRef, typingNames } = useConversation(channelId);
+  const people = useMemo(() => module?.members.map((m) => m.user) ?? [], [module]);
 
   const connect = useCallback(async () => {
     if (!moduleId) return;
@@ -126,18 +127,10 @@ export const ChatPage: React.FC = () => {
                 emptyTitle={`Start the conversation in ${module?.name ?? 'this module'}`}
                 emptyHint="Everyone on the module sees what you post here, files included."
                 onDelete={(id) => deleteMessage(id)}
+                members={people}
               />
             </div>
-            {activeChannelId && (
-              <Composer
-                channelId={activeChannelId}
-                onLocalNotice={addNotice}
-                onClear={() => {
-                  clearView();
-                  toast.success('Cleared from your view — nothing was deleted');
-                }}
-              />
-            )}
+            {activeChannelId && <Composer channelId={activeChannelId} onLocalNotice={addNotice} members={people} />}
           </>
         ) : (
           <div className="flex-1 grid place-items-center p-6 bg-background">
