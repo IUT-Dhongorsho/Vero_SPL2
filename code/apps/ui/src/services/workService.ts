@@ -24,6 +24,8 @@ export interface WorkItem {
   columnId?: string;
   columnName?: string;
   assigneeId?: string | null;
+  /** Who it is assigned to, on project tasks. */
+  assignee?: { id: string; name: string; avatarUrl: string | null } | null;
   // Personal tasks only
   pinned?: boolean;
   completedAt?: string | null;
@@ -51,6 +53,14 @@ export interface CreatePersonalTask {
 
 export const workService = {
   /** Assigned project tasks and personal tasks in one call. */
+  /** Calendar items: `team` (project admins only) is every dated task in the projects they run. */
+  async calendar(
+    scope: 'mine' | 'team'
+  ): Promise<{ scope: 'mine' | 'team'; canSeeTeam: boolean; projectTasks: WorkItem[]; personalTasks: WorkItem[] }> {
+    const { data } = await apiClient.get('/board/my/calendar', { params: { scope } });
+    return data;
+  },
+
   async myWork(): Promise<{ projectTasks: WorkItem[]; personalTasks: WorkItem[] }> {
     const { data } = await apiClient.get('/board/my/work');
     return data;

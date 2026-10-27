@@ -8,6 +8,8 @@ import {
   type TaskPriority,
 } from '../services/personalTask.service.js';
 import { taskService } from '../services/task.service.js';
+import { publisherService } from '../services/publisher.service.js';
+import { adminBoardIds } from '../middleware/access.js';
 
 function parseStatus(value: unknown): PersonalTaskStatus | undefined {
   return PERSONAL_TASK_STATUSES.includes(value as PersonalTaskStatus)
@@ -17,6 +19,11 @@ function parseStatus(value: unknown): PersonalTaskStatus | undefined {
 
 function parsePriority(value: unknown): TaskPriority | undefined {
   return TASK_PRIORITIES.includes(value as TaskPriority) ? (value as TaskPriority) : undefined;
+}
+
+/** Personal lists are private: only the owner's other tabs and devices reload. */
+function mineChanged(req: AuthedRequest) {
+  publisherService.workChanged({ recipientIds: [req.userId!], boardId: null, projectId: null });
 }
 
 function shape(task: any) {
@@ -53,6 +60,7 @@ export const personalTaskController = {
         labels: req.body?.labels,
       });
 
+      mineChanged(req);
       res.status(201).json(shape(task));
     } catch (error) {
       console.error('[personalTask:create]', error);
@@ -75,6 +83,7 @@ export const personalTaskController = {
       });
 
       if (!task) return res.status(404).json({ error: 'Task not found' });
+      mineChanged(req);
       res.json(shape(task));
     } catch (error) {
       console.error('[personalTask:update]', error);
@@ -87,6 +96,7 @@ export const personalTaskController = {
       const id = String(req.params.id);
       const deleted = await personalTaskService.remove(id, req.userId!);
       if (!deleted) return res.status(404).json({ error: 'Task not found' });
+      mineChanged(req);
       res.status(204).send();
     } catch (error) {
       console.error('[personalTask:remove]', error);
@@ -106,6 +116,7 @@ export const personalTaskController = {
         .filter((item: any) => item.id);
 
       const tasks = await personalTaskService.reorder(req.userId!, valid);
+      mineChanged(req);
       res.json(tasks.map(shape));
     } catch (error) {
       console.error('[personalTask:reorder]', error);
@@ -115,6 +126,32 @@ export const personalTaskController = {
 };
 
 export const myWorkController = {
+  /**
+   * GET /my/calendar?scope=mine|team. Everyone sees their own deadlines (tasks
+   * assigned to them plus their personal tasks). A project admin may also ask
+   * for `team`: every dated task in the projects they administer, whoever it is
+   * assigned to. Other people's personal tasks are never included.
+   */
+  async calendar(req: AuthedRequest, res: Response) {
+    try {
+      const scope = req.query.scope === 'team' ? 'team' : 'mine';
+      const [boards, personal] = await Promise.all([adminBoardIds(req), personalTaskService.list(req.userId!)]);
+      if (boards === null) return res.status(503).json({ error: 'Could not check your projects right now' });
+
+      const canSeeTeam = boards.length > 0;
+      if (scope === 'team' && !canSeeTeam) {
+        return res.status(403).json({ error: 'Only project admins can see the team calendar' });
+      }
+
+      const projectTasks =
+        scope === 'team' ? await taskService.getDatedTasksOnBoards(boards) : await taskService.getTasksAssignedTo(req.userId!);
+      res.json({ scope, canSeeTeam, projectTasks, personalTasks: personal.map(shape) });
+    } catch (error) {
+      console.error('[myWork:calendar]', error);
+      res.status(500).json({ error: 'Failed to load the calendar' });
+    }
+  },
+
   /** Everything on my plate: project tasks assigned to me + my own tasks. */
   async assigned(req: AuthedRequest, res: Response) {
     try {

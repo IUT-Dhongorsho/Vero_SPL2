@@ -1,4 +1,5 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import {
   CalendarDays,
@@ -7,14 +8,21 @@ import {
   Circle,
   CheckCircle2,
   Plus,
+  User,
+  Users,
 } from 'lucide-react';
 import { PageContainer } from '../components/Layout/PageContainer';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Badge, PriorityBadge } from '../components/ui/Badge';
 import { TaskEditorModal } from '../components/tasks/TaskEditorModal';
 import { toast } from '../components/Providers/ToastProvider';
+import { Avatar } from '../components/ui/Avatar';
 import { useWorkStore } from '../stores/work.store';
-import type { WorkItem } from '../services/workService';
+import { useAuthStore } from '../stores/auth.store';
+import { workService, type WorkItem } from '../services/workService';
+import { useWorkChanged } from '../hooks/useWorkChanged';
+import { taskHref } from '../lib/routes';
+import { errorMessage } from '../utils/errors';
 import { fadeUp, stagger } from '../lib/motion';
 import { cn } from '../utils/cn';
 
@@ -50,10 +58,73 @@ export const CalendarPage: React.FC = () => {
     load();
   }, [load]);
 
+  // Project admins can switch to every deadline in the projects they run.
+  const navigate = useNavigate();
+  const meId = useAuthStore((s) => s.user?.id);
+  const [scope, setScope] = useState<'mine' | 'team'>('mine');
+  const [canSeeTeam, setCanSeeTeam] = useState(false);
+  const [teamTasks, setTeamTasks] = useState<WorkItem[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [person, setPerson] = useState('all');
+  const [project, setProject] = useState('all');
+
+  useEffect(() => {
+    workService
+      .calendar('mine')
+      .then((result) => setCanSeeTeam(result.canSeeTeam))
+      .catch(() => setCanSeeTeam(false));
+  }, []);
+
+  const loadTeam = useCallback(async (silent = false) => {
+    if (!silent) setTeamLoading(true);
+    try {
+      setTeamTasks((await workService.calendar('team')).projectTasks);
+    } catch (error) {
+      toast.error(errorMessage(error, 'Could not load the team calendar'));
+      setScope('mine');
+    } finally {
+      setTeamLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (scope === 'team') loadTeam();
+  }, [scope, loadTeam]);
+
+  // Someone moved, re-dated or reassigned a task: keep the team view current.
+  useWorkChanged(() => {
+    if (scope === 'team') loadTeam(true);
+  });
+
+  const people = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const task of teamTasks) if (task.assignee) byId.set(task.assignee.id, task.assignee.name);
+    return [...byId].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [teamTasks]);
+  const projects = useMemo(() => {
+    const byId = new Map<string, string>();
+    for (const task of teamTasks) if (task.projectId) byId.set(task.projectId, task.projectName ?? 'Project');
+    return [...byId].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [teamTasks]);
+
+  /** What the calendar shows: your own deadlines, or the team's (filtered). */
+  const items = useMemo(() => {
+    if (scope === 'mine') return [...projectTasks, ...personalTasks];
+    return teamTasks.filter(
+      (task) =>
+        (person === 'all' || (person === 'none' ? !task.assigneeId : task.assigneeId === person)) &&
+        (project === 'all' || task.projectId === project)
+    );
+  }, [scope, projectTasks, personalTasks, teamTasks, person, project]);
+
+  const busy = scope === 'team' ? teamLoading : loading;
+  /** Only your own work is ticked off from here; other people's opens on its board. */
+  const canTick = (task: WorkItem) => task.source === 'personal' || task.assigneeId === meId;
+
   /** Every dated item, bucketed by day so the grid is a single lookup. */
   const byDay = useMemo(() => {
     const map = new Map<string, WorkItem[]>();
-    for (const task of [...projectTasks, ...personalTasks]) {
+    for (const task of items) {
       if (!task.dueDate) continue;
       const date = new Date(task.dueDate);
       if (Number.isNaN(date.getTime())) continue;
@@ -64,7 +135,7 @@ export const CalendarPage: React.FC = () => {
       list.sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime());
     }
     return map;
-  }, [projectTasks, personalTasks]);
+  }, [items]);
 
   const year = cursor.getFullYear();
   const month = cursor.getMonth();
@@ -95,18 +166,18 @@ export const CalendarPage: React.FC = () => {
 
   const upcoming = useMemo(() => {
     const now = Date.now();
-    return [...projectTasks, ...personalTasks]
+    return items
       .filter((t) => t.dueDate && t.status !== 'done' && new Date(t.dueDate).getTime() >= now)
       .sort((a, b) => new Date(a.dueDate!).getTime() - new Date(b.dueDate!).getTime())
       .slice(0, 6);
-  }, [projectTasks, personalTasks]);
+  }, [items]);
 
   const monthLabel = cursor.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
 
   return (
     <PageContainer
       title="Calendar"
-      subtitle="Every deadline on your plate"
+      subtitle={scope === 'team' ? 'Every deadline in the projects you run' : 'Every deadline on your plate'}
       topBarActions={
         <AnimatedButton size="sm" variant="accent" onClick={() => setCreatingOn(selected)}>
           <Plus className="w-4 h-4" />
@@ -136,16 +207,75 @@ export const CalendarPage: React.FC = () => {
             </button>
           </div>
 
-          <AnimatedButton
-            size="sm"
-            variant="secondary"
-            onClick={() => {
-              setCursor(new Date());
-              setSelected(new Date());
-            }}
-          >
-            Today
-          </AnimatedButton>
+          <div className="flex flex-wrap items-center gap-2">
+            {canSeeTeam && (
+              <div className="flex rounded-xl border border-border p-0.5" role="tablist" aria-label="Whose deadlines">
+                {(
+                  [
+                    ['mine', 'My deadlines', User],
+                    ['team', 'Team', Users],
+                  ] as const
+                ).map(([value, label, Icon]) => (
+                  <button
+                    key={value}
+                    role="tab"
+                    aria-selected={scope === value}
+                    onClick={() => setScope(value)}
+                    className={cn(
+                      'flex items-center gap-1.5 px-3 h-8 rounded-[0.6rem] text-sm font-medium transition-colors cursor-pointer',
+                      scope === value ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground'
+                    )}
+                  >
+                    <Icon className="w-3.5 h-3.5" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+            {scope === 'team' && (
+              <>
+                <select
+                  value={person}
+                  onChange={(e) => setPerson(e.target.value)}
+                  aria-label="Filter by person"
+                  className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-soft cursor-pointer"
+                >
+                  <option value="all">Everyone</option>
+                  <option value="none">Unassigned</option>
+                  {people.map(([id, name]) => (
+                    <option key={id} value={id}>
+                      {name}
+                    </option>
+                  ))}
+                </select>
+                {projects.length > 1 && (
+                  <select
+                    value={project}
+                    onChange={(e) => setProject(e.target.value)}
+                    aria-label="Filter by project"
+                    className="h-9 rounded-xl border border-border bg-card px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent-soft cursor-pointer"
+                  >
+                    <option value="all">All projects</option>
+                    {projects.map(([id, name]) => (
+                      <option key={id} value={id}>
+                        {name}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </>
+            )}
+            <AnimatedButton
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setCursor(new Date());
+                setSelected(new Date());
+              }}
+            >
+              Today
+            </AnimatedButton>
+          </div>
         </motion.div>
 
         <div className="grid lg:grid-cols-3 gap-6">
@@ -250,7 +380,7 @@ export const CalendarPage: React.FC = () => {
                 </button>
               </div>
 
-              {loading && selectedTasks.length === 0 ? (
+              {busy && selectedTasks.length === 0 ? (
                 <div className="space-y-2">
                   {Array.from({ length: 3 }).map((_, i) => (
                     <div key={i} className="h-16 rounded-xl skeleton-shimmer" />
@@ -273,26 +403,37 @@ export const CalendarPage: React.FC = () => {
                         exit={{ opacity: 0 }}
                         className="rounded-xl border border-border p-3 flex items-start gap-3"
                       >
-                        <button
-                          onClick={async () => {
-                            try {
-                              await move(task.id, task.status === 'done' ? 'backlog' : 'done');
-                            } catch {
-                              toast.error('Could not update that task');
-                            }
-                          }}
-                          className="mt-0.5 shrink-0 cursor-pointer"
-                          aria-label="Toggle completion"
-                        >
-                          {task.status === 'done' ? (
-                            <CheckCircle2 className="w-4.5 h-4.5 text-success" />
-                          ) : (
-                            <Circle className="w-4.5 h-4.5 text-muted-foreground hover:text-foreground transition-colors" />
-                          )}
-                        </button>
+                        {canTick(task) ? (
+                          <button
+                            onClick={async () => {
+                              try {
+                                await move(task.id, task.status === 'done' ? 'backlog' : 'done');
+                              } catch {
+                                toast.error('Could not update that task');
+                              }
+                            }}
+                            className="mt-0.5 shrink-0 cursor-pointer"
+                            aria-label="Toggle completion"
+                          >
+                            {task.status === 'done' ? (
+                              <CheckCircle2 className="w-4.5 h-4.5 text-success" />
+                            ) : (
+                              <Circle className="w-4.5 h-4.5 text-muted-foreground hover:text-foreground transition-colors" />
+                            )}
+                          </button>
+                        ) : task.assignee ? (
+                          <Avatar name={task.assignee.name} src={task.assignee.avatarUrl} size="xs" className="mt-0.5 shrink-0" />
+                        ) : (
+                          <span
+                            className="mt-0.5 w-4.5 h-4.5 rounded-full border border-dashed border-warning shrink-0"
+                            aria-hidden
+                          />
+                        )}
 
                         <button
-                          onClick={() => task.source === 'personal' && setEditing(task)}
+                          onClick={() =>
+                            task.source === 'personal' ? setEditing(task) : navigate(taskHref(task))
+                          }
                           className="flex-1 min-w-0 text-left cursor-pointer"
                         >
                           <p
@@ -308,6 +449,14 @@ export const CalendarPage: React.FC = () => {
                             <Badge tone={task.source === 'project' ? 'info' : 'neutral'}>
                               {task.source === 'project' ? task.projectName : 'Personal'}
                             </Badge>
+                            {scope === 'team' &&
+                              (task.assignee ? (
+                                <span className="text-2xs text-muted-foreground">
+                                  {task.assigneeId === meId ? 'You' : task.assignee.name}
+                                </span>
+                              ) : (
+                                <Badge tone="warning">Unassigned</Badge>
+                              ))}
                             <span className="text-2xs text-subtle-foreground tabular-nums">
                               {new Date(task.dueDate!).toLocaleTimeString(undefined, {
                                 hour: 'numeric',
@@ -358,6 +507,7 @@ export const CalendarPage: React.FC = () => {
                           </span>
                           <span className="block text-xs text-muted-foreground truncate">
                             {task.source === 'project' ? task.projectName : 'Personal'}
+                            {scope === 'team' && ` · ${task.assignee?.name ?? 'Unassigned'}`}
                           </span>
                         </span>
                       </button>

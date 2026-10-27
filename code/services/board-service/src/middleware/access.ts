@@ -63,6 +63,40 @@ export async function lookupBoardAccess(req: AuthedRequest, boardId: string): Pr
   return access;
 }
 
+/**
+ * The boards (modules) of every project where the caller is an admin, from
+ * project-service with the caller's own credentials. Null when it cannot be
+ * reached, so an outage is not mistaken for "not an admin".
+ */
+export async function adminBoardIds(req: AuthedRequest): Promise<string[] | null> {
+  const authorization = req.headers.authorization;
+  if (!authorization) return [];
+  try {
+    const res = await fetch(`${env.PROJECT_SERVICE_URL}/project/modules/mine`, { headers: { authorization } });
+    if (!res.ok) return res.status >= 500 ? null : [];
+    const modules = (await res.json()) as Array<{ id: string; role: string }>;
+    return modules.filter((m) => m.role === 'admin').map((m) => m.id);
+  } catch (error: any) {
+    console.error('[board-service:access] admin lookup failed:', error.message);
+    return null;
+  }
+}
+
+/** Everyone on a project, who may have its board, calendar or work open. */
+export async function projectMemberIds(req: AuthedRequest, projectId: string): Promise<string[]> {
+  const authorization = req.headers.authorization;
+  if (!authorization) return [];
+  try {
+    const res = await fetch(`${env.PROJECT_SERVICE_URL}/project/projects/${encodeURIComponent(projectId)}/members`, {
+      headers: { authorization },
+    });
+    if (!res.ok) return [];
+    return ((await res.json()) as Array<{ userId: string }>).map((m) => m.userId);
+  } catch {
+    return [];
+  }
+}
+
 type BoardIdResolver = (req: BoardRequest) => Promise<string | null> | string | null;
 
 /** Board id straight from a route parameter (`/tasks/:projectId`). */

@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm';
 import { db } from '../../db/client.js';
 import { users } from '../../models/user.model.js';
 import { notify } from '../notify.service.js';
+import { socketDelivery } from '../delivery/socket.delivery.js';
 
 export class TaskHandler {
   async handle(event: any) {
@@ -10,6 +11,13 @@ export class TaskHandler {
     switch (type) {
       case 'task.assigned':
         await this.handleTaskAssigned(data);
+        break;
+      case 'work.changed':
+        // Boards, calendars and work lists reload what they show.
+        socketDelivery.signal(data?.recipientIds ?? [], 'work:changed', {
+          boardId: data?.boardId ?? null,
+          projectId: data?.projectId ?? null,
+        });
         break;
     }
   }

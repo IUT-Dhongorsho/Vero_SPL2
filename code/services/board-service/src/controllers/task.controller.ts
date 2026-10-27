@@ -4,7 +4,7 @@ import { taskService } from '../services/task.service.js';
 import { publisherService } from '../services/publisher.service.js';
 import { db } from '../db/client.js';
 import { columns } from '../models/column.model.js';
-import type { BoardRequest } from '../middleware/access.js';
+import { projectMemberIds, type BoardRequest } from '../middleware/access.js';
 
 const PRIORITIES = new Set(['low', 'medium', 'high', 'urgent']);
 
@@ -22,6 +22,14 @@ async function announceAssignment(req: BoardRequest, task: { id: string; title: 
     moduleId: board.boardId,
     moduleName: board.moduleName,
   });
+}
+
+/** Every member of the board's project reloads their board, calendar and work. */
+function announceChange(req: BoardRequest) {
+  const board = req.board!;
+  projectMemberIds(req, board.projectId)
+    .then((recipientIds) => publisherService.workChanged({ recipientIds, boardId: board.boardId, projectId: board.projectId }))
+    .catch(() => {});
 }
 
 export const taskController = {
@@ -69,6 +77,7 @@ export const taskController = {
       });
 
       await announceAssignment(req, task);
+      announceChange(req);
       res.status(201).json(task);
     } catch (error) {
       res.status(500).json({ error: 'Failed to create task' });
@@ -94,6 +103,7 @@ export const taskController = {
       if (task.assigneeId && task.assigneeId !== before?.assigneeId) {
         await announceAssignment(req, task);
       }
+      announceChange(req);
       res.json(task);
     } catch (error) {
       res.status(500).json({ error: 'Failed to update task' });
@@ -105,6 +115,7 @@ export const taskController = {
       const id = req.params.id as string;
       const deleted = await taskService.deleteTask(id);
       if (!deleted) return res.status(404).json({ error: 'Task not found' });
+      announceChange(req);
       res.status(204).send();
     } catch (error) {
       res.status(500).json({ error: 'Failed to delete task' });
@@ -127,6 +138,7 @@ export const taskController = {
       }
 
       const task = await taskService.moveTask(id, { columnId, order });
+      announceChange(req);
       res.json(task);
     } catch (error: any) {
       if (error.message === 'Task not found') {

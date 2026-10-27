@@ -1,6 +1,7 @@
 import { io, Socket } from 'socket.io-client';
 import { API_ORIGIN, socketPath } from '../lib/endpoints';
 import { useAuthStore } from '../stores/auth.store';
+import { WORK_CHANGED } from '../hooks/useWorkChanged';
 
 let socket: Socket | null = null;
 
@@ -19,6 +20,8 @@ export const connectNotificationSocket = (onNotificationReceived: (notification:
   });
 
   socket.on('notification', onNotificationReceived);
+  // Tasks changed on a board or list this user can see: open pages reload.
+  socket.on('work:changed', (change) => window.dispatchEvent(new CustomEvent(WORK_CHANGED, { detail: change })));
   socket.on('connect_error', (error) => console.warn('[notifications] socket:', error.message));
 
   return socket;

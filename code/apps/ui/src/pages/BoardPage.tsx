@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { useWorkChanged } from '../hooks/useWorkChanged';
 import { useParams, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Plus, RefreshCw, UserPlus } from 'lucide-react';
@@ -62,6 +63,11 @@ export const BoardPage: React.FC = () => {
   useEffect(() => {
     refresh();
   }, [refresh]);
+
+  // Someone else changed this board (or the tab was away): show it.
+  useWorkChanged((change) => {
+    if (!change || change.boardId === moduleId) refresh();
+  });
 
   // `?task=` (from Home, My work or a notification) opens that task.
   const [params, setParams] = useSearchParams();

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { WORK_CHANGED } from '../hooks/useWorkChanged';
 import {
   workService,
   type CreatePersonalTask,
@@ -14,7 +15,10 @@ interface WorkState {
   loading: boolean;
   error: string | null;
 
-  load: () => Promise<void>;
+  /** `silent` refreshes in place, without the loading skeletons. */
+  load: (options?: { silent?: boolean }) => Promise<void>;
+  /** Whether anything has asked for work yet; until then a change needs no reload. */
+  loaded: boolean;
   loadStats: () => Promise<void>;
   createPersonal: (input: CreatePersonalTask) => Promise<WorkItem | null>;
   updatePersonal: (id: string, patch: Partial<CreatePersonalTask> & { pinned?: boolean }) => Promise<void>;
@@ -30,9 +34,10 @@ export const useWorkStore = create<WorkState>((set, get) => ({
   stats: null,
   loading: false,
   error: null,
+  loaded: false,
 
-  async load() {
-    set({ loading: true, error: null });
+  async load(options) {
+    set({ loaded: true, error: null, ...(options?.silent ? {} : { loading: true }) });
     try {
       const { projectTasks, personalTasks } = await workService.myWork();
       set({ projectTasks, personalTasks });
@@ -97,3 +102,20 @@ export const useWorkStore = create<WorkState>((set, get) => ({
     return [...get().projectTasks, ...get().personalTasks];
   },
 }));
+
+// Home, My work and the calendar all read this store: keep it in step with
+// changes made elsewhere (another person, another tab) without a page reload.
+if (typeof window !== 'undefined') {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const refresh = () => {
+    if (!useWorkStore.getState().loaded) return;
+    clearTimeout(timer);
+    timer = setTimeout(() => {
+      const { load, loadStats } = useWorkStore.getState();
+      load({ silent: true });
+      loadStats();
+    }, 300);
+  };
+  window.addEventListener(WORK_CHANGED, refresh);
+  window.addEventListener('focus', refresh);
+}

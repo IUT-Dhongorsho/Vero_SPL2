@@ -9,6 +9,12 @@ export class SocketDelivery {
     console.log('🔌 Socket Delivery initialized');
   }
 
+  /** A signal for the user's open apps (not a notification): nothing is stored or counted. */
+  signal(userIds: string[], event: string, payload: Record<string, unknown>) {
+    if (!this.io) return;
+    for (const userId of new Set(userIds)) this.io.to(`user:${userId}`).emit(event, payload);
+  }
+
   async deliver(userId: string, payload: any) {
     if (!this.io) {
       console.warn('⚠️ Socket.io server not initialized for delivery');
