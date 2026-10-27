@@ -9,12 +9,24 @@ interface UseYjsOptions {
   enabled: boolean;
 }
 
+/**
+ * A bright, readable colour per person, as hex: TipTap tints their selection
+ * by appending an alpha to it (`#rrggbb70`), which breaks with hsl().
+ */
 export const colorFor = (str: string) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  return `hsl(${Math.abs(hash) % 360} 70% 55%)`;
+  const hue = Math.abs(hash) % 360;
+  const s = 0.7;
+  const l = 0.6;
+  const channel = (n: number) => {
+    const k = (n + hue / 30) % 12;
+    const value = l - s * Math.min(l, 1 - l) * Math.max(-1, Math.min(k - 3, 9 - k, 1));
+    return Math.round(value * 255).toString(16).padStart(2, '0');
+  };
+  return `#${channel(0)}${channel(8)}${channel(4)}`;
 };
 
 /**

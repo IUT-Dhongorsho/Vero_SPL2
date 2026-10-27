@@ -388,3 +388,34 @@
   color: var(--muted-foreground);
   text-decoration: line-through;
 }
+
+/* Other people's cursors in a live note (TipTap CollaborationCursor): a thin
+   caret in their colour with their name in a small flag above it. */
+.collaboration-cursor__caret {
+  position: relative;
+  margin-left: -1px;
+  margin-right: -1px;
+  border-left: 2px solid;
+  word-break: normal;
+  pointer-events: none;
+}
+
+.collaboration-cursor__label {
+  position: absolute;
+  bottom: 100%;
+  left: -2px;
+  display: block;
+  width: max-content;
+  padding: 1px 6px;
+  border-radius: 4px 4px 4px 0;
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 600;
+  font-style: normal;
+  line-height: 1.5;
+  letter-spacing: 0;
+  white-space: nowrap;
+  color: #111;
+  user-select: none;
+  pointer-events: none;
+}
