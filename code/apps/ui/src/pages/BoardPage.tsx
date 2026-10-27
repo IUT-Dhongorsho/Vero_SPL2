@@ -81,17 +81,40 @@ export const BoardPage: React.FC = () => {
 
   const cards: KanbanCard[] = useMemo(
     () =>
-      tasks.map((task) => ({
-        id: task.id,
-        title: task.title,
-        description: task.description,
-        // On this board the "status" a card sits in *is* its column.
-        status: task.columnId,
-        priority: task.priority,
-        dueDate: task.dueDate,
-        labels: task.labels ? task.labels.split(',').filter(Boolean) : [],
-        context: task.assigneeId === me?.id ? 'Assigned to you' : task.assigneeId ? `Assigned to ${nameOf(task.assigneeId) ?? 'a teammate'}` : null,
-      })),
+      tasks.map((task) => {
+        const taskAssignees =
+          task.assignees && task.assignees.length > 0
+            ? task.assignees
+            : task.assigneeId
+              ? [{ id: task.assigneeId, name: nameOf(task.assigneeId) ?? 'Teammate', avatarUrl: null }]
+              : [];
+
+        let contextText: string | null = null;
+        if (taskAssignees.length === 1) {
+          contextText =
+            taskAssignees[0].id === me?.id
+              ? 'Assigned to you'
+              : `Assigned to ${taskAssignees[0].name}`;
+        } else if (taskAssignees.length > 1) {
+          const includesMe = taskAssignees.some((a) => a.id === me?.id);
+          contextText = includesMe
+            ? `Assigned to you & ${taskAssignees.length - 1} others`
+            : `Assigned to ${taskAssignees.length} teammates`;
+        }
+
+        return {
+          id: task.id,
+          title: task.title,
+          description: task.description,
+          // On this board the "status" a card sits in *is* its column.
+          status: task.columnId,
+          priority: task.priority,
+          dueDate: task.dueDate,
+          labels: task.labels ? task.labels.split(',').filter(Boolean) : [],
+          context: contextText,
+          assignees: taskAssignees,
+        };
+      }),
     [tasks, me?.id, nameOf]
   );
 
@@ -193,8 +216,17 @@ export const BoardPage: React.FC = () => {
       <TaskEditorModal
         open={Boolean(editing) || Boolean(creatingIn)}
         task={asWorkItem(editing)}
-        assignees={people.filter((p) => p.role !== 'viewer').map((p) => ({ id: p.userId, name: p.userId === me?.id ? `${p.user.name} (you)` : p.user.name }))}
+        assignees={people
+          .filter((p) => p.role !== 'viewer')
+          .map((p) => ({
+            id: p.userId,
+            name: p.userId === me?.id ? `${p.user.name} (you)` : p.user.name,
+            avatarUrl: p.user.avatarUrl ?? null,
+          }))}
         assigneeId={editing?.assigneeId ?? null}
+        assigneeIds={
+          editing?.assignees?.map((a) => a.id) ?? (editing?.assigneeId ? [editing.assigneeId] : [])
+        }
         defaultAssigneeId={me?.id ?? null}
         onClose={() => {
           setEditing(null);
@@ -210,7 +242,8 @@ export const BoardPage: React.FC = () => {
                 dueDate: input.dueDate,
                 labels: input.labels,
                 status: input.status,
-                assigneeId: input.assigneeId ?? null,
+                assigneeId: input.assigneeId ?? (input.assigneeIds?.[0] ?? null),
+                assigneeIds: input.assigneeIds,
               });
               setTasks((current) => current.map((t) => (t.id === editing.id ? updated : t)));
               toast.success('Task updated');
@@ -220,14 +253,15 @@ export const BoardPage: React.FC = () => {
                 description: input.description,
                 columnId: creatingIn,
                 creatorId: me.id,
-                assigneeId: input.assigneeId ?? undefined,
+                assigneeId: input.assigneeId ?? (input.assigneeIds?.[0] ?? undefined),
+                assigneeIds: input.assigneeIds,
                 dueDate: input.dueDate,
                 priority: input.priority,
                 labels: input.labels,
               });
               setTasks((current) => [...current, created]);
-              const who = input.assigneeId === me.id ? 'you' : nameOf(input.assigneeId ?? null);
-              toast.success(who ? `Task created and assigned to ${who}` : 'Task created');
+              const count = input.assigneeIds?.length ?? (input.assigneeId ? 1 : 0);
+              toast.success(count > 1 ? `Task created with ${count} assignees` : 'Task created');
             }
           } catch (error) {
             toast.error(errorMessage(error, 'Could not save that task'));

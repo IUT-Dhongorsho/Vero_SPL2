@@ -1,14 +1,16 @@
 import { db } from '../db/client.js';
-import { tasks } from '../models/task.model.js';
+import { tasks, taskAssignees } from '../models/task.model.js';
 import { columns } from '../models/column.model.js';
 import { projects } from '../models/project.model.js';
-import { eq, asc, count, and, inArray, isNotNull, sql } from 'drizzle-orm';
+import { users } from '../models/user.model.js';
+import { eq, asc, count, and, inArray, isNotNull, sql, or } from 'drizzle-orm';
 
 export interface CreateTaskInput {
   title: string;
   description?: string;
   columnId: string;
   assigneeId?: string;
+  assigneeIds?: string[];
   creatorId: string;
   dueDate?: string;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
@@ -20,6 +22,7 @@ export interface UpdateTaskInput {
   description?: string;
   priority?: 'low' | 'medium' | 'high' | 'urgent';
   assigneeId?: string | null;
+  assigneeIds?: string[];
   dueDate?: string | null;
   labels?: string[] | string;
   status?: 'backlog' | 'in_progress' | 'in_review' | 'done';
@@ -41,11 +44,41 @@ export const taskService = {
 
     const columnIds = projectColumns.map(c => c.id);
 
-    return db
+    const taskRows = await db
       .select()
       .from(tasks)
       .where(inArray(tasks.columnId, columnIds))
       .orderBy(asc(tasks.order));
+
+    if (taskRows.length === 0) return [];
+
+    // Fetch normalized assignees from junction table
+    const taskIds = taskRows.map(t => t.id);
+    const assigneesRows = await db
+      .select({
+        taskId: taskAssignees.taskId,
+        userId: taskAssignees.userId,
+        userName: users.name,
+        userAvatar: users.avatarUrl,
+      })
+      .from(taskAssignees)
+      .leftJoin(users, eq(taskAssignees.userId, users.id))
+      .where(inArray(taskAssignees.taskId, taskIds));
+
+    const assigneesByTask = new Map<string, Array<{ id: string; name: string; avatarUrl: string | null }>>();
+    for (const a of assigneesRows) {
+      if (!assigneesByTask.has(a.taskId)) assigneesByTask.set(a.taskId, []);
+      assigneesByTask.get(a.taskId)!.push({
+        id: a.userId,
+        name: a.userName || 'Member',
+        avatarUrl: a.userAvatar ?? null,
+      });
+    }
+
+    return taskRows.map(t => ({
+      ...t,
+      assignees: assigneesByTask.get(t.id) || (t.assigneeId ? [{ id: t.assigneeId, name: 'Member', avatarUrl: null }] : []),
+    }));
   },
 
   /**
@@ -77,7 +110,8 @@ export const taskService = {
       .from(tasks)
       .innerJoin(columns, eq(tasks.columnId, columns.id))
       .leftJoin(projects, eq(columns.projectId, projects.id))
-      .where(eq(tasks.assigneeId, userId))
+      .leftJoin(taskAssignees, eq(tasks.id, taskAssignees.taskId))
+      .where(or(eq(tasks.assigneeId, userId), eq(taskAssignees.userId, userId)))
       .orderBy(asc(tasks.order));
 
     // Boards are per module: `moduleId` is the board, `projectId` its project,
@@ -157,6 +191,11 @@ export const taskService = {
 
     const status = columnStatusMap[column[0]?.name?.toLowerCase()] || 'backlog';
 
+    const assigneeList = Array.from(new Set([
+      ...(input.assigneeIds || []),
+      ...(input.assigneeId ? [input.assigneeId] : [])
+    ])).filter(Boolean);
+
     const [task] = await db
       .insert(tasks)
       .values({
@@ -164,7 +203,7 @@ export const taskService = {
         description: input.description || '',
         order: nextOrder,
         columnId: input.columnId,
-        assigneeId: input.assigneeId || null,
+        assigneeId: assigneeList[0] || null,
         creatorId: input.creatorId,
         dueDate: input.dueDate ? new Date(input.dueDate) : null,
         priority: input.priority || 'medium',
@@ -173,7 +212,35 @@ export const taskService = {
       })
       .returning();
 
-    return task;
+    if (assigneeList.length > 0) {
+      await db.insert(taskAssignees).values(
+        assigneeList.map(userId => ({
+          taskId: task.id,
+          userId,
+        }))
+      ).onConflictDoNothing();
+    }
+
+    const assigneesRows = assigneeList.length > 0
+      ? await db
+          .select({
+            userId: taskAssignees.userId,
+            userName: users.name,
+            userAvatar: users.avatarUrl,
+          })
+          .from(taskAssignees)
+          .leftJoin(users, eq(taskAssignees.userId, users.id))
+          .where(eq(taskAssignees.taskId, task.id))
+      : [];
+
+    return {
+      ...task,
+      assignees: assigneesRows.map(a => ({
+        id: a.userId,
+        name: a.userName || 'Member',
+        avatarUrl: a.userAvatar ?? null,
+      })),
+    };
   },
 
   async updateTask(id: string, input: UpdateTaskInput) {
@@ -181,7 +248,6 @@ export const taskService = {
     if (input.title !== undefined) updateData.title = input.title;
     if (input.description !== undefined) updateData.description = input.description;
     if (input.priority !== undefined) updateData.priority = input.priority;
-    if (input.assigneeId !== undefined) updateData.assigneeId = input.assigneeId;
     if (input.dueDate !== undefined) updateData.dueDate = input.dueDate ? new Date(input.dueDate) : null;
     // `labels` is a comma-separated text column, so an array has to be flattened.
     if (input.labels !== undefined) {
@@ -189,13 +255,57 @@ export const taskService = {
     }
     if (input.status !== undefined) updateData.status = input.status;
 
+    if (input.assigneeIds !== undefined) {
+      const cleanList = Array.from(new Set(input.assigneeIds.filter(Boolean)));
+      updateData.assigneeId = cleanList[0] || null;
+
+      // Update junction table
+      await db.delete(taskAssignees).where(eq(taskAssignees.taskId, id));
+      if (cleanList.length > 0) {
+        await db.insert(taskAssignees).values(
+          cleanList.map(userId => ({
+            taskId: id,
+            userId,
+          }))
+        ).onConflictDoNothing();
+      }
+    } else if (input.assigneeId !== undefined) {
+      updateData.assigneeId = input.assigneeId;
+      await db.delete(taskAssignees).where(eq(taskAssignees.taskId, id));
+      if (input.assigneeId) {
+        await db.insert(taskAssignees).values({
+          taskId: id,
+          userId: input.assigneeId,
+        }).onConflictDoNothing();
+      }
+    }
+
     const [task] = await db
       .update(tasks)
       .set(updateData)
       .where(eq(tasks.id, id))
       .returning();
 
-    return task;
+    if (!task) return null;
+
+    const assigneesRows = await db
+      .select({
+        userId: taskAssignees.userId,
+        userName: users.name,
+        userAvatar: users.avatarUrl,
+      })
+      .from(taskAssignees)
+      .leftJoin(users, eq(taskAssignees.userId, users.id))
+      .where(eq(taskAssignees.taskId, id));
+
+    return {
+      ...task,
+      assignees: assigneesRows.map(a => ({
+        id: a.userId,
+        name: a.userName || 'Member',
+        avatarUrl: a.userAvatar ?? null,
+      })),
+    };
   },
 
   async deleteTask(id: string) {

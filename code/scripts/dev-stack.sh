@@ -1,21 +1,20 @@
 #!/usr/bin/env bash
 #
 # ==============================================================================
-# Vero Multi-Instance Clustered Stack & Public Ingress Tunnel Runner
+# Vero Multi-Instance Clustered Stack Runner (Local, LAN, Tailnet, or Public)
 # ==============================================================================
 #
-# Steps executed:
-#   1. Build the web application (@repo/shared and apps/web -> dist/)
-#   2. Kill all processes utilizing the cluster ports (3000, 8001-8007, 8011-8017, 5005, 5015)
-#   3. Start all primary & secondary services on their designated ports, plus Nginx gateway
-#   4. Validate zrok2 installation & environment status (with setup guide if missing)
-#   5. Establish public tunnel via: zrok2 share public http://localhost:3000 -n public:vero-spl2
+# Flags (can be combined in any order):
+#   --tunnel        Expose publicly via zrok2 tunnel (https://vero-spl2.shares.zrok.io)
+#   --tailnet       Expose to Tailscale private mesh via MagicDNS & TLS (https://<node>.ts.net)
+#   --lan           Expose to local Wi-Fi / Hotspot LAN subnet (http://<lan-ip>:3000)
+#   --bg            Run the cluster detached in background
+#   (no flags)      Start strictly on localhost (http://localhost:3000, zero tunnels)
 #
-# Commands:
-#   ./scripts/dev-stack.sh              Full startup with build, clustering, and zrok2 tunnel
-#   ./scripts/dev-stack.sh --no-tunnel  Start services and Nginx without launching zrok2
-#   ./scripts/dev-stack.sh stop         Terminate all cluster processes and Nginx
-#   ./scripts/dev-stack.sh status       Display real-time listener status for all ports
+# Subcommands:
+#   ./scripts/dev-stack.sh stop            Terminate all cluster processes, Nginx, and tunnels
+#   ./scripts/dev-stack.sh status          Display real-time listener status for all ports
+#   ./scripts/dev-stack.sh restart         Free all ports and re-launch the cluster
 #
 
 set -uo pipefail
@@ -44,10 +43,72 @@ SERVICES=(
 )
 
 # ------------------------------------------------------------------------------
+# Argument Parsing
+# ------------------------------------------------------------------------------
+MODE_TUNNEL=false
+MODE_TAILNET=false
+MODE_LAN=false
+MODE_BG=false
+COMMAND="start"
+
+for arg in "$@"; do
+  case "$arg" in
+    stop)
+      COMMAND="stop"
+      ;;
+    status)
+      COMMAND="status"
+      ;;
+    restart)
+      COMMAND="restart"
+      ;;
+    --tunnel)
+      MODE_TUNNEL=true
+      ;;
+    --tailnet)
+      MODE_TAILNET=true
+      ;;
+    --lan)
+      MODE_LAN=true
+      ;;
+    --bg|-d)
+      MODE_BG=true
+      ;;
+    --no-tunnel)
+      MODE_TUNNEL=false
+      ;;
+    --help|-h)
+      echo "Vero Development Stack Runner"
+      echo
+      echo "Usage:"
+      echo "  ./scripts/dev-stack.sh                              Run strictly locally on http://localhost:3000"
+      echo "  ./scripts/dev-stack.sh --tailnet                    Expose via Tailscale MagicDNS (https://<node>.ts.net)"
+      echo "  ./scripts/dev-stack.sh --lan                        Expose to local Wi-Fi / Hotspot (http://<lan-ip>:3000)"
+      echo "  ./scripts/dev-stack.sh --tunnel                     Expose publicly via zrok2 tunnel"
+      echo "  ./scripts/dev-stack.sh --tailnet --lan --tunnel     Combine all network endpoints simultaneously"
+      echo "  ./scripts/dev-stack.sh --bg                         Detach and run services in background"
+      echo "  ./scripts/dev-stack.sh stop                         Terminate all cluster processes, Nginx, and tunnels"
+      echo "  ./scripts/dev-stack.sh status                       Display port listener and replica health status"
+      echo "  ./scripts/dev-stack.sh restart                      Restart all services and edge proxy"
+      echo
+      exit 0
+      ;;
+    *)
+      # Ignore or unknown flags
+      ;;
+  esac
+done
+
+# ------------------------------------------------------------------------------
 # Process cleanup & Port Release
 # ------------------------------------------------------------------------------
 free_ports() {
-  echo "→ [Step 2] Releasing all Vero ports and stopping previous processes…"
+  echo "→ Releasing all Vero ports, Nginx gateway, and active tunnels…"
+
+  # Reset Tailscale serve if active
+  if command -v tailscale >/dev/null 2>&1; then
+    tailscale serve reset >/dev/null 2>&1 || sudo -n tailscale serve reset >/dev/null 2>&1 || true
+  fi
 
   # Stop Nginx cleanly if running
   if [[ -f "$ROOT/infra/nginx/temp/nginx.pid" ]]; then
@@ -131,17 +192,23 @@ status() {
 }
 
 # ------------------------------------------------------------------------------
-# Handle Subcommands
+# Subcommand Execution
 # ------------------------------------------------------------------------------
-case "${1:-start}" in
+case "$COMMAND" in
   stop)
     free_ports
-    echo "✓ All Vero services and Nginx gateway stopped."
+    echo "✓ All Vero services, Nginx gateway, and active tunnels stopped."
     exit 0
     ;;
   status)
     status
     exit 0
+    ;;
+  restart)
+    free_ports
+    sleep 1
+    ;;
+  start)
     ;;
 esac
 
@@ -151,12 +218,85 @@ esac
 command -v bun >/dev/null 2>&1 || { echo "❌ bun is required but not found in PATH."; exit 1; }
 command -v nginx >/dev/null 2>&1 || { echo "❌ nginx is required but not found in PATH."; exit 1; }
 
-# Locate zrok2 or zrok binary
 ZROK_BIN=""
-if command -v zrok2 >/dev/null 2>&1; then
-  ZROK_BIN="zrok2"
-elif command -v zrok >/dev/null 2>&1; then
-  ZROK_BIN="zrok"
+if [[ "$MODE_TUNNEL" == "true" ]]; then
+  if command -v zrok2 >/dev/null 2>&1; then
+    ZROK_BIN="zrok2"
+  elif command -v zrok >/dev/null 2>&1; then
+    ZROK_BIN="zrok"
+  else
+    echo "❌ zrok2 (or zrok) is not installed on this system."
+    echo "   To install zrok2:"
+    echo "     curl -sSLf https://get.zrok.io | bash"
+    echo "   Once installed, enable your zrok account:"
+    echo "     zrok2 enable <your-account-token>"
+    exit 1
+  fi
+
+  if ! "$ZROK_BIN" status >/dev/null 2>&1; then
+    echo "❌ $ZROK_BIN is installed, but no enabled environment was found."
+    echo "   Run: $ZROK_BIN enable <your-token>"
+    exit 1
+  fi
+fi
+
+# Detect Local LAN IP (Wi-Fi or Hotspot interface)
+LAN_IP=""
+if [[ "$MODE_LAN" == "true" ]]; then
+  LAN_IP="$(ip -4 route get 1.1.1.1 2>/dev/null | awk '{print $7}' | head -n 1)"
+  [[ -z "$LAN_IP" ]] && LAN_IP="$(hostname -I 2>/dev/null | awk '{print $1}')"
+fi
+
+# Detect Tailscale Domain and Tailscale IP
+TS_DOMAIN=""
+TS_IP=""
+if [[ "$MODE_TAILNET" == "true" ]]; then
+  if ! command -v tailscale >/dev/null 2>&1; then
+    echo "❌ tailscale CLI is not installed or not in PATH."
+    exit 1
+  fi
+  TS_STATUS="$(tailscale status --json 2>/dev/null || true)"
+  if [[ -n "$TS_STATUS" ]]; then
+    DETECTED_DOMAIN="$(echo "$TS_STATUS" | grep -o '"DNSName": *"[^"]*"' | head -n 1 | cut -d'"' -f4 | sed 's/\.$//')"
+    [[ -n "$DETECTED_DOMAIN" ]] && TS_DOMAIN="$DETECTED_DOMAIN"
+    DETECTED_IP="$(tailscale ip -4 2>/dev/null | head -n 1)"
+    [[ -n "$DETECTED_IP" ]] && TS_IP="$DETECTED_IP"
+  fi
+  if [[ -z "$TS_DOMAIN" ]]; then
+    TS_DOMAIN="nafis-elitebook.tailbbd834.ts.net"
+  fi
+fi
+
+# ------------------------------------------------------------------------------
+# Build Trusted Client Origins & BetterAuth Base URL
+# ------------------------------------------------------------------------------
+CLIENT_URL_LIST=("http://localhost:3000")
+
+if [[ "$MODE_LAN" == "true" && -n "$LAN_IP" ]]; then
+  CLIENT_URL_LIST+=("http://$LAN_IP:3000")
+fi
+
+if [[ "$MODE_TAILNET" == "true" ]]; then
+  [[ -n "$TS_DOMAIN" ]] && CLIENT_URL_LIST+=("https://$TS_DOMAIN")
+  [[ -n "$TS_IP" ]] && CLIENT_URL_LIST+=("http://$TS_IP:3000")
+fi
+
+if [[ "$MODE_TUNNEL" == "true" ]]; then
+  CLIENT_URL_LIST+=("https://vero-spl2.shares.zrok.io")
+fi
+
+# Comma-separated list for BetterAuth trustedOrigins
+CLIENT_URLS=$(IFS=, ; echo "${CLIENT_URL_LIST[*]}")
+
+# Determine primary OAuth Redirect Base URL (prefers valid HTTPS endpoints)
+if [[ "$MODE_TAILNET" == "true" && -n "$TS_DOMAIN" ]]; then
+  AUTH_BASE_URL="https://$TS_DOMAIN/api/better-auth"
+elif [[ "$MODE_TUNNEL" == "true" ]]; then
+  AUTH_BASE_URL="https://vero-spl2.shares.zrok.io/api/better-auth"
+elif [[ "$MODE_LAN" == "true" && -n "$LAN_IP" ]]; then
+  AUTH_BASE_URL="http://$LAN_IP:3000/api/better-auth"
+else
+  AUTH_BASE_URL="http://localhost:3000/api/better-auth"
 fi
 
 # ------------------------------------------------------------------------------
@@ -193,6 +333,9 @@ echo "→ [Step 3] Starting microservice clusters on designated ports…"
 for entry in "${SERVICES[@]}"; do
   IFS=: read -r name p_port _ <<<"$entry"
   case "$name" in
+    auth-service)
+      ( cd "$ROOT/services/$name" && PORT="$p_port" BETTER_AUTH_URL="$AUTH_BASE_URL" CLIENT_URL="$CLIENT_URLS" nohup bun dev >"$LOG_DIR/$name.log" 2>&1 & )
+      ;;
     chat-service)
       ( cd "$ROOT/services/$name" && PORT="$p_port" GRPC_PORT=5005 nohup bun dev >"$LOG_DIR/$name.log" 2>&1 & )
       ;;
@@ -210,6 +353,9 @@ done
 for entry in "${SERVICES[@]}"; do
   IFS=: read -r name _ s_port <<<"$entry"
   case "$name" in
+    auth-service)
+      ( cd "$ROOT/services/$name" && PORT="$s_port" BETTER_AUTH_URL="$AUTH_BASE_URL" CLIENT_URL="$CLIENT_URLS" nohup bun dev >"$LOG_DIR/$name-2.log" 2>&1 & )
+      ;;
     chat-service)
       ( cd "$ROOT/services/$name" && PORT="$s_port" GRPC_PORT=5015 nohup bun dev >"$LOG_DIR/$name-2.log" 2>&1 & )
       ;;
@@ -250,61 +396,80 @@ echo
 status
 
 echo "===================================================================="
-echo "  🚀 Vero Clustered Gateway Active"
+echo "  🚀 Vero Clustered Stack Active"
 echo "===================================================================="
 echo "  Local Edge Gateway:  http://localhost:3000"
-echo "  Target Public URL:   https://vero-spl2.shares.zrok.io"
-echo "  Google OAuth URL:    https://vero-spl2.shares.zrok.io/api/better-auth/callback/google"
+
+if [[ "$MODE_TAILNET" == "true" ]]; then
+  echo "  Tailnet HTTPS:       https://$TS_DOMAIN"
+  [[ -n "$TS_IP" ]] && echo "  Tailnet Direct IP:   http://$TS_IP:3000"
+fi
+
+if [[ "$MODE_LAN" == "true" && -n "$LAN_IP" ]]; then
+  echo "  Local LAN (Wi-Fi):   http://$LAN_IP:3000"
+fi
+
+if [[ "$MODE_TUNNEL" == "true" ]]; then
+  echo "  Public zrok2 Tunnel: https://vero-spl2.shares.zrok.io"
+fi
+
+if [[ "$MODE_TAILNET" == "false" && "$MODE_LAN" == "false" && "$MODE_TUNNEL" == "false" ]]; then
+  echo "  Mode:                Localhost only (zero public tunnels, zero latency)"
+fi
+
+echo "  Google OAuth Return: $AUTH_BASE_URL/callback/google"
+echo "  Trusted Origins:     $CLIENT_URLS"
 echo "  Service Instances:   14 active replicas load-balanced via Nginx"
 echo "  Logs:                $LOG_DIR/*.log"
 echo "  Stop command:        ./scripts/dev-stack.sh stop"
 echo "===================================================================="
 echo
 
-# If user specified --no-tunnel, stop here without launching zrok
-if [[ "${1:-}" == "--no-tunnel" || "${2:-}" == "--no-tunnel" ]]; then
-  echo "ℹ️  --no-tunnel specified; cluster is running in the background."
+# ------------------------------------------------------------------------------
+# [Step 4] Tailscale Serve Activation (if --tailnet)
+# ------------------------------------------------------------------------------
+if [[ "$MODE_TAILNET" == "true" ]]; then
+  echo "→ [Step 4] Activating Tailscale HTTPS serve (https://$TS_DOMAIN -> :3000)…"
+  
+  SERVE_OUT="$(tailscale serve --yes --bg 3000 2>&1 || true)"
+
+  # If access was denied due to missing operator permissions, attempt sudo
+  if [[ "$SERVE_OUT" == *"Access denied"* || "$SERVE_OUT" == *"require root"* ]]; then
+    if sudo -n true 2>/dev/null; then
+      # Passwordless or cached sudo available
+      sudo tailscale serve --yes --bg 3000 >/dev/null 2>&1 || true
+    elif [[ -t 0 ]]; then
+      # Interactive terminal: prompt for sudo once
+      echo "   Tailscale requires operator permission. Running with sudo…"
+      sudo tailscale serve --yes --bg 3000 || true
+    fi
+  fi
+
+  if tailscale serve status 2>&1 | grep -q -i "https://"; then
+    echo "✓ Tailscale HTTPS serve active at: https://$TS_DOMAIN"
+  else
+    echo "⚠️  Tailscale HTTPS serve could not start automatically:"
+    echo "$SERVE_OUT" | sed 's/^/   /'
+    echo
+    echo "   👉 Fix (run once in terminal to permit non-root Tailscale commands):"
+    echo "      sudo tailscale set --operator=\$USER"
+    echo "   Then re-run: ./scripts/dev-stack.sh --tailnet"
+  fi
+  echo
+fi
+
+# ------------------------------------------------------------------------------
+# Detached Background Mode (--bg)
+# ------------------------------------------------------------------------------
+if [[ "$MODE_BG" == "true" ]]; then
+  echo "✓ Stack is running detached in the background."
+  echo "  Run './scripts/dev-stack.sh stop' to terminate."
   exit 0
 fi
 
 # ------------------------------------------------------------------------------
-# [Step 4] Validate zrok2 installation & configuration
+# [Step 5] Tunneling / Foreground Hold
 # ------------------------------------------------------------------------------
-echo "→ [Step 4] Validating zrok2 installation & account environment…"
-
-if [[ -z "$ZROK_BIN" ]]; then
-  echo "❌ zrok2 (or zrok) is not installed on this system."
-  echo "   To install zrok2:"
-  echo "     curl -sSLf https://get.zrok.io | bash"
-  echo "   Once installed, enable your zrok account:"
-  echo "     zrok2 invite"
-  echo "     zrok2 enable <your-account-token>"
-  echo "   Then re-run this script."
-  exit 1
-fi
-
-if ! "$ZROK_BIN" status >/dev/null 2>&1; then
-  echo "❌ $ZROK_BIN is installed, but no enabled environment was found."
-  echo "   Please log in and set up $ZROK_BIN before continuing:"
-  echo "     1. Grab your account token from https://zrok.io"
-  echo "     2. Run: $ZROK_BIN enable <your-token>"
-  echo "   Then re-run this script."
-  exit 1
-fi
-
-echo "✓ $ZROK_BIN detected and active account environment confirmed."
-
-# ------------------------------------------------------------------------------
-# [Step 5] Tunnel with zrok2
-# ------------------------------------------------------------------------------
-echo "→ [Step 5] Launching public tunnel:"
-echo "   $ZROK_BIN share public http://localhost:3000 -n public:vero-spl2"
-echo
-echo "   Target domain: https://vero-spl2.shares.zrok.io/"
-echo "   (Press Ctrl+C to stop tunnel and shut down all background cluster services)"
-echo
-
-# Trap Ctrl+C (SIGINT/SIGTERM) to clean up all services on exit
 cleanup() {
   echo -e "\n→ Signal received: shutting down Vero cluster…"
   free_ports
@@ -313,9 +478,23 @@ cleanup() {
 }
 trap cleanup INT TERM
 
-# Run zrok2 share public
-if [[ -t 1 ]]; then
-  "$ZROK_BIN" share public http://localhost:3000 -n public:vero-spl2
+if [[ "$MODE_TUNNEL" == "true" ]]; then
+  echo "→ [Step 5] Launching public zrok2 tunnel:"
+  echo "   $ZROK_BIN share public http://localhost:3000 -n public:vero-spl2"
+  echo
+  echo "   Target domain: https://vero-spl2.shares.zrok.io/"
+  echo "   (Press Ctrl+C to stop tunnel and shut down all background cluster services)"
+  echo
+
+  if [[ -t 1 ]]; then
+    "$ZROK_BIN" share public http://localhost:3000 -n public:vero-spl2
+  else
+    "$ZROK_BIN" share public http://localhost:3000 -n public:vero-spl2 --headless
+  fi
 else
-  "$ZROK_BIN" share public http://localhost:3000 -n public:vero-spl2 --headless
+  echo "💡 Stack is running. Press Ctrl+C to stop all services (or run './scripts/dev-stack.sh stop' in another terminal)."
+  while true; do
+    sleep 3600 &
+    wait $! 2>/dev/null || true
+  done
 fi

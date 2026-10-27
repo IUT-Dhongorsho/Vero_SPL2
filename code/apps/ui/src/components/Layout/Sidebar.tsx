@@ -124,9 +124,9 @@ const ProjectItem: React.FC<{
   <NavLink to={projectHref(id)} onClick={onClick} title={collapsed ? name : undefined} className="block">
     <div
       className={cn(
-        'relative flex items-center gap-3 rounded-xl px-3 py-2 text-sm font-medium transition-colors duration-150',
-        collapsed && 'justify-center px-0',
-        active ? 'text-foreground bg-muted' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+        'relative flex items-center gap-2.5 rounded-xl text-sm font-medium transition-colors duration-150',
+        collapsed ? 'justify-center px-0 py-2' : 'ml-3 pl-3.5 pr-2.5 py-1.5 border-l border-border/40',
+        active ? 'text-foreground bg-muted font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
       )}
     >
       <span
@@ -226,7 +226,7 @@ const SidebarBody: React.FC<{
           <NavLink
             to="/projects"
             onClick={onNavigate}
-            className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            className="ml-3 pl-3.5 pr-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors border-l border-border/40 block"
           >
             {projects.length - listed.length} more
           </NavLink>
@@ -310,24 +310,34 @@ export const Sidebar: React.FC = () => {
             isSidebarCollapsed ? 'justify-center' : 'justify-between'
           )}
         >
-          {!isSidebarCollapsed && (
-            <div className="flex items-center gap-2.5 min-w-0">
-              <VeroLogo variant="symbol-bg" size="sm" className="rounded-xl shadow-xs" />
-              <span className="font-semibold tracking-tight truncate text-foreground">Vero</span>
-            </div>
+          {isSidebarCollapsed ? (
+            <button
+              onClick={toggleSidebar}
+              className="p-1.5 rounded-xl hover:bg-muted transition-colors shrink-0 cursor-pointer flex items-center justify-center group"
+              title="Expand sidebar"
+              aria-label="Expand sidebar"
+            >
+              <VeroLogo
+                variant="navbar-collapsed"
+                size={32}
+                className="group-hover:scale-105 transition-transform"
+              />
+            </button>
+          ) : (
+            <>
+              <div className="flex items-center min-w-0">
+                <VeroLogo variant="navbar-expanded" size={48} className="max-w-[150px]" />
+              </div>
+              <button
+                onClick={toggleSidebar}
+                className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 cursor-pointer"
+                title="Collapse sidebar"
+                aria-label="Collapse sidebar"
+              >
+                <ChevronLeft className="w-4 h-4" />
+              </button>
+            </>
           )}
-          <button
-            onClick={toggleSidebar}
-            className="p-1.5 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0 cursor-pointer"
-            title={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-            aria-label={isSidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
-          >
-            {isSidebarCollapsed ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <ChevronLeft className="w-4 h-4" />
-            )}
-          </button>
         </div>
 
         <SidebarBody
@@ -387,9 +397,8 @@ const MobileSidebar: React.FC<{
               className="md:hidden fixed left-0 top-0 h-screen w-[280px] bg-card border-r border-border flex flex-col z-[70] shadow-lifted"
             >
               <div className="h-16 flex items-center justify-between px-4 border-b border-border shrink-0">
-                <div className="flex items-center gap-2.5">
-                  <VeroLogo variant="symbol-bg" size="sm" className="rounded-xl shadow-xs" />
-                  <span className="font-semibold tracking-tight text-foreground">Vero</span>
+                <div className="flex items-center min-w-0">
+                  <VeroLogo variant="navbar-expanded" size={36} className="max-w-[150px]" />
                 </div>
                 <button
                   onClick={() => setOpen(false)}

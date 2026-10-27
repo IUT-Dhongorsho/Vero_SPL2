@@ -33,6 +33,8 @@ export const auth = betterAuth({
         "*.nip.io",
         "*.trycloudflare.com",
         "*.loca.lt",
+        "*.ts.net",
+        "*.zrok.io",
     ],
     database: drizzleAdapter(db, {
         provider: "pg",

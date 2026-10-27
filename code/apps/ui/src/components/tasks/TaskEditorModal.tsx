@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Trash2, X } from 'lucide-react';
 import { AnimatedButton } from '../ui/AnimatedButton';
+import { Avatar } from '../ui/Avatar';
 import type { CreatePersonalTask, WorkItem, WorkPriority, WorkStatus } from '../../services/workService';
 import { cn } from '../../utils/cn';
 
@@ -13,12 +14,16 @@ interface TaskEditorModalProps {
   onSubmit: (input: TaskEditorInput) => Promise<void>;
   onDelete?: (id: string) => Promise<void>;
   /** Project boards pass who a task can go to; personal tasks have no assignee. */
-  assignees?: { id: string; name: string }[];
+  assignees?: { id: string; name: string; avatarUrl?: string | null }[];
   assigneeId?: string | null;
+  assigneeIds?: string[];
   defaultAssigneeId?: string | null;
 }
 
-export type TaskEditorInput = CreatePersonalTask & { assigneeId?: string | null };
+export type TaskEditorInput = CreatePersonalTask & {
+  assigneeId?: string | null;
+  assigneeIds?: string[];
+};
 
 const STATUSES: { id: WorkStatus; label: string }[] = [
   { id: 'backlog', label: 'Backlog' },
@@ -52,6 +57,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
   onDelete,
   assignees,
   assigneeId: currentAssignee,
+  assigneeIds: currentAssigneeIds,
   defaultAssigneeId = null,
 }) => {
   const [title, setTitle] = useState('');
@@ -61,7 +67,7 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
   const [dueDate, setDueDate] = useState('');
   const [labels, setLabels] = useState('');
   const [saving, setSaving] = useState(false);
-  const [assignee, setAssignee] = useState<string>('');
+  const [selectedAssigneeIds, setSelectedAssigneeIds] = useState<string[]>([]);
 
   useEffect(() => {
     if (!open) return;
@@ -72,8 +78,19 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
     setDueDate(toLocalInput(task?.dueDate));
     setLabels((task?.labels ?? []).join(', '));
     setSaving(false);
-    setAssignee((task ? currentAssignee : defaultAssigneeId) ?? '');
-  }, [open, task, defaultStatus, currentAssignee, defaultAssigneeId]);
+
+    if (task) {
+      if (currentAssigneeIds && currentAssigneeIds.length > 0) {
+        setSelectedAssigneeIds(currentAssigneeIds);
+      } else if (currentAssignee) {
+        setSelectedAssigneeIds([currentAssignee]);
+      } else {
+        setSelectedAssigneeIds([]);
+      }
+    } else {
+      setSelectedAssigneeIds(defaultAssigneeId ? [defaultAssigneeId] : []);
+    }
+  }, [open, task, defaultStatus, currentAssignee, currentAssigneeIds, defaultAssigneeId]);
 
   useEffect(() => {
     if (!open) return;
@@ -96,7 +113,10 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
           .split(',')
           .map((l) => l.trim())
           .filter(Boolean),
-        ...(assignees ? { assigneeId: assignee || null } : {}),
+        ...(assignees ? {
+          assigneeId: selectedAssigneeIds[0] || null,
+          assigneeIds: selectedAssigneeIds,
+        } : {}),
       });
       onClose();
     } finally {
@@ -203,23 +223,53 @@ export const TaskEditorModal: React.FC<TaskEditorModalProps> = ({
 
               {assignees && (
                 <div>
-                  <label htmlFor="task-assignee" className="block text-sm font-medium text-foreground mb-2">
-                    Assignee
-                  </label>
-                  <select
-                    id="task-assignee"
-                    value={assignee}
-                    onChange={(e) => setAssignee(e.target.value)}
-                    className="w-full px-4 py-3 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition-all"
-                  >
-                    <option value="">Nobody yet</option>
-                    {assignees.map((person) => (
-                      <option key={person.id} value={person.id}>
-                        {person.name}
-                      </option>
-                    ))}
-                  </select>
-                  <p className="text-xs text-muted-foreground mt-1.5">They get a notification and see it on their Progress board.</p>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-sm font-medium text-foreground">
+                      Assignees {selectedAssigneeIds.length > 0 && `(${selectedAssigneeIds.length})`}
+                    </label>
+                    {selectedAssigneeIds.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={() => setSelectedAssigneeIds([])}
+                        className="text-xs text-muted-foreground hover:text-foreground transition-colors cursor-pointer"
+                      >
+                        Clear all
+                      </button>
+                    )}
+                  </div>
+                  {assignees.length === 0 ? (
+                    <p className="text-xs text-muted-foreground">No project members available.</p>
+                  ) : (
+                    <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto p-2 rounded-xl border border-border bg-background/50">
+                      {assignees.map((person) => {
+                        const isSelected = selectedAssigneeIds.includes(person.id);
+                        return (
+                          <button
+                            key={person.id}
+                            type="button"
+                            onClick={() => {
+                              setSelectedAssigneeIds((prev) =>
+                                isSelected ? prev.filter((id) => id !== person.id) : [...prev, person.id]
+                              );
+                            }}
+                            className={cn(
+                              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium border transition-all cursor-pointer',
+                              isSelected
+                                ? 'bg-accent/15 border-accent text-accent-foreground shadow-sm'
+                                : 'border-border bg-surface text-muted-foreground hover:text-foreground hover:border-border/80'
+                            )}
+                          >
+                            <Avatar name={person.name} src={person.avatarUrl} size="xs" />
+                            <span>{person.name}</span>
+                            {isSelected && <span className="ml-1 text-accent font-bold">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                  <p className="text-xs text-muted-foreground mt-1.5">
+                    Click members to assign or unassign. They receive notifications and see this task on their boards.
+                  </p>
                 </div>
               )}
 

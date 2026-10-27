@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, FolderKanban, Plus } from 'lucide-react';
+import { ChevronRight, FolderKanban, Lock, Plus } from 'lucide-react';
 import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { EmptyState } from '../../components/ui/EmptyState';
 import { Badge } from '../../components/ui/Badge';
@@ -67,6 +67,11 @@ export const ModulesTab: React.FC<ProjectTabProps> = ({ project, setActions }) =
                   <span className="min-w-0">
                     <span className="flex items-center gap-2">
                       <span className="font-semibold text-foreground truncate">{mod.name}</span>
+                      {mod.isPrivate && (
+                        <span className="inline-flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full bg-warning/10 text-warning border border-warning/20">
+                          <Lock className="w-3 h-3" /> Private
+                        </span>
+                      )}
                       {mod.isMember && <Badge tone="accent">Joined</Badge>}
                     </span>
                     <span className="block text-sm text-muted-foreground truncate">

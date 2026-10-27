@@ -39,6 +39,13 @@ export const accessService = {
     const mod = await db.query.modules.findFirst({ where: eq(modules.id, moduleId) });
     if (!mod) throw new AccessError(404, 'Module not found', 'NOT_FOUND');
     const member = await this.require(mod.projectId, userId, permission);
+    const isAdmin = member.role === 'admin';
+    if (mod.isPrivate && !isAdmin) {
+      const isMember = await this.isModuleMember(moduleId, userId);
+      if (!isMember) {
+        throw new AccessError(403, 'This module is private. Ask a project admin for access.', 'FORBIDDEN');
+      }
+    }
     return { module: mod, member };
   },
 

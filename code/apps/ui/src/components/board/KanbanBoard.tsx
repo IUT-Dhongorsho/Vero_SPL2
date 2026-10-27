@@ -16,6 +16,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { AnimatePresence, motion } from 'framer-motion';
 import { CalendarClock, GripVertical, Plus } from 'lucide-react';
 import { Badge, PriorityBadge } from '../ui/Badge';
+import { AvatarStack } from '../project/AvatarStack';
 import { cn } from '../../utils/cn';
 import { EASE_OUT } from '../../lib/motion';
 
@@ -29,6 +30,8 @@ export interface KanbanCard {
   labels?: string[];
   /** Small context line, e.g. the project a task belongs to. */
   context?: string | null;
+  /** Teammates assigned to the task. */
+  assignees?: { id: string; name: string; avatarUrl?: string | null }[];
   /** Cards that cannot be dragged. */
   locked?: boolean;
 }
@@ -99,19 +102,26 @@ const Card: React.FC<{ card: KanbanCard; onClick?: () => void; dragging?: boolea
         </p>
       )}
 
-      <div className="mt-3.5 flex flex-wrap items-center gap-2">
-        <PriorityBadge priority={card.priority} />
-        {due && (
-          <Badge tone={due.tone}>
-            <CalendarClock className="w-3 h-3" />
-            {due.label}
-          </Badge>
+      <div className="mt-3.5 flex items-center justify-between gap-2">
+        <div className="flex flex-wrap items-center gap-2">
+          <PriorityBadge priority={card.priority} />
+          {due && (
+            <Badge tone={due.tone}>
+              <CalendarClock className="w-3 h-3" />
+              {due.label}
+            </Badge>
+          )}
+          {card.labels?.slice(0, 2).map((label) => (
+            <Badge key={label} tone="neutral">
+              {label}
+            </Badge>
+          ))}
+        </div>
+        {card.assignees && card.assignees.length > 0 && (
+          <div className="shrink-0 ml-auto">
+            <AvatarStack people={card.assignees} max={3} />
+          </div>
         )}
-        {card.labels?.slice(0, 2).map((label) => (
-          <Badge key={label} tone="neutral">
-            {label}
-          </Badge>
-        ))}
       </div>
 
       {card.context && (

@@ -18,11 +18,13 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
   const createModule = useModuleStore((s) => s.createModule);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [isPrivate, setIsPrivate] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const close = () => {
     setName('');
     setDescription('');
+    setIsPrivate(false);
     onClose();
   };
 
@@ -31,7 +33,7 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
     if (!name.trim()) return;
     setSaving(true);
     try {
-      const created = await createModule({ name: name.trim(), description: description.trim(), projectId });
+      const created = await createModule({ name: name.trim(), description: description.trim(), projectId, isPrivate });
       toast.success(`Created ${created.name}`);
       close();
       navigate(`/project/${projectId}/module/${created.id}`);
@@ -84,6 +86,21 @@ export const CreateModuleModal: React.FC<CreateModuleModalProps> = ({ isOpen, on
             />
           )}
         </Field>
+        <div className="flex items-start gap-3 p-3.5 rounded-xl border border-border bg-card">
+          <input
+            id="private-module-toggle"
+            type="checkbox"
+            checked={isPrivate}
+            onChange={(e) => setIsPrivate(e.target.checked)}
+            className="mt-0.5 h-4 w-4 rounded border-border text-accent focus:ring-accent-soft cursor-pointer"
+          />
+          <label htmlFor="private-module-toggle" className="text-sm cursor-pointer select-none">
+            <span className="font-medium text-foreground block">Private module</span>
+            <span className="text-xs text-muted-foreground block">
+              Only project admins and invited members can view or access this module.
+            </span>
+          </label>
+        </div>
       </form>
     </Modal>
   );

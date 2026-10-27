@@ -31,6 +31,7 @@ export class ModuleController {
       const { projectId } = req.body ?? {};
       const name = cleanText(req.body?.name, 255);
       const description = cleanText(req.body?.description, 2000) ?? '';
+      const isPrivate = Boolean(req.body?.isPrivate ?? false);
       const userId = userIdOf(req);
 
       if (!projectId || !name) {
@@ -52,6 +53,7 @@ export class ModuleController {
         description,
         projectId,
         type: 'general',
+        isPrivate,
       }).returning();
 
       // 3. Project admins belong to every module they can manage
@@ -97,7 +99,8 @@ export class ModuleController {
     try {
       const projectId = String(req.params.projectId);
       const userId = userIdOf(req);
-      await accessService.require(projectId, userId);
+      const member = await accessService.require(projectId, userId);
+      const isAdmin = member.role === 'admin';
 
       const results = await db.query.modules.findMany({
         where: eq(modules.projectId, projectId),
@@ -105,8 +108,15 @@ export class ModuleController {
         orderBy: (m, { asc }) => [asc(m.createdAt)],
       });
 
+      // Filter private modules: non-admins only see private modules if they are members
+      const visible = results.filter((m: any) => {
+        if (!m.isPrivate) return true;
+        if (isAdmin) return true;
+        return m.members.some((mm: any) => mm.userId === userId);
+      });
+
       res.json(
-        results.map(({ members, ...m }: any) => ({
+        visible.map(({ members, ...m }: any) => ({
           ...m,
           members: members.length,
           isMember: members.some((mm: any) => mm.userId === userId),
@@ -196,6 +206,9 @@ export class ModuleController {
         }
         patch.status = status;
       }
+      if (req.body?.isPrivate !== undefined) {
+        patch.isPrivate = Boolean(req.body.isPrivate);
+      }
 
       const [updated] = await db.update(modules).set(patch).where(eq(modules.id, mod.id)).returning();
       res.json(updated);
@@ -271,11 +284,15 @@ export class ModuleController {
     }
   }
 
-  /** POST /modules/:moduleId/join — any project member can join a module. */
+  /** POST /modules/:moduleId/join — project members can join public modules; private modules require admin invite. */
   async join(req: Request, res: Response) {
     try {
       const userId = userIdOf(req);
       const { module: mod, member } = await accessService.requireModule(String(req.params.moduleId), userId);
+
+      if (mod.isPrivate && member.role !== 'admin') {
+        throw new AccessError(403, 'This module is private. Ask a project admin to add you.', 'FORBIDDEN');
+      }
 
       if (!(await accessService.isModuleMember(mod.id, userId))) {
         await db.insert(moduleMembers).values({ moduleId: mod.id, userId, projectMemberId: member.id });

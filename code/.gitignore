@@ -3,6 +3,7 @@
 .env.*.local
 *.pem
 *.key
+*.crt
 
 # System Files
 .DS_Store

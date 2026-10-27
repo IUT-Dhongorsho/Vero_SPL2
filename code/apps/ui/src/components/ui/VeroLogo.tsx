@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useTheme } from '../Providers/ThemeProvider';
 
-export type LogoVariant = 'symbol' | 'symbol-bg' | 'black-bg' | 'white-bg' | 'full';
+export type LogoVariant = 'symbol' | 'symbol-bg' | 'black-bg' | 'white-bg' | 'full' | 'navbar-expanded' | 'navbar-collapsed';
 export type LogoSize = 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | number;
 
 export interface VeroLogoProps extends Omit<React.ImgHTMLAttributes<HTMLImageElement>, 'size'> {
@@ -52,12 +52,23 @@ export const VeroLogo: React.FC<VeroLogoProps> = ({
   let src = toAssetUrl('/icons/BlackBG/android-chrome-192x192.png');
 
   switch (variant) {
+    case 'navbar-collapsed':
     case 'symbol':
       // Transparent background: White V for dark theme, Black V for light theme
       src = toAssetUrl(
         isDark
-          ? '/icons/V_White/android-chrome-192x192.png'
-          : '/icons/V_black/android-chrome-192x192.png'
+          ? '/icons/Vero_V_White.png'
+          : '/icons/Vero_V_Black.png'
+      );
+      break;
+
+    case 'navbar-expanded':
+    case 'full':
+      // Full Vero logo: White for dark theme, Black for light theme
+      src = toAssetUrl(
+        isDark
+          ? '/icons/Vero_Full_White.png'
+          : '/icons/Vero_Full_Black.png'
       );
       break;
 
@@ -77,20 +88,18 @@ export const VeroLogo: React.FC<VeroLogoProps> = ({
     case 'white-bg':
       src = toAssetUrl('/icons/WhiteBG/android-chrome-192x192.png');
       break;
-
-    case 'full':
-      src = toAssetUrl('/icons/Vero_white/android-chrome-192x192.png');
-      break;
   }
+
+  const isHorizontal = variant === 'navbar-expanded' || variant === 'full';
 
   return (
     <img
       src={src}
       alt={alt}
-      width={px}
+      width={isHorizontal ? undefined : px}
       height={px}
       className={`inline-block shrink-0 select-none object-contain ${className}`}
-      style={{ width: `${px}px`, height: `${px}px` }}
+      style={{ height: `${px}px`, width: isHorizontal ? 'auto' : `${px}px` }}
       loading="eager"
       {...props}
     />

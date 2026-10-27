@@ -15,6 +15,7 @@ export interface Module {
   description: string | null;
   projectId: string;
   status: ModuleStatus;
+  isPrivate?: boolean;
   chatResourceId: string | null;
   createdAt: string;
   updatedAt: string;
@@ -42,6 +43,7 @@ export interface CreateModuleData {
   name: string;
   description: string;
   projectId: string;
+  isPrivate?: boolean;
 }
 
 export const moduleService = {
@@ -66,7 +68,7 @@ export const moduleService = {
     return response.data;
   },
 
-  async updateModule(moduleId: string, data: Partial<{ name: string; description: string; status: ModuleStatus }>): Promise<Module> {
+  async updateModule(moduleId: string, data: Partial<{ name: string; description: string; status: ModuleStatus; isPrivate: boolean }>): Promise<Module> {
     const response = await api.patch(`/project/modules/${moduleId}`, data);
     return response.data;
   },

@@ -9,6 +9,12 @@ export interface BoardColumn {
   taskCount?: number;
 }
 
+export interface TaskAssigneeRef {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
+
 export interface BoardTask {
   id: string;
   title: string;
@@ -16,6 +22,7 @@ export interface BoardTask {
   order: number;
   columnId: string;
   assigneeId: string | null;
+  assignees?: TaskAssigneeRef[];
   creatorId: string;
   dueDate: string | null;
   priority: WorkPriority;
@@ -31,6 +38,7 @@ export interface CreateBoardTask {
   columnId: string;
   creatorId: string;
   assigneeId?: string | null;
+  assigneeIds?: string[];
   dueDate?: string | null;
   priority?: WorkPriority;
   labels?: string[];

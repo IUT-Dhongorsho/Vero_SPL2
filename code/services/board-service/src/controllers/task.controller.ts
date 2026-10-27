@@ -47,7 +47,7 @@ export const taskController = {
 
   async create(req: BoardRequest, res: Response) {
     try {
-      const { title, description, columnId, assigneeId, dueDate, priority, labels } = req.body;
+      const { title, description, columnId, assigneeId, assigneeIds, dueDate, priority, labels } = req.body;
 
       if (typeof title !== 'string' || !title.trim() || !columnId) {
         return res.status(400).json({ error: 'A task needs a title and a column' });
@@ -61,6 +61,7 @@ export const taskController = {
         description,
         columnId,
         assigneeId,
+        assigneeIds,
         // The creator is whoever is signed in, not whatever the client claims.
         creatorId: req.userId!,
         dueDate,

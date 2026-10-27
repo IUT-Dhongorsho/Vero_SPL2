@@ -1,4 +1,4 @@
-import { pgTable, text, varchar, timestamp } from 'drizzle-orm/pg-core';
+import { pgTable, text, varchar, timestamp, boolean } from 'drizzle-orm/pg-core';
 import { relations, sql } from 'drizzle-orm';
 import { users } from './user.model.js';
 
@@ -53,6 +53,7 @@ export const modules = pgTable('modules', {
   description: text('description'),
   type: varchar('type', { length: 50 }).default('general').notNull(),
   status: varchar('status', { length: 50 }).default('on-track').notNull(),
+  isPrivate: boolean('is_private').default(false).notNull(),
 
   // Resource IDs provisioned by other microservices
   chatResourceId: text('chat_resource_id'),

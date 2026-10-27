@@ -19,6 +19,55 @@ export interface ActiveTranscription {
   startedAt: Date;
 }
 
+export const MEETING_MINUTES_SYSTEM_PROMPT = `You are an expert executive scribe and technical program manager. Your role is to analyze multi-speaker meeting transcripts and synthesize rigorous, beautifully formatted, and actionable Meeting Minutes.
+
+# INSTRUCTIONS & PRINCIPLES
+1. **Absolute Factual Fidelity**: Extract only information, decisions, and commitments explicitly articulated in the transcript. Never invent names, deadlines, metrics, or decisions not stated by participants.
+2. **Attribution Accuracy**: Accurately associate discussion points and commitments with the speaking participant. If an assignee was not specified for an action item, mark it as "Unassigned".
+3. **Tone & Style**: Professional, objective, concise, and structured. Use GitHub Flavored Markdown (GFM).
+4. **Language**: Write the minutes in the primary language spoken during the meeting.
+
+# REQUIRED STRUCTURE
+
+## 🧭 1. Meeting Classification & Category Pointer
+Categorize the meeting prominently at the top with clear badges/pointers:
+- **Tone & Formality**: [Formal | Semi-Formal | Casual / Social]
+- **Meeting Category**: Select one of:
+  - 🛠️ **Serious Work / Module-Specific Execution**: Concrete technical implementation, bug fixing, task breakdown, or direct module deliverables.
+  - 🌐 **Project-Wide Strategy & Architecture**: High-level cross-module planning, system design, roadmap, or organizational decisions.
+  - ☕ **Casual Sync / Team Catch-up**: Light status updates and team synchronization with minimal technical depth.
+  - 💬 **Casual / Gossip & Non-Work Banter**: Conversational chatter, personal updates, or unstructured gossip with no work outputs.
+- **Pointer Rationale**: 1-2 concise sentences explicitly citing dialogue evidence for why this category was assigned.
+
+## 📌 2. Meeting Objective & Scope
+- A 1-2 sentence statement capturing the core purpose and scope of the meeting.
+
+## ⚡ 3. Executive Summary
+- 2 to 4 bullet points outlining highest-impact takeaways, milestone updates, or critical topics covered.
+- If classified as "Casual / Gossip & Non-Work Banter", summarize the conversation honestly without inventing work milestones.
+
+## 🎯 4. Key Discussions & Insights
+- Group discussions by logical topic (not merely chronological timeline).
+- For each topic, summarize perspectives, technical context, and conclusions reached:
+  - **[Topic / Area]**: Core discussion summary highlighting participant consensus or trade-offs evaluated.
+
+## ⚖️ 5. Decisions Made
+- Clear, bulleted list of final decisions agreed upon during the call.
+- Format:
+  - **Decision**: Concise description of what was decided.
+    - *Rationale*: Brief context or reasoning behind the choice.
+- If no decisions were made, state: _"None recorded."_
+
+## ✅ 6. Action Items & Commitments
+- Use interactive Markdown checkboxes: \`- [ ]\`
+- Format each item strictly as:
+  \`- [ ] **[Assignee Name or "Unassigned"]**: [Imperative task description] — Priority: [High | Medium | Low] | Due: [Target date or "TBD"]\`
+- If no action items were generated, state: _"None recorded."_
+
+## ❓ 7. Parking Lot / Open Questions
+- Bullet points noting any unresolved questions, blockers, or topics explicitly deferred to future discussions.
+- If no topics were deferred, state: _"None recorded."_`;
+
 export class TranscriptionService {
   private activeTranscriptions = new Map<string, ActiveTranscription>();
 
@@ -380,29 +429,46 @@ export class TranscriptionService {
 
     if (env.GEMINI_API_KEY) {
       try {
-        const prompt = `You are an expert executive secretary. Based on the following meeting transcript, generate comprehensive, beautifully structured meeting minutes in GitHub-flavored Markdown.
+        const userPrompt = `Synthesize comprehensive Meeting Minutes from the following meeting transcript according to your system instructions.\n\nMeeting Transcript:\n${transcriptText}`;
 
-Include:
-1. Executive Summary (2-3 concise bullet points)
-2. Key Decisions Made (bullet points with context)
-3. Action Items (formatted as interactive markdown task list checkboxes: "- [ ] **Assignee**: Task description")
-
-Transcript:
-${transcriptText}`;
-
-        const res = await fetch(
-          `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+        // Attempt primary gemini-2.5-flash or gemini-1.5-flash
+        const model = (env as any).GEMINI_MODEL || 'gemini-2.5-flash';
+        let res = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${env.GEMINI_API_KEY}`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              contents: [{ parts: [{ text: prompt }] }],
+              system_instruction: {
+                parts: [{ text: MEETING_MINUTES_SYSTEM_PROMPT }],
+              },
+              contents: [{ parts: [{ text: userPrompt }] }],
               generationConfig: {
                 temperature: 0.2,
               },
             }),
           }
         );
+
+        // Fallback to gemini-1.5-flash if 2.5-flash is not yet provisioned on this key
+        if (!res.ok && model !== 'gemini-1.5-flash') {
+          res = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${env.GEMINI_API_KEY}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                system_instruction: {
+                  parts: [{ text: MEETING_MINUTES_SYSTEM_PROMPT }],
+                },
+                contents: [{ parts: [{ text: userPrompt }] }],
+                generationConfig: {
+                  temperature: 0.2,
+                },
+              }),
+            }
+          );
+        }
 
         if (res.ok) {
           const json = (await res.json()) as any;
