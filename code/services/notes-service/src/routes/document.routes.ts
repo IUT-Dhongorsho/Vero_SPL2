@@ -22,4 +22,5 @@ documentRouter.post('/modules/:moduleId/documents', documentController.create);
 documentRouter.get('/documents/:id', documentController.getById);
 documentRouter.patch('/documents/:id', documentController.updateMeta);
 documentRouter.patch('/documents/:id/content', documentController.updateContent);
+documentRouter.post('/documents/:id/mentions', documentController.mention);
 documentRouter.delete('/documents/:id', documentController.delete);

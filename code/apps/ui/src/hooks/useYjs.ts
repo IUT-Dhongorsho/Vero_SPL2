@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import * as Y from 'yjs';
 import { WebsocketProvider } from 'y-websocket';
 import { useAuthStore } from '../stores/auth.store';
@@ -9,64 +9,66 @@ interface UseYjsOptions {
   enabled: boolean;
 }
 
-const stringToColor = (str: string) => {
+export const colorFor = (str: string) => {
   let hash = 0;
   for (let i = 0; i < str.length; i++) {
     hash = str.charCodeAt(i) + ((hash << 5) - hash);
   }
-  let color = '#';
-  for (let i = 0; i < 3; i++) {
-    const value = (hash >> (i * 8)) & 0xFF;
-    color += ('00' + value.toString(16)).substr(-2);
-  }
-  return color;
+  return `hsl(${Math.abs(hash) % 360} 70% 55%)`;
 };
 
+/**
+ * One live connection per open note. It depends only on the note and the
+ * session token: reconnecting whenever the user object changed tore down the
+ * document mid-edit and remounted the editor.
+ */
 export function useYjs({ documentId, enabled }: UseYjsOptions) {
-  const { token, user } = useAuthStore();
-  const ydocRef = useRef<Y.Doc | null>(null);
-  const providerRef = useRef<WebsocketProvider | null>(null);
-  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('disconnected');
+  const token = useAuthStore((s) => s.token);
+  const userId = useAuthStore((s) => s.user?.id);
+  const userName = useAuthStore((s) => s.user?.name);
+  const [session, setSession] = useState<{ ydoc: Y.Doc; provider: WebsocketProvider } | null>(null);
+  const [status, setStatus] = useState<'connecting' | 'connected' | 'disconnected'>('connecting');
+  const [synced, setSynced] = useState(false);
 
   useEffect(() => {
     if (!enabled || !documentId || !token) return;
 
     const ydoc = new Y.Doc();
-    ydocRef.current = ydoc;
-
     const url = import.meta.env.VITE_NOTES_WS_URL || wsUrl('/notes/yjs');
+    const provider = new WebsocketProvider(url, documentId, ydoc, { params: { token } });
 
-    const provider = new WebsocketProvider(url, documentId, ydoc, {
-      connect: false,
-      params: { token },
-    });
-    
-    provider.connect();
-    
-    providerRef.current = provider;
+    const onStatus = (e: { status: 'connecting' | 'connected' | 'disconnected' }) => setStatus(e.status);
+    const onSync = (isSynced: boolean) => isSynced && setSynced(true);
+    provider.on('status', onStatus);
+    provider.on('sync', onSync);
 
-    provider.awareness.setLocalStateField('user', {
-      name: user?.name ?? 'Anonymous',
-      color: stringToColor(user?.id ?? 'anon'),
-      id: user?.id,
-    });
-
-    provider.on('status', (e: { status: string }) => {
-      setStatus(e.status as any);
-    });
+    setSynced(false);
+    setStatus('connecting');
+    setSession({ ydoc, provider });
 
     return () => {
+      provider.off('status', onStatus);
+      provider.off('sync', onSync);
       provider.destroy();
       ydoc.destroy();
-      ydocRef.current = null;
-      providerRef.current = null;
+      setSession(null);
     };
-  }, [documentId, enabled, token, user]);
+  }, [documentId, enabled, token]);
+
+  // Who is here, for cursors and avatars; updated without reconnecting.
+  useEffect(() => {
+    session?.provider.awareness.setLocalStateField('user', {
+      id: userId,
+      name: userName ?? 'Anonymous',
+      color: colorFor(userId ?? 'anon'),
+    });
+  }, [session, userId, userName]);
 
   return {
-    ydoc: ydocRef.current,
-    provider: providerRef.current,
+    ydoc: session?.ydoc ?? null,
+    provider: session?.provider ?? null,
     status,
-    awareness: providerRef.current?.awareness ?? null,
+    synced,
+    awareness: session?.provider.awareness ?? null,
   };
 }

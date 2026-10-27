@@ -4,6 +4,10 @@ import { eq, and, desc, inArray, or, ilike } from 'drizzle-orm';
 import * as Y from 'yjs';
 import { accessService, NotesError, type ModuleRole } from './access.service.js';
 import { htmlToText, markdownToYdoc, ydocToHtml } from './ydoc-html.js';
+import { markdownToElements } from './markdown.js';
+import { editLiveDoc, liveDoc, liveState } from './live-docs.js';
+import { publishNoteEvent } from './publisher.service.js';
+import { users } from '../models/user.model.js';
 
 export type NoteVisibility = 'private' | 'public';
 export type NoteEditPermission = 'read-only' | 'editable';
@@ -31,7 +35,8 @@ const EDIT_PERMISSIONS = new Set(['read-only', 'editable']);
  * - reading needs access to its module, and the note must be yours or public;
  * - editing the body needs a non-viewer role, and the note must be yours or
  *   public-and-editable;
- * - title, sharing and deletion belong to its creator (admins may delete).
+ * - renaming needs edit rights, like the body;
+ * - sharing and deletion belong to its creator (admins may delete).
  */
 export const permissions = {
   canRead(doc: DocumentRow, userId: string, role: ModuleRole | null) {
@@ -117,8 +122,12 @@ export const documentService = {
 
   async updateMeta(id: string, dto: UpdateNoteMetaDTO, requesterId: string, authorization: string) {
     const { doc, role } = await this.load(id, requesterId, authorization);
-    if (!permissions.canManage(doc, requesterId, role)) {
-      throw new NotesError(403, 'Only the author can rename or share this note', 'FORBIDDEN');
+    const sharing = dto.visibility !== undefined || dto.editPermission !== undefined;
+    if (sharing && !permissions.canManage(doc, requesterId, role)) {
+      throw new NotesError(403, 'Only the author can change who sees this note', 'FORBIDDEN');
+    }
+    if (dto.title !== undefined && !permissions.canEdit(doc, requesterId, role)) {
+      throw new NotesError(403, 'You can read this note but not rename it', 'FORBIDDEN');
     }
 
     const patch: Partial<DocumentRow> = { updatedAt: new Date() };
@@ -161,6 +170,36 @@ export const documentService = {
     await db.update(documents).set({ isDeleted: true, updatedAt: new Date() }).where(eq(documents.id, id));
   },
 
+  /**
+   * Notifies people @mentioned in a note. Only members of the note's module
+   * who can read it are notified — a private note can only be read by its
+   * author, so mentions there reach no one.
+   */
+  async mention(id: string, userIds: unknown, requesterId: string, authorization: string) {
+    const { doc, role } = await this.load(id, requesterId, authorization);
+    if (!permissions.canEdit(doc, requesterId, role)) {
+      throw new NotesError(403, 'You can read this note but not edit it', 'FORBIDDEN');
+    }
+    const wanted = Array.isArray(userIds) ? [...new Set(userIds.filter((u): u is string => typeof u === 'string'))] : [];
+    if (!wanted.length || doc.visibility !== 'public') return { notified: 0 };
+
+    const module = await accessService.moduleDetail(authorization, doc.moduleId);
+    const members = new Set(module?.members.map((m) => m.userId) ?? []);
+    const recipientIds = wanted.filter((userId) => userId !== requesterId && members.has(userId)).slice(0, 50);
+    if (!recipientIds.length) return { notified: 0 };
+
+    const sender = await db.query.users.findFirst({ where: eq(users.id, requesterId) });
+    await publishNoteEvent('note.mentioned', {
+      recipientIds,
+      noteId: doc.id,
+      noteTitle: doc.title,
+      senderId: requesterId,
+      senderName: sender?.name ?? 'Someone',
+      link: `/project/${module!.projectId}/module/${doc.moduleId}/notes?note=${doc.id}`,
+    });
+    return { notified: recipientIds.length };
+  },
+
   async saveYjsState(id: string, state: Uint8Array, snapshotHtml: string) {
     await db
       .update(documents)
@@ -172,61 +211,60 @@ export const documentService = {
       .where(eq(documents.id, id));
   },
 
-  async appendTranscript(id: string, text: string) {
+  /**
+   * Changes a note's content from the server (meeting transcripts and minutes).
+   * When people have the note open, the edit goes into their live document so
+   * they see it at once — and so their session does not later save over it.
+   */
+  async editContent(id: string, edit: (doc: Y.Doc) => void) {
     const doc = await this.getRawById(id);
-    if (!doc) throw new Error('Document not found');
+    if (!doc) throw new NotesError(404, 'Note not found', 'NOT_FOUND');
 
-    const ydoc = new Y.Doc();
-    if (doc.yjsState) {
-      Y.applyUpdate(ydoc, Buffer.from(doc.yjsState, 'base64'));
-    } else if (doc.contentSnapshot) {
-      markdownToYdoc(doc.contentSnapshot, ydoc);
+    let state: Uint8Array;
+    let html: string;
+    const live = liveDoc(id);
+    if (live) {
+      editLiveDoc(live, edit);
+      state = liveState(live);
+      html = ydocToHtml(live);
+    } else {
+      const ydoc = new Y.Doc();
+      if (doc.yjsState) {
+        Y.applyUpdate(ydoc, Buffer.from(doc.yjsState, 'base64'));
+      } else if (doc.contentSnapshot?.trim()) {
+        // The snapshot is editor HTML; keep its words rather than its markup.
+        markdownToYdoc(/^\s*</.test(doc.contentSnapshot) ? htmlToText(doc.contentSnapshot) : doc.contentSnapshot, ydoc);
+      }
+      edit(ydoc);
+      state = Y.encodeStateAsUpdate(ydoc);
+      html = ydocToHtml(ydoc);
     }
-
-    markdownToYdoc(text, ydoc);
-
-    const yjsState = Buffer.from(Y.encodeStateAsUpdate(ydoc)).toString('base64');
-    const contentSnapshot = ydocToHtml(ydoc);
 
     const [updated] = await db
       .update(documents)
-      .set({
-        contentSnapshot,
-        yjsState,
-        updatedAt: new Date(),
-      })
+      .set({ yjsState: Buffer.from(state).toString('base64'), contentSnapshot: html, updatedAt: new Date() })
       .where(eq(documents.id, id))
       .returning();
-
     return updated;
   },
 
+  async appendTranscript(id: string, text: string) {
+    return this.editContent(id, (ydoc) => markdownToYdoc(text, ydoc));
+  },
+
+  /** Puts the minutes at the top, with the transcript below them. */
   async finalizeMeetingMinutes(id: string, minutesMarkdown: string, fullTranscript?: string) {
-    const doc = await this.getRawById(id);
-    if (!doc) throw new Error('Document not found');
-
-    let finalRaw = minutesMarkdown;
-    if (fullTranscript) {
-      finalRaw = `${minutesMarkdown}\n\n---\n\n## 🎙️ Full Meeting Transcript\n\n${fullTranscript}`;
-    } else if (doc.contentSnapshot) {
-      finalRaw = `${minutesMarkdown}\n\n---\n\n## 🎙️ Full Meeting Transcript\n\n${doc.contentSnapshot}`;
-    }
-
-    const ydoc = markdownToYdoc(finalRaw);
-    const yjsState = Buffer.from(Y.encodeStateAsUpdate(ydoc)).toString('base64');
-    const contentSnapshot = ydocToHtml(ydoc);
-
-    const [updated] = await db
-      .update(documents)
-      .set({
-        contentSnapshot: contentSnapshot || finalRaw,
-        yjsState,
-        updatedAt: new Date(),
-      })
-      .where(eq(documents.id, id))
-      .returning();
-
-    return updated;
+    return this.editContent(id, (ydoc) => {
+      const fragment = ydoc.getXmlFragment('default');
+      const minutes = markdownToElements(`${minutesMarkdown}\n\n---\n\n## 🎙️ Full Meeting Transcript\n`);
+      if (fullTranscript) {
+        fragment.delete(0, fragment.length);
+        fragment.push([...minutes, ...markdownToElements(fullTranscript)]);
+      } else {
+        // What was transcribed live stays, below the minutes.
+        fragment.insert(0, minutes);
+      }
+    });
   },
 
   /**
