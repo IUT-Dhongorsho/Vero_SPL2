@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import { env } from '../../config/env.js';
+import { notificationsDeliveredTotal } from '../../monitoring/metrics.js';
 
 export class EmailDelivery {
   private transporter: nodemailer.Transporter | null = null;
@@ -33,9 +34,11 @@ export class EmailDelivery {
         html,
       });
       console.log(`🚀 Email delivered to: ${to}`);
+      notificationsDeliveredTotal.inc({ channel: 'email', result: 'sent' });
       return true;
     } catch (error) {
       console.error(`❌ Failed to deliver email to ${to}:`, error);
+      notificationsDeliveredTotal.inc({ channel: 'email', result: 'failed' });
       return false;
     }
   }

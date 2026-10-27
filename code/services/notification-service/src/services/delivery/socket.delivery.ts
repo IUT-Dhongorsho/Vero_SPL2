@@ -1,4 +1,5 @@
 import { Server } from 'socket.io';
+import { notificationsDeliveredTotal } from '../../monitoring/metrics.js';
 
 export class SocketDelivery {
   private io: Server | null = null;
@@ -16,6 +17,7 @@ export class SocketDelivery {
 
     // Emit to the user's specific room
     this.io.to(`user:${userId}`).emit('notification', payload);
+    notificationsDeliveredTotal.inc({ channel: 'socket', result: 'sent' });
     console.log(`🚀 Notification delivered via Socket to user: ${userId}`);
     return true;
   }

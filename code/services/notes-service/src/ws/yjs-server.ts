@@ -7,6 +7,7 @@ import { authenticateWs } from '../middleware/auth.js';
 import { documentService, permissions } from '../services/document.service.js';
 import { accessService } from '../services/access.service.js';
 import { ydocToHtml, markdownToYdoc } from '../services/ydoc-html.js';
+import { liveEditors } from '../monitoring/metrics.js';
 
 export const yjsPersistence = {
   bindState: async (docName: string, ydoc: Y.Doc) => {
@@ -91,6 +92,8 @@ export function attachYjsServer(server: http.Server) {
               : on(event, listener);
         }
         setupWSConnection(ws, req, { docName: documentId });
+        liveEditors.inc();
+        ws.once('close', () => liveEditors.dec());
       });
     } catch (error) {
       console.error('WebSocket upgrade failed:', error);

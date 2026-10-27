@@ -16,6 +16,9 @@
 #   ./scripts/dev-stack.sh --no-tunnel  Start services and Nginx without launching zrok2
 #   ./scripts/dev-stack.sh stop         Terminate all cluster processes and Nginx
 #   ./scripts/dev-stack.sh status       Display real-time listener status for all ports
+#   ./scripts/dev-stack.sh monitoring [down]
+#                                       Start (or stop) Prometheus :9090 and Grafana :3001
+#                                       in Docker, scraping the services above
 #
 
 set -uo pipefail
@@ -29,8 +32,10 @@ PRIMARY_PORTS=(8001 8002 8003 8004 8005 8006 8007 5005)
 SECONDARY_PORTS=(8011 8012 8013 8014 8015 8016 8017 5015)
 # Gateway port
 GATEWAY_PORT=3000
+# ai-worker serves /metrics here for Prometheus
+AI_METRICS_PORT=8008
 
-ALL_PORTS=("$GATEWAY_PORT" "${PRIMARY_PORTS[@]}" "${SECONDARY_PORTS[@]}")
+ALL_PORTS=("$GATEWAY_PORT" "${PRIMARY_PORTS[@]}" "${SECONDARY_PORTS[@]}" "$AI_METRICS_PORT")
 
 # Service registry: name:primary_port:secondary_port
 SERVICES=(
@@ -141,6 +146,22 @@ case "${1:-start}" in
     ;;
   status)
     status
+    exit 0
+    ;;
+  monitoring)
+    command -v docker >/dev/null 2>&1 || { echo "❌ docker is required for monitoring but not found in PATH."; exit 1; }
+    docker info >/dev/null 2>&1 || { echo "❌ Docker is not running. Start Docker Desktop, then re-run."; exit 1; }
+    COMPOSE=(docker compose -f "$ROOT/infra/docker/monitoring.dev.yml")
+    if [[ "${2:-up}" == "down" ]]; then
+      "${COMPOSE[@]}" down
+      echo "✓ Prometheus and Grafana stopped (their data volumes are kept)."
+    else
+      "${COMPOSE[@]}" up -d
+      echo
+      echo "  Grafana:     http://localhost:3001   (view without signing in; admin / admin to edit)"
+      echo "  Prometheus:  http://localhost:9090   (Status → Targets shows what it can reach)"
+      echo "  Stop:        ./scripts/dev-stack.sh monitoring down"
+    fi
     exit 0
     ;;
 esac
@@ -257,6 +278,7 @@ echo "  Target Public URL:   https://vero-spl2.shares.zrok.io"
 echo "  Google OAuth URL:    https://vero-spl2.shares.zrok.io/api/better-auth/callback/google"
 echo "  Service Instances:   14 active replicas load-balanced via Nginx"
 echo "  Logs:                $LOG_DIR/*.log"
+echo "  Metrics dashboard:   ./scripts/dev-stack.sh monitoring  →  http://localhost:3001"
 echo "  Stop command:        ./scripts/dev-stack.sh stop"
 echo "===================================================================="
 echo
