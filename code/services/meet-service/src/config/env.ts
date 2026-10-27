@@ -16,6 +16,7 @@ const envSchema = z.object({
   GROQ_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
+  GEMINI_MODEL: z.string().default('gemini-3.5-flash'),
 
   MEDIASOUP_ANNOUNCED_IP: z.string().default('auto'),
   MEDIASOUP_MIN_PORT: z.string().default('40000').transform(Number),

@@ -66,7 +66,7 @@ function collectInline(tokens: Token[] | undefined, marks: Marks, out: Inline[])
 }
 
 /** A text-holding node: runs of formatted text, split by hard breaks. */
-function inlineNode(name: string, tokens: Token[] | undefined, attrs: Record<string, string> = {}): Y.XmlElement {
+function inlineNode(name: string, tokens: Token[] | undefined, attrs: Record<string, any> = {}): Y.XmlElement {
   const node = new Y.XmlElement(name);
   for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
 
@@ -130,7 +130,7 @@ function blocks(tokens: Token[]): Y.XmlElement[] {
         break;
       case 'heading': {
         const heading = token as Tokens.Heading;
-        out.push(inlineNode('heading', heading.tokens, { level: String(Math.min(heading.depth, MAX_HEADING)) }));
+        out.push(inlineNode('heading', heading.tokens, { level: Math.min(heading.depth, MAX_HEADING) }));
         break;
       }
       case 'paragraph':

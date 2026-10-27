@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
+import { mergeAttributes } from '@tiptap/core';
 import StarterKit from '@tiptap/starter-kit';
+import { Heading } from '@tiptap/extension-heading';
 import Placeholder from '@tiptap/extension-placeholder';
 import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
@@ -228,8 +230,15 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
       extensions: [
         StarterKit.configure({
           history: canCollaborate ? false : undefined,
-          heading: { levels: [1, 2, 3] },
+          heading: false,
         }),
+        Heading.extend({
+          renderHTML({ node, HTMLAttributes }) {
+            const numLevel = Number(node.attrs.level);
+            const level = [1, 2, 3].includes(numLevel) ? numLevel : 1;
+            return [`h${level}`, mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+          },
+        }).configure({ levels: [1, 2, 3] }),
         Placeholder.configure({ placeholder: isEditable ? 'Start writing…' : 'This note is empty.' }),
         TaskList,
         TaskItem.configure({ nested: true }),

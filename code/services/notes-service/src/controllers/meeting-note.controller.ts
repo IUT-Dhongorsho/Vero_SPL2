@@ -37,7 +37,7 @@ export const meetingNoteController = {
       // Seed initial content structure
       const placeholder =
         initialContent ||
-        `# 📋 ${noteTitle}\n\n> **Status**: 🔴 Live Meeting in Progress...\n> **Started**: ${exactTime}\n\n---\n`;
+        `## 📋 ${noteTitle}\n\n> **Status**: 🔴 Live Meeting in Progress...\n> **Started**: ${exactTime}\n\n---\n`;
       
       await documentService.appendTranscript(doc.id, placeholder);
 

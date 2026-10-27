@@ -218,7 +218,7 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
     <motion.div
       layout
       onDoubleClick={onToggleSpotlight}
-      className={`group relative bg-card/90 dark:bg-card border rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-300 select-none cursor-pointer ${
+      className={`group relative bg-card dark:bg-card border rounded-2xl flex items-center justify-center overflow-hidden transition-all duration-300 select-none cursor-pointer ${
         isSpeaking
           ? 'ring-2 ring-emerald-500 border-emerald-500/80 shadow-[0_0_25px_rgba(16,185,129,0.35)]'
           : 'border-border hover:border-border-strong'
@@ -245,22 +245,22 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
       {/* Top Left: Individual Volume Control (remote participants only) */}
       {!isLocal && onVolumeChange && (
         <div
-          className={`absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-background/80 dark:bg-black/60 backdrop-blur-md px-2 py-1 rounded-full border border-border transition-opacity ${
+          className={`absolute top-2 left-2 z-20 flex items-center gap-1.5 bg-card dark:bg-black/75 backdrop-blur-md px-2 py-1 rounded-full border border-border dark:border-white/15 transition-opacity shadow-sm ${
             showVolumeSlider ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'
           }`}
           onClick={(e) => e.stopPropagation()}
         >
           <button
             onClick={() => onVolumeChange(volume === 0 ? 100 : 0)}
-            className="text-foreground/80 hover:text-foreground transition-colors"
+            className="text-foreground/80 hover:text-foreground dark:text-white/80 dark:hover:text-white transition-colors"
             title={volume === 0 ? 'Unmute locally' : 'Mute locally'}
           >
             {volume === 0 ? (
               <VolumeX className="w-3.5 h-3.5 text-destructive" />
             ) : volume < 50 ? (
-              <Volume1 className="w-3.5 h-3.5 text-foreground/80" />
+              <Volume1 className="w-3.5 h-3.5" />
             ) : (
-              <Volume2 className="w-3.5 h-3.5 text-foreground/80" />
+              <Volume2 className="w-3.5 h-3.5" />
             )}
           </button>
           <input
@@ -273,7 +273,7 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
             onMouseEnter={() => setShowVolumeSlider(true)}
             onMouseLeave={() => setShowVolumeSlider(false)}
           />
-          <span className="text-[10px] text-muted-foreground font-mono w-6 text-right">{volume}%</span>
+          <span className="text-[10px] text-muted-foreground dark:text-neutral-400 font-mono w-6 text-right">{volume}%</span>
         </div>
       )}
 
@@ -286,7 +286,7 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
               onToggleSpotlight();
             }}
             title={isSpotlight ? 'Exit Spotlight' : 'Spotlight card (double-click)'}
-            className="bg-background/80 hover:bg-background dark:bg-black/60 dark:hover:bg-black/80 backdrop-blur-md p-1.5 rounded-full border border-border text-foreground/80 hover:text-foreground transition-all shadow-md"
+            className="bg-card hover:bg-card/90 dark:bg-black/75 dark:hover:bg-black/90 backdrop-blur-md p-1.5 rounded-full border border-border dark:border-white/15 text-foreground/80 hover:text-foreground dark:text-white/80 dark:hover:text-white transition-all shadow-md"
           >
             {isSpotlight ? (
               <Minimize2 className="w-3.5 h-3.5" />
@@ -298,7 +298,7 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
       )}
 
       {/* Bottom Left: Name Badge & Speaking Waveform */}
-      <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5 bg-background/85 dark:bg-black/65 backdrop-blur-md px-2.5 py-1 rounded-lg border border-border max-w-[85%] shadow-sm">
+      <div className="absolute bottom-2 left-2 z-10 flex items-center gap-1.5 bg-card dark:bg-black/75 backdrop-blur-md px-2.5 py-1 rounded-lg border border-border dark:border-white/15 max-w-[85%] shadow-sm">
         {isMuted ? (
           <MicOff className="w-3.5 h-3.5 text-destructive shrink-0" />
         ) : isSpeaking ? (
@@ -308,7 +308,7 @@ const ParticipantTile: React.FC<ParticipantTileProps> = ({
             <span className="w-1 h-2 bg-emerald-500 rounded-full animate-bounce [animation-delay:300ms]" />
           </div>
         ) : null}
-        <span className="text-foreground text-xs font-medium truncate">
+        <span className="text-foreground dark:text-white text-xs font-medium truncate">
           {name}{isLocal ? ' (You)' : ''}
         </span>
       </div>
@@ -382,7 +382,7 @@ const PreJoinScreen: React.FC<{ onJoin: () => void; onCancel: () => void }> = ({
                 muted
                 className="w-full h-full object-cover scale-x-[-1]"
               />
-              <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-background/80 dark:bg-black/60 px-2.5 py-1 rounded-full border border-border text-foreground">
+              <div className="absolute bottom-3 left-3 flex items-center gap-1.5 bg-card dark:bg-black/75 px-2.5 py-1 rounded-full border border-border dark:border-white/15 text-foreground dark:text-white shadow-sm">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
                 <span className="text-xs font-medium">Camera ready</span>
               </div>
@@ -982,7 +982,7 @@ export const MeetPage: React.FC = () => {
                 />
                 <button
                   onClick={() => setSpotlightId(null)}
-                  className="absolute top-2 right-2 z-30 bg-card/90 dark:bg-black/70 hover:bg-card dark:hover:bg-black/90 text-foreground dark:text-white text-xs px-2.5 py-1 rounded-full border border-border flex items-center gap-1 backdrop-blur-md shadow-md"
+                  className="absolute top-2 right-2 z-30 bg-card hover:bg-card/90 dark:bg-black/75 dark:hover:bg-black/90 text-foreground dark:text-white text-xs px-2.5 py-1 rounded-full border border-border dark:border-white/15 flex items-center gap-1 backdrop-blur-md shadow-md"
                 >
                   <Minimize2 className="w-3.5 h-3.5" />
                   <span>Exit</span>
@@ -1066,7 +1066,7 @@ export const MeetPage: React.FC = () => {
                 {/* Exit Spotlight Floating Button */}
                 <button
                   onClick={() => setSpotlightId(null)}
-                  className="absolute top-7 right-7 z-30 bg-card/90 dark:bg-black/70 hover:bg-card dark:hover:bg-black/90 text-foreground dark:text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-border flex items-center gap-1.5 backdrop-blur-md transition-all shadow-lg hover:scale-105"
+                  className="absolute top-7 right-7 z-30 bg-card hover:bg-card/90 dark:bg-black/75 dark:hover:bg-black/90 text-foreground dark:text-white text-xs font-semibold px-3 py-1.5 rounded-full border border-border dark:border-white/15 flex items-center gap-1.5 backdrop-blur-md transition-all shadow-lg hover:scale-105"
                 >
                   <Minimize2 className="w-4 h-4" />
                   <span>Exit Spotlight (Esc)</span>

@@ -50,7 +50,7 @@ export const VideoTile: React.FC<VideoTileProps> = ({ stream, muted = false, nam
       )}
       
       {name && (
-        <div className="absolute bottom-3 left-3 bg-card/85 dark:bg-black/60 backdrop-blur-sm px-3 py-1 rounded-md text-foreground text-sm font-medium border border-border opacity-0 group-hover:opacity-100 transition-opacity">
+        <div className="absolute bottom-3 left-3 bg-card dark:bg-black/75 backdrop-blur-md px-3 py-1 rounded-lg text-foreground dark:text-white text-sm font-medium border border-border dark:border-white/15 shadow-sm">
           {name} {isLocal && '(You)'}
         </div>
       )}

@@ -13,7 +13,7 @@ export const LandingPage: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#050505] text-white relative overflow-x-hidden font-sans">
-      
+
       {/* Background gradients for added depth */}
       <div className="fixed inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-purple-600/20 rounded-full blur-[120px]" />
@@ -24,13 +24,13 @@ export const LandingPage: React.FC = () => {
       <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-6 pointer-events-none">
         <nav className="w-full max-w-6xl flex items-center justify-between px-6 py-3 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.3)] pointer-events-auto">
           <div className="flex items-center gap-3">
-            <VeroLogo variant="symbol-bg" size="md" className="rounded-2xl shadow-lg shadow-purple-500/20" />
+            <VeroLogo variant="symbol-bg" size="md" className="rounded-2xl p-3 shadow-lg shadow-purple-500/20" />
             <span className="text-xl font-bold tracking-tight">Vero</span>
           </div>
           <div className="flex items-center gap-6">
             {isAuthenticated ? (
-              <button 
-                onClick={() => navigate('/dashboard')} 
+              <button
+                onClick={() => navigate('/dashboard')}
                 className="text-sm font-semibold bg-white text-black px-6 py-2.5 rounded-full hover:bg-gray-200 hover:scale-105 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
               >
                 Go to Dashboard
@@ -40,8 +40,8 @@ export const LandingPage: React.FC = () => {
                 <button onClick={() => navigate('/login')} className="text-sm font-medium text-white/80 hover:text-white transition-colors">
                   Sign In
                 </button>
-                <button 
-                  onClick={() => navigate('/signup')} 
+                <button
+                  onClick={() => navigate('/signup')}
                   className="text-sm font-semibold bg-white text-black px-6 py-2.5 rounded-full hover:bg-gray-200 hover:scale-105 transition-all duration-300 shadow-[0_0_15px_rgba(255,255,255,0.2)]"
                 >
                   Get Started
@@ -64,36 +64,36 @@ export const LandingPage: React.FC = () => {
               <Sparkles className="w-4 h-4 text-purple-400" />
               <span className="text-sm font-medium text-purple-200">The Future of Collaboration is Unified</span>
             </div>
-            
+
             <h1 className="text-5xl md:text-7xl lg:text-8xl font-bold mb-8 tracking-tighter leading-[1.1]">
-              One workspace for <br/>
+              One workspace for <br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 via-purple-400 to-pink-400">
                 everything you do.
               </span>
             </h1>
-            
+
             <p className="text-xl md:text-2xl text-white/60 mb-12 max-w-3xl mx-auto leading-relaxed">
               No more app-switching. Vero brings your meetings, documents, and tasks into a single, beautifully designed unified environment.
             </p>
 
             <div className="flex flex-col sm:flex-row gap-5 justify-center items-center">
               {isAuthenticated ? (
-                <button 
-                  onClick={() => navigate('/dashboard')} 
+                <button
+                  onClick={() => navigate('/dashboard')}
                   className="px-8 py-4 rounded-full bg-white text-black font-semibold text-lg hover:bg-gray-100 transition-all flex items-center gap-2 group shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
                 >
                   Go to Dashboard <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                 </button>
               ) : (
                 <>
-                  <button 
-                    onClick={() => navigate('/signup')} 
+                  <button
+                    onClick={() => navigate('/signup')}
                     className="px-8 py-4 rounded-full bg-white text-black font-semibold text-lg hover:bg-gray-100 transition-all flex items-center gap-2 group shadow-[0_0_30px_rgba(255,255,255,0.15)] hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
                   >
                     Start for free <ArrowRight className="w-5 h-5 group-hover:translate-x-1 transition-transform" />
                   </button>
-                  <button 
-                    onClick={() => navigate('/login')} 
+                  <button
+                    onClick={() => navigate('/login')}
                     className="px-8 py-4 rounded-full bg-transparent border border-white/20 text-white font-medium text-lg hover:bg-white/5 transition-all"
                   >
                     Sign In
@@ -107,10 +107,10 @@ export const LandingPage: React.FC = () => {
 
       {/* Sleek Features Section */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 py-24 space-y-32">
-        
+
         {/* Feature 1 */}
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -132,7 +132,7 @@ export const LandingPage: React.FC = () => {
               </li>
             </ul>
           </motion.div>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -146,7 +146,7 @@ export const LandingPage: React.FC = () => {
 
         {/* Feature 2 */}
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -156,7 +156,7 @@ export const LandingPage: React.FC = () => {
             <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent z-10 pointer-events-none" />
             <img src="/assets/meet.jpg" alt="Video meeting interface" className="w-full h-auto object-cover transform hover:scale-105 transition-transform duration-700" />
           </motion.div>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -175,7 +175,7 @@ export const LandingPage: React.FC = () => {
 
         {/* Feature 3 */}
         <div className="grid lg:grid-cols-2 gap-16 items-center">
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: -30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -189,7 +189,7 @@ export const LandingPage: React.FC = () => {
               Type <kbd className="bg-white/10 px-2 py-1 rounded-md text-pink-400 font-mono text-sm mx-1">/</kbd> to bring up the command palette. Insert tables, embeds, and dynamic blocks in a distraction-free, elegant typography-focused editor.
             </p>
           </motion.div>
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, x: 30 }}
             whileInView={{ opacity: 1, x: 0 }}
             viewport={{ once: true }}
@@ -211,15 +211,15 @@ export const LandingPage: React.FC = () => {
             Join thousands of modern teams unifying their workflow into one elegant workspace.
           </p>
           {isAuthenticated ? (
-            <button 
-              onClick={() => navigate('/dashboard')} 
+            <button
+              onClick={() => navigate('/dashboard')}
               className="px-10 py-5 rounded-full bg-white text-black font-semibold text-lg hover:bg-gray-200 transition-all shadow-[0_0_40px_rgba(255,255,255,0.2)]"
             >
               Go to Dashboard
             </button>
           ) : (
-            <button 
-              onClick={() => navigate('/signup')} 
+            <button
+              onClick={() => navigate('/signup')}
               className="px-10 py-5 rounded-full bg-white text-black font-semibold text-lg hover:bg-gray-200 transition-all shadow-[0_0_40px_rgba(255,255,255,0.2)]"
             >
               Start your free workspace
