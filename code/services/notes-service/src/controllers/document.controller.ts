@@ -52,6 +52,14 @@ export const documentController = {
     }
   },
 
+  async mention(req: AuthRequest, res: Response) {
+    try {
+      res.json(await documentService.mention(String(req.params.id), req.body?.userIds, req.userId!, req.authorization!));
+    } catch (error) {
+      fail(res, error, 'Failed to notify the people you mentioned');
+    }
+  },
+
   async delete(req: AuthRequest, res: Response) {
     try {
       await documentService.delete(String(req.params.id), req.userId!, req.authorization!);

@@ -5,6 +5,7 @@ import { connections } from '../models/connection.model.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { channelService } from '../services/channel.service.js';
 import { connectionService } from '../services/connection.service.js';
+import { unreadService } from '../services/unread.service.js';
 
 export class ChannelController {
   async createChannel(req: Request, res: Response) {
@@ -58,6 +59,32 @@ export class ChannelController {
     } catch (error: any) {
       console.error('OpenDirectChannel Error:', error);
       res.status(500).json({ error: 'Failed to open direct channel' });
+    }
+  }
+
+  /** GET /channels/unread — conversations with unread messages, for Home. */
+  async unread(req: Request, res: Response) {
+    try {
+      res.json(await unreadService.summary((req as any).user.id));
+    } catch (error) {
+      console.error('Failed to load unread messages:', error);
+      res.status(500).json({ error: 'Failed to load unread messages' });
+    }
+  }
+
+  /** POST /channels/:id/read — everything in the conversation is now read. */
+  async markRead(req: Request, res: Response) {
+    try {
+      const userId = (req as any).user.id;
+      const channelId = String(req.params.id);
+      if (!(await channelService.isMember(channelId, userId))) {
+        return res.status(403).json({ error: 'Not a member of this channel' });
+      }
+      await unreadService.markRead(channelId, userId);
+      res.status(204).send();
+    } catch (error) {
+      console.error('Failed to mark as read:', error);
+      res.status(500).json({ error: 'Failed to mark as read' });
     }
   }
 

@@ -6,7 +6,7 @@ import { registerMessageHandlers } from './message.handler.js';
 import { registerTypingHandlers } from './typing.handler.js';
 import { registerReceiptHandlers } from './receipt.handler.js';
 import { channelService } from '../../services/channel.service.js';
-import { socketConnectionsTotal } from '../../monitoring/metrics.js';
+import { activeSockets, socketConnectionsTotal } from '../../monitoring/metrics.js';
 
 export const handleConnection = async (io: Server, socket: AuthSocket) => {
   const userId = socket.user?.id;
@@ -16,6 +16,7 @@ export const handleConnection = async (io: Server, socket: AuthSocket) => {
 
   // Increment connection metric
   socketConnectionsTotal.inc();
+  activeSockets.inc();
 
   // Set user online
   await presenceStore.setUserOnline(userId, socket.id);
@@ -29,6 +30,7 @@ export const handleConnection = async (io: Server, socket: AuthSocket) => {
   registerReceiptHandlers(io, socket);
 
   socket.on(SocketEvents.DISCONNECT, async () => {
+    activeSockets.dec();
     console.log(`🔌 [WS:Connection] User disconnected: ${userId} (${socket.id})`);
     await presenceStore.setUserOffline(userId);
     socket.broadcast.emit('user_presence', { userId, status: 'offline' });

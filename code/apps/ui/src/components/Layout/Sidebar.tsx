@@ -124,8 +124,8 @@ const ProjectItem: React.FC<{
   <NavLink to={projectHref(id)} onClick={onClick} title={collapsed ? name : undefined} className="block">
     <div
       className={cn(
-        'relative flex items-center gap-2.5 rounded-xl text-sm font-medium transition-colors duration-150',
-        collapsed ? 'justify-center px-0 py-2' : 'ml-3 pl-3.5 pr-2.5 py-1.5 border-l border-border/40',
+        'relative flex items-center gap-2.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-colors duration-150',
+        collapsed && 'justify-center px-0 py-2 rounded-xl',
         active ? 'text-foreground bg-muted font-semibold' : 'text-muted-foreground hover:text-foreground hover:bg-muted'
       )}
     >
@@ -212,25 +212,28 @@ const SidebarBody: React.FC<{
           onClick={onNavigate}
           end
         />
-        {listed.map((project) => (
-          <ProjectItem
-            key={project.id}
-            id={project.id}
-            name={project.name}
-            collapsed={collapsed}
-            active={project.id === activeProjectId}
-            onClick={onNavigate}
-          />
-        ))}
-        {!collapsed && projects.length > listed.length && (
-          <NavLink
-            to="/projects"
-            onClick={onNavigate}
-            className="ml-3 pl-3.5 pr-2.5 py-1 text-xs text-muted-foreground hover:text-foreground transition-colors border-l border-border/40 block"
-          >
-            {projects.length - listed.length} more
-          </NavLink>
-        )}
+        {/* Projects nest under their heading, with a guide line from its icon. */}
+        <div className={cn('flex flex-col gap-1', !collapsed && 'ml-[1.3125rem] pl-2 border-l border-border')}>
+          {listed.map((project) => (
+            <ProjectItem
+              key={project.id}
+              id={project.id}
+              name={project.name}
+              collapsed={collapsed}
+              active={project.id === activeProjectId}
+              onClick={onNavigate}
+            />
+          ))}
+          {!collapsed && projects.length > listed.length && (
+            <NavLink
+              to="/projects"
+              onClick={onNavigate}
+              className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {projects.length - listed.length} more
+            </NavLink>
+          )}
+        </div>
 
         <div className="my-3 h-px bg-border mx-1" />
 

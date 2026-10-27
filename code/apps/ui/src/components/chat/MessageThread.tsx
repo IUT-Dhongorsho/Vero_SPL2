@@ -1,9 +1,25 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { AnimatePresence, motion } from 'framer-motion';
 import { MessageSquarePlus } from 'lucide-react';
 import { MessageBubble } from '../../pages/inbox/MessageBubble';
+import { escapeRegExp, findMentions } from '../../pages/inbox/slashCommands';
 import type { ChatMessage } from '../../services/inboxService';
 import { cn } from '../../utils/cn';
+
+/**
+ * One capture group around any "@Full Name", "@First" or "@all", so
+ * `text.split(pattern)` puts every mention at an odd index.
+ */
+function mentionPatternFor(members: { name: string }[]): RegExp {
+  const names = new Set<string>(['all', 'everyone']);
+  for (const m of members) {
+    names.add(m.name);
+    const first = m.name.split(' ')[0];
+    if (first) names.add(first);
+  }
+  const alternatives = [...names].sort((a, b) => b.length - a.length).map(escapeRegExp).join('|');
+  return new RegExp(`((?<![\\w@])@(?:${alternatives}))(?![\\w])`, 'gi');
+}
 
 export function dayLabel(iso: string): string {
   const date = new Date(iso);
@@ -34,6 +50,8 @@ interface MessageThreadProps {
   emptyTitle: string;
   emptyHint: string;
   onDelete: (id: string) => void;
+  /** People who can be @mentioned here. Leave out where mentions do not apply. */
+  members?: { id: string; name: string }[];
 }
 
 /** The scrolling body of a conversation: day breaks, grouped bubbles, typing dots. */
@@ -47,7 +65,17 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
   emptyTitle,
   emptyHint,
   onDelete,
-}) => (
+  members,
+}) => {
+  const mentionPattern = useMemo(() => (members?.length ? mentionPatternFor(members) : null), [members]);
+
+  const mentionsMe = (message: ChatMessage) => {
+    if (!members?.length || !meId || !message.content.includes('@')) return false;
+    const found = findMentions(message.content, members);
+    return found.mentionsAll || found.mentions.includes(meId);
+  };
+
+  return (
   <>
     {loading ? (
       <div className="space-y-3 max-w-2xl mx-auto">
@@ -89,6 +117,8 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
                 grouped={grouped}
                 senderName={mine ? meName ?? 'You' : message.sender?.name ?? fallbackName}
                 onDelete={mine ? onDelete : undefined}
+                mentionPattern={mentionPattern}
+                mentionsMe={!mine && mentionsMe(message)}
               />
             </React.Fragment>
           );
@@ -113,4 +143,5 @@ export const MessageThread: React.FC<MessageThreadProps> = ({
       )}
     </AnimatePresence>
   </>
-);
+  );
+};

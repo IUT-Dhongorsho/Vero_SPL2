@@ -41,6 +41,10 @@ export const notesService = {
   updateContent: async (id: string, content: string): Promise<Note> => {
     return apiClient.patch(`/notes/documents/${id}/content`, { content }).then(r => r.data);
   },
+  /** Notifies people @mentioned in the note; `notified` is how many could be. */
+  mention: async (id: string, userIds: string[]): Promise<{ notified: number }> => {
+    return apiClient.post(`/notes/documents/${id}/mentions`, { userIds }).then(r => r.data);
+  },
   delete: async (id: string): Promise<void> => {
     return apiClient.delete(`/notes/documents/${id}`).then(r => r.data);
   },

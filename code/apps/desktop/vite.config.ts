@@ -69,6 +69,15 @@ export default defineConfig({
       'y-websocket',
       '@tiptap/extension-collaboration',
       '@tiptap/extension-collaboration-cursor',
+      // One copy of the editor core: two copies of prosemirror crash the
+      // editor on mount ("Schema is missing its top node type").
+      '@tiptap/core',
+      '@tiptap/pm',
+      'y-prosemirror',
+      'prosemirror-model',
+      'prosemirror-state',
+      'prosemirror-view',
+      'prosemirror-transform',
     ],
   },
   server: {

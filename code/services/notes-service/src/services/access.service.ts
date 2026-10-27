@@ -54,6 +54,18 @@ export const accessService = {
     return role;
   },
 
+  /** The module with its members, as the caller sees it; null without access. */
+  async moduleDetail(
+    authorization: string,
+    moduleId: string
+  ): Promise<{ projectId: string; members: { userId: string }[] } | null> {
+    const res = await fetch(`${env.PROJECT_SERVICE_URL}/project/modules/${encodeURIComponent(moduleId)}`, {
+      headers: { authorization },
+    });
+    if (res.status >= 500) throw new NotesError(503, 'Could not check access right now');
+    return res.ok ? ((await res.json()) as any) : null;
+  },
+
   /** Every module the caller can reach — scopes search. */
   async myModules(authorization: string): Promise<ModuleRef[]> {
     const res = await fetch(`${env.PROJECT_SERVICE_URL}/project/modules/mine`, { headers: { authorization } });

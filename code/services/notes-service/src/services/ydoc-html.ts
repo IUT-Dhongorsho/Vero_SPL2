@@ -1,4 +1,5 @@
 import * as Y from 'yjs';
+import { markdownToElements } from './markdown.js';
 
 /**
  * Turns the TipTap/ProseMirror tree that y-prosemirror stores in a Y.Doc back
@@ -91,6 +92,10 @@ function elementToHtml(el: ElementNode): string {
       return '<hr>';
     case 'hardBreak':
       return '<br>';
+    case 'mention': {
+      const label = String(attrs.label ?? attrs.id ?? '');
+      return `<span data-type="mention" data-id="${escapeAttr(String(attrs.id ?? ''))}" data-label="${escapeAttr(label)}">@${escapeText(label)}</span>`;
+    }
     case 'table':
       return `<table><tbody>${inner()}</tbody></table>`;
     case 'tableRow':
@@ -111,115 +116,13 @@ export function ydocToHtml(doc: Pick<Y.Doc, 'getXmlFragment'>, field = 'default'
 }
 
 /**
- * Converts a plain Markdown or text string into a Y.Doc with TipTap-compatible XmlElements.
- * If an existingDoc is provided, appends the elements to it.
+ * Appends Markdown to a Y.Doc as editor nodes (a new Y.Doc when none is given).
+ * See markdown.ts for what is understood.
  */
 export function markdownToYdoc(markdown: string, existingDoc?: Y.Doc, field = 'default'): Y.Doc {
   const doc = existingDoc || new Y.Doc();
-  const fragment = doc.getXmlFragment(field);
-
-  const lines = markdown.split(/\r?\n/);
-  let currentList: { type: 'bullet' | 'task'; element: Y.XmlElement } | null = null;
-
-  for (let i = 0; i < lines.length; i++) {
-    const rawLine = lines[i];
-    const trimmed = rawLine.trim();
-
-    if (!trimmed) {
-      currentList = null;
-      continue;
-    }
-
-    // Heading
-    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
-    if (headingMatch) {
-      currentList = null;
-      const level = headingMatch[1].length;
-      const text = headingMatch[2];
-      const h = new Y.XmlElement('heading');
-      h.setAttribute('level', String(level));
-      const t = new Y.XmlText();
-      t.insert(0, text);
-      h.push([t]);
-      fragment.push([h]);
-      continue;
-    }
-
-    // Blockquote
-    if (trimmed.startsWith('>')) {
-      currentList = null;
-      const text = trimmed.replace(/^>\s*/, '');
-      const b = new Y.XmlElement('blockquote');
-      const p = new Y.XmlElement('paragraph');
-      const t = new Y.XmlText();
-      t.insert(0, text);
-      p.push([t]);
-      b.push([p]);
-      fragment.push([b]);
-      continue;
-    }
-
-    // Horizontal Rule
-    if (/^---+$|^===+$/.test(trimmed)) {
-      currentList = null;
-      const hr = new Y.XmlElement('horizontalRule');
-      fragment.push([hr]);
-      continue;
-    }
-
-    // Task Item: - [ ] or - [x]
-    const taskMatch = trimmed.match(/^-\s*\[([ xX])\]\s*(.+)$/);
-    if (taskMatch) {
-      const isChecked = taskMatch[1].toLowerCase() === 'x';
-      const text = taskMatch[2];
-
-      if (!currentList || currentList.type !== 'task') {
-        const tl = new Y.XmlElement('taskList');
-        currentList = { type: 'task', element: tl };
-        fragment.push([tl]);
-      }
-
-      const ti = new Y.XmlElement('taskItem');
-      ti.setAttribute('checked', String(isChecked));
-      const p = new Y.XmlElement('paragraph');
-      const t = new Y.XmlText();
-      t.insert(0, text);
-      p.push([t]);
-      ti.push([p]);
-      currentList.element.push([ti]);
-      continue;
-    }
-
-    // Bullet Item: - or *
-    const bulletMatch = trimmed.match(/^[-*]\s+(.+)$/);
-    if (bulletMatch) {
-      const text = bulletMatch[1];
-
-      if (!currentList || currentList.type !== 'bullet') {
-        const ul = new Y.XmlElement('bulletList');
-        currentList = { type: 'bullet', element: ul };
-        fragment.push([ul]);
-      }
-
-      const li = new Y.XmlElement('listItem');
-      const p = new Y.XmlElement('paragraph');
-      const t = new Y.XmlText();
-      t.insert(0, text);
-      p.push([t]);
-      li.push([p]);
-      currentList.element.push([li]);
-      continue;
-    }
-
-    // Regular Paragraph
-    currentList = null;
-    const p = new Y.XmlElement('paragraph');
-    const t = new Y.XmlText();
-    t.insert(0, trimmed);
-    p.push([t]);
-    fragment.push([p]);
-  }
-
+  const elements = markdownToElements(markdown);
+  if (elements.length) doc.getXmlFragment(field).push(elements);
   return doc;
 }
 

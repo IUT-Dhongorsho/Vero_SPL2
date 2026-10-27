@@ -123,9 +123,16 @@ describe('notes', () => {
     expect((await request(app).patch(`/documents/${sharedNote}/content`).set(as('viewer')).send({ content: '<p>x</p>' })).status).toBe(403);
   });
 
-  it('keeps title and sharing with the author', async () => {
-    const res = await request(app).patch(`/documents/${sharedNote}`).set(as('teammate')).send({ title: 'Mine' });
-    expect(res.status).toBe(403);
+  it('lets editors rename but keeps sharing with the author', async () => {
+    const renamed = await request(app).patch(`/documents/${sharedNote}`).set(as('teammate')).send({ title: 'Mine' });
+    expect(renamed.status).toBe(200);
+    expect(renamed.body.title).toBe('Mine');
+    await request(app).patch(`/documents/${sharedNote}`).set(as('teammate')).send({ title: 'Launch plan' });
+
+    expect((await request(app).patch(`/documents/${readOnlyNote}`).set(as('teammate')).send({ title: 'x' })).status).toBe(403);
+    expect((await request(app).patch(`/documents/${sharedNote}`).set(as('viewer')).send({ title: 'x' })).status).toBe(403);
+    expect((await request(app).patch(`/documents/${sharedNote}`).set(as('teammate')).send({ visibility: 'private' })).status).toBe(403);
+
     const bad = await request(app).patch(`/documents/${sharedNote}`).set(as('author')).send({ visibility: 'secret' });
     expect(bad.status).toBe(400);
   });

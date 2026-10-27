@@ -12,6 +12,7 @@ router.get('/preferences', c.preferences);
 router.patch('/preferences', c.updatePreferences);
 router.post('/push/subscriptions', c.subscribePush);
 router.delete('/push/subscriptions', c.unsubscribePush);
+router.post('/reminders', c.createReminder);
 router.patch('/read-all', c.markAllAsRead);
 router.patch('/:id/read', c.markAsRead);
 router.delete('/:id', c.remove);

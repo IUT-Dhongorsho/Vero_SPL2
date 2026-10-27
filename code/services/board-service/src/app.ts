@@ -5,12 +5,16 @@ import taskRoutes from './routes/task.routes.js';
 import columnRoutes from './routes/column.routes.js';
 import boardRoutes from './routes/board.routes.js';
 import personalTaskRoutes from './routes/personalTask.routes.js';
+import { metricsMiddleware } from './middleware/monitor.middleware.js';
+import { metricsController } from './controllers/metrics.controller.js';
 
 const app = express();
 
 app.use(cors({ origin: (_origin, callback) => callback(null, true), credentials: true }));
 app.use(express.json());
+app.use(metricsMiddleware);
 
+app.get('/metrics', metricsController.getMetrics);
 app.get('/health', (_req, res) => {
   res.json({ status: 'ok', service: 'board-service' });
 });

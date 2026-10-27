@@ -1,7 +1,9 @@
 import { startAiWorker } from './services/queue.service.js';
 import { geminiService } from './services/gemini.service.js';
+import { startMetricsServer } from './services/metrics.service.js';
 
 const running = startAiWorker();
+const metrics = startMetricsServer();
 
 console.log(
   geminiService.configured
@@ -12,6 +14,7 @@ console.log(
 for (const signal of ['SIGINT', 'SIGTERM'] as const) {
   process.on(signal, async () => {
     await running.close();
+    metrics.close();
     process.exit(0);
   });
 }

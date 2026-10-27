@@ -3,7 +3,7 @@ import { tasks, taskAssignees } from '../models/task.model.js';
 import { columns } from '../models/column.model.js';
 import { projects } from '../models/project.model.js';
 import { users } from '../models/user.model.js';
-import { eq, asc, count, and, inArray, isNotNull, sql, or } from 'drizzle-orm';
+import { eq, asc, count, and, inArray, isNotNull, sql, or, type SQL } from 'drizzle-orm';
 
 export interface CreateTaskInput {
   title: string;
@@ -86,45 +86,17 @@ export const taskService = {
    * the column and project it belongs to. Backs the personal Progress board.
    */
   async getTasksAssignedTo(userId: string) {
-    const rows = await db
-      .select({
-        id: tasks.id,
-        title: tasks.title,
-        description: tasks.description,
-        status: tasks.status,
-        priority: tasks.priority,
-        dueDate: tasks.dueDate,
-        labels: tasks.labels,
-        order: tasks.order,
-        assigneeId: tasks.assigneeId,
-        creatorId: tasks.creatorId,
-        createdAt: tasks.createdAt,
-        updatedAt: tasks.updatedAt,
-        columnId: tasks.columnId,
-        columnName: columns.name,
-        boardId: columns.projectId,
-        moduleName: projects.name,
-        parentProjectId: projects.parentProjectId,
-        parentProjectName: projects.parentProjectName,
-      })
-      .from(tasks)
-      .innerJoin(columns, eq(tasks.columnId, columns.id))
-      .leftJoin(projects, eq(columns.projectId, projects.id))
-      .leftJoin(taskAssignees, eq(tasks.id, taskAssignees.taskId))
-      .where(or(eq(tasks.assigneeId, userId), eq(taskAssignees.userId, userId)))
-      .orderBy(asc(tasks.order));
+    return selectWork(or(eq(tasks.assigneeId, userId), eq(taskAssignees.userId, userId))!);
+  },
 
-    // Boards are per module: `moduleId` is the board, `projectId` its project,
-    // which together give the board route in the app.
-    return rows.map(({ boardId, moduleName, parentProjectId, parentProjectName, ...row }) => ({
-      ...row,
-      source: 'project' as const,
-      labels: row.labels ? row.labels.split(',').filter(Boolean) : [],
-      moduleId: boardId,
-      moduleName: moduleName ?? 'Module',
-      projectId: parentProjectId ?? boardId,
-      projectName: parentProjectName ?? moduleName ?? 'Untitled project',
-    }));
+  /**
+   * Every dated task on these boards, whoever it belongs to — the team
+   * calendar of a project admin. Unassigned tasks are included on purpose:
+   * they are the deadlines nobody owns.
+   */
+  async getDatedTasksOnBoards(boardIds: string[]) {
+    if (boardIds.length === 0) return [];
+    return selectWork(and(inArray(columns.projectId, boardIds), isNotNull(tasks.dueDate))!);
   },
 
   /** Aggregate counts for the profile statistics panel. */
@@ -419,3 +391,88 @@ const columnStatusMap: Record<string, string> = {
   'in review': 'in_review',
   'done': 'done',
 };
+
+/** Project tasks shaped for My work and the calendar, with their board, project and assignee. */
+async function selectWork(where: SQL) {
+  const rows = await db
+    .select({
+      id: tasks.id,
+      title: tasks.title,
+      description: tasks.description,
+      status: tasks.status,
+      priority: tasks.priority,
+      dueDate: tasks.dueDate,
+      labels: tasks.labels,
+      order: tasks.order,
+      assigneeId: tasks.assigneeId,
+      creatorId: tasks.creatorId,
+      createdAt: tasks.createdAt,
+      updatedAt: tasks.updatedAt,
+      columnId: tasks.columnId,
+      columnName: columns.name,
+      boardId: columns.projectId,
+      moduleName: projects.name,
+      parentProjectId: projects.parentProjectId,
+      parentProjectName: projects.parentProjectName,
+      assigneeName: users.name,
+      assigneeAvatar: users.avatarUrl,
+    })
+    .from(tasks)
+    .innerJoin(columns, eq(tasks.columnId, columns.id))
+    .leftJoin(projects, eq(columns.projectId, projects.id))
+    .leftJoin(users, eq(tasks.assigneeId, users.id))
+    .leftJoin(taskAssignees, eq(tasks.id, taskAssignees.taskId))
+    .where(where)
+    .orderBy(asc(tasks.order));
+
+  if (rows.length === 0) return [];
+
+  // Deduplicate rows by task.id
+  const uniqueTaskMap = new Map<string, typeof rows[0]>();
+  for (const r of rows) {
+    if (!uniqueTaskMap.has(r.id)) {
+      uniqueTaskMap.set(r.id, r);
+    }
+  }
+  const uniqueRows = Array.from(uniqueTaskMap.values());
+  const taskIds = uniqueRows.map(r => r.id);
+
+  // Fetch assignees from junction table
+  const assigneesRows = await db
+    .select({
+      taskId: taskAssignees.taskId,
+      userId: taskAssignees.userId,
+      userName: users.name,
+      userAvatar: users.avatarUrl,
+    })
+    .from(taskAssignees)
+    .leftJoin(users, eq(taskAssignees.userId, users.id))
+    .where(inArray(taskAssignees.taskId, taskIds));
+
+  const assigneesByTask = new Map<string, Array<{ id: string; name: string; avatarUrl: string | null }>>();
+  for (const a of assigneesRows) {
+    if (!assigneesByTask.has(a.taskId)) assigneesByTask.set(a.taskId, []);
+    assigneesByTask.get(a.taskId)!.push({
+      id: a.userId,
+      name: a.userName || 'Member',
+      avatarUrl: a.userAvatar ?? null,
+    });
+  }
+
+  // Boards are per module: `moduleId` is the board, `projectId` its project,
+  // which together give the board route in the app.
+  return uniqueRows.map(({ boardId, moduleName, parentProjectId, parentProjectName, assigneeName, assigneeAvatar, ...row }) => {
+    const taskAssigneesList = assigneesByTask.get(row.id) || (row.assigneeId ? [{ id: row.assigneeId, name: assigneeName ?? 'Someone', avatarUrl: assigneeAvatar ?? null }] : []);
+    return {
+      ...row,
+      assignee: taskAssigneesList[0] || (row.assigneeId ? { id: row.assigneeId, name: assigneeName ?? 'Someone', avatarUrl: assigneeAvatar ?? null } : null),
+      assignees: taskAssigneesList,
+      source: 'project' as const,
+      labels: row.labels ? row.labels.split(',').filter(Boolean) : [],
+      moduleId: boardId,
+      moduleName: moduleName ?? 'Module',
+      projectId: parentProjectId ?? boardId,
+      projectName: parentProjectName ?? moduleName ?? 'Untitled project',
+    };
+  });
+}

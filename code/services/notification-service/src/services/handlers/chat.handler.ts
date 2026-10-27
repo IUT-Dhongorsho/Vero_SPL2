@@ -1,6 +1,10 @@
 import { notify } from '../notify.service.js';
+import { inAppLink } from '../../utils/in-app-link.js';
 
-/** Connection requests from the Inbox. Messages themselves are badged in the Inbox. */
+/**
+ * Connection requests from the Inbox, and @mentions. Ordinary messages are
+ * badged in the Inbox instead of notified.
+ */
 export class ChatHandler {
   async handle(event: any) {
     const { type, data } = event ?? {};
@@ -30,6 +34,24 @@ export class ChatHandler {
           resourceUrl: `/inbox/${data.connectionId}`,
         });
         break;
+      case 'message.mentioned': {
+        // chat-service already narrowed recipients to members of the channel.
+        const place = data.channelName ? ` in ${String(data.channelName).replace(/ Chat$/, '')}` : '';
+        const who = data.everyone ? 'everyone' : 'you';
+        for (const userId of data.recipientIds ?? []) {
+          await notify({
+            userId,
+            type: 'chat.mentioned',
+            entityId: data.channelId,
+            entityType: 'channel',
+            actorId: data.senderId,
+            title: `${data.senderName} mentioned ${who}${place}`,
+            body: data.preview,
+            resourceUrl: inAppLink(data.link) ?? '/inbox',
+          });
+        }
+        break;
+      }
     }
   }
 }

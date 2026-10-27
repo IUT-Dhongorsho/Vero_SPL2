@@ -150,6 +150,19 @@ export class ChannelService {
       with: { members: { with: { user: true } } },
     });
   }
+
+  /** The channel's name and its people, leaving out the provisioning bot. */
+  async withMemberIds(channelId: string) {
+    const channel = await db.query.channels.findFirst({
+      where: eq(channels.id, channelId),
+      with: { members: true },
+    });
+    if (!channel) return null;
+    return {
+      name: channel.name,
+      memberIds: channel.members.map((m: any) => m.userId as string).filter((id) => id !== 'system'),
+    };
+  }
 }
 
 export const channelService = new ChannelService();

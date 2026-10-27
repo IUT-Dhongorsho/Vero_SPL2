@@ -107,7 +107,7 @@ export const InboxPage: React.FC = () => {
     });
   }, [connections.accepted, filter, unreadByChannel]);
 
-  const { messages, addNotice, clearView, scrollRef, typingNames } = useConversation(activeChannelId);
+  const { messages, addNotice, scrollRef, typingNames } = useConversation(activeChannelId);
 
   const handleOpen = useCallback(
     async (connection: Connection) => {
@@ -349,16 +349,7 @@ export const InboxPage: React.FC = () => {
                 />
               </div>
 
-              {activeChannelId && (
-                <Composer
-                  channelId={activeChannelId}
-                  onLocalNotice={addNotice}
-                  onClear={() => {
-                    clearView();
-                    toast.success('Cleared from your view — nothing was deleted');
-                  }}
-                />
-              )}
+              {activeChannelId && <Composer channelId={activeChannelId} onLocalNotice={addNotice} />}
             </>
           )}
         </section>

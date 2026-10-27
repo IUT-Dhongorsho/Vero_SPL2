@@ -1,5 +1,5 @@
 // @ts-ignore — y-websocket ships its server helpers untyped
-import { setupWSConnection, setPersistence } from 'y-websocket/bin/utils';
+import { getYDoc, setupWSConnection, setPersistence } from 'y-websocket/bin/utils';
 import { WebSocketServer } from 'ws';
 import http from 'http';
 import * as Y from 'yjs';
@@ -7,42 +7,81 @@ import { authenticateWs } from '../middleware/auth.js';
 import { documentService, permissions } from '../services/document.service.js';
 import { accessService } from '../services/access.service.js';
 import { ydocToHtml, markdownToYdoc } from '../services/ydoc-html.js';
+import { liveEditors } from '../monitoring/metrics.js';
+import { editLiveDoc, liveState, YLive } from '../services/live-docs.js';
 
-export const yjsPersistence = {
-  bindState: async (docName: string, ydoc: Y.Doc) => {
-    try {
+/** Save at most this long after typing stops, and at least this often while it goes on. */
+const SAVE_AFTER_IDLE_MS = 2_000;
+const SAVE_AT_LEAST_EVERY_MS = 10_000;
+
+/** A note's database state finishing loading into its live document. */
+const loading = new Map<string, Promise<void>>();
+const saveTimers = new Map<string, { timer: ReturnType<typeof setTimeout>; since: number }>();
+
+async function persist(docName: string, ydoc: Y.Doc) {
+  try {
+    // Never replace a written note with an empty document (a failed load, say).
+    const fragment = ydoc.getXmlFragment('default');
+    if (fragment.length === 0) {
       const doc = await documentService.getRawById(docName);
-      if (doc?.yjsState) {
-        const state = Buffer.from(doc.yjsState, 'base64');
-        Y.applyUpdate(ydoc, state);
-      } else if (doc?.contentSnapshot && doc.contentSnapshot.trim()) {
-        // Fallback: If yjsState is missing but contentSnapshot exists, seed ydoc from it
-        const seedDoc = markdownToYdoc(doc.contentSnapshot);
-        const state = Y.encodeStateAsUpdate(seedDoc);
-        Y.applyUpdate(ydoc, state);
-      }
-    } catch (e) {
-      console.error('Failed to load yjs state', e);
-    }
-  },
-  writeState: async (docName: string, ydoc: Y.Doc) => {
-    try {
-      // Safety check: Do not overwrite an existing populated document with an empty ydoc
-      const fragment = ydoc.getXmlFragment('default');
-      const doc = await documentService.getRawById(docName);
-      if (fragment.length === 0 && doc?.contentSnapshot && doc.contentSnapshot.trim()) {
+      if (doc?.contentSnapshot?.trim()) {
         console.warn(`[YjsServer] Refusing to overwrite populated note "${docName}" with empty state`);
         return;
       }
-
-      const state = Y.encodeStateAsUpdate(ydoc);
-      // The HTML snapshot is what the non-collaborative editor, previews and
-      // search read — it must reflect the live document.
-      await documentService.saveYjsState(docName, state, ydocToHtml(ydoc));
-    } catch (e) {
-      console.error('Failed to write yjs state', e);
     }
+    // The HTML snapshot is what previews, search and the non-collaborative
+    // editor read — it must reflect the live document.
+    await documentService.saveYjsState(docName, liveState(ydoc), ydocToHtml(ydoc));
+  } catch (e) {
+    console.error('Failed to write yjs state', e);
   }
+}
+
+/**
+ * y-websocket itself only saves when the last person leaves, so a restart or
+ * crash lost everything typed since the note was opened. Save shortly after
+ * typing pauses instead, and regularly during long bursts.
+ */
+function scheduleSave(docName: string, ydoc: Y.Doc) {
+  const pending = saveTimers.get(docName);
+  const since = pending?.since ?? Date.now();
+  if (pending) clearTimeout(pending.timer);
+  const wait = Math.max(0, Math.min(SAVE_AFTER_IDLE_MS, since + SAVE_AT_LEAST_EVERY_MS - Date.now()));
+  const timer = setTimeout(() => {
+    saveTimers.delete(docName);
+    persist(docName, ydoc);
+  }, wait);
+  saveTimers.set(docName, { timer, since });
+}
+
+export const yjsPersistence = {
+  bindState(docName: string, ydoc: Y.Doc) {
+    const load = (async () => {
+      try {
+        const doc = await documentService.getRawById(docName);
+        if (doc?.yjsState) {
+          YLive.applyUpdate(ydoc, Buffer.from(doc.yjsState, 'base64'));
+        } else if (doc?.contentSnapshot?.trim() && !/^\s*</.test(doc.contentSnapshot)) {
+          // Plain text or Markdown. Editor HTML is left to the first browser to
+          // join, which parses it with the editor's own schema.
+          editLiveDoc(ydoc, (working) => markdownToYdoc(doc.contentSnapshot, working));
+        }
+      } catch (e) {
+        console.error('Failed to load yjs state', e);
+      }
+      ydoc.on('update', () => scheduleSave(docName, ydoc));
+    })();
+    loading.set(docName, load);
+    load.finally(() => loading.delete(docName));
+    return load;
+  },
+  async writeState(docName: string, ydoc: Y.Doc) {
+    // The last person left: save now rather than when the timer fires.
+    const pending = saveTimers.get(docName);
+    if (pending) clearTimeout(pending.timer);
+    saveTimers.delete(docName);
+    await persist(docName, ydoc);
+  },
 };
 
 setPersistence(yjsPersistence);
@@ -78,6 +117,12 @@ export function attachYjsServer(server: http.Server) {
       }
       const canEdit = permissions.canEdit(doc, userId, role);
 
+      // y-websocket starts the sync handshake as soon as the socket is set up.
+      // If the note were still loading, the browser would see it empty, seed
+      // it from the saved HTML, and then receive the real content as well.
+      getYDoc(documentId);
+      await loading.get(documentId);
+
       wss.handleUpgrade(req, socket, head, (ws: any) => {
         if (!canEdit) {
           // Filter writes before y-websocket's own message listener sees them.
@@ -91,6 +136,8 @@ export function attachYjsServer(server: http.Server) {
               : on(event, listener);
         }
         setupWSConnection(ws, req, { docName: documentId });
+        liveEditors.inc();
+        ws.once('close', () => liveEditors.dec());
       });
     } catch (error) {
       console.error('WebSocket upgrade failed:', error);

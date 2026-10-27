@@ -1,5 +1,6 @@
 import webpush from 'web-push';
 import { env } from '../../config/env.js';
+import { notificationsDeliveredTotal } from '../../monitoring/metrics.js';
 
 export type PushResult = 'sent' | 'failed' | 'gone';
 
@@ -27,10 +28,15 @@ export class PushDelivery {
 
     try {
       await webpush.sendNotification(subscription, JSON.stringify(payload));
+      notificationsDeliveredTotal.inc({ channel: 'push', result: 'sent' });
       return 'sent';
     } catch (error: any) {
-      if (error?.statusCode === 404 || error?.statusCode === 410) return 'gone';
+      if (error?.statusCode === 404 || error?.statusCode === 410) {
+        notificationsDeliveredTotal.inc({ channel: 'push', result: 'gone' });
+        return 'gone';
+      }
       console.error(`❌ Failed to deliver push:`, error?.message ?? error);
+      notificationsDeliveredTotal.inc({ channel: 'push', result: 'failed' });
       return 'failed';
     }
   }

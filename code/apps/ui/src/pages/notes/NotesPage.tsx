@@ -217,7 +217,13 @@ export const NotesPage: React.FC = () => {
             <ArrowLeft className="w-4 h-4" /> All notes
           </button>
           {shownNote && moduleId ? (
-            <RichTextEditor key={shownNote.id} note={shownNote} moduleId={moduleId} canWriteModule={canWrite} />
+            <RichTextEditor
+              key={shownNote.id}
+              note={shownNote}
+              moduleId={moduleId}
+              canWriteModule={canWrite}
+              members={module?.members.map((m) => m.user)}
+            />
           ) : (
             <div className="m-auto text-center max-w-sm p-8">
               <FileText className="w-10 h-10 text-subtle-foreground mx-auto mb-4" strokeWidth={1.5} />

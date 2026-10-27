@@ -1,0 +1,35 @@
+# Shown under Alerts in the Prometheus UI (http://localhost:9090/alerts).
+# There is no Alertmanager, so nothing is sent anywhere; these are a
+# readable "what is wrong right now" list.
+groups:
+  - name: vero
+    rules:
+      - alert: ServiceDown
+        expr: up{job=~"vero|vero-meet"} == 0
+        for: 1m
+        labels: { severity: critical }
+        annotations:
+          summary: "{{ $labels.service }} ({{ $labels.instance }}) is not answering /metrics"
+
+      - alert: HighServerErrorRate
+        expr: |
+          sum by (service) (rate(http_request_duration_seconds_count{code=~"5.."}[5m]))
+            / sum by (service) (rate(http_request_duration_seconds_count[5m])) > 0.05
+        for: 5m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.service }}: {{ $value | humanizePercentage }} of requests fail with 5xx"
+
+      - alert: SlowRequests
+        expr: |
+          histogram_quantile(0.95, sum by (service, le) (rate(http_request_duration_seconds_bucket[5m]))) > 1
+        for: 10m
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $labels.service }}: p95 latency is {{ $value | humanizeDuration }}"
+
+      - alert: AiJobsCrashing
+        expr: sum(increase(ai_jobs_total{outcome="error"}[15m])) > 3
+        labels: { severity: warning }
+        annotations:
+          summary: "{{ $value }} AI jobs crashed in the last 15 minutes"

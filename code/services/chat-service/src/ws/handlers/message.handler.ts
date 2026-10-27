@@ -4,6 +4,7 @@ import { SocketEvents, MessagePayload } from '../types.js';
 import { messageService } from '../../services/message.service.js';
 import { channelService } from '../../services/channel.service.js';
 import { messagesSentTotal } from '../../monitoring/metrics.js';
+import { publishMentions } from '../../services/mention.service.js';
 
 export const registerMessageHandlers = (io: Server, socket: AuthSocket) => {
   socket.on(SocketEvents.MESSAGE, async (payload: MessagePayload) => {
@@ -36,6 +37,12 @@ export const registerMessageHandlers = (io: Server, socket: AuthSocket) => {
         clientId: payload.clientId,
       });
       console.log(`✅ [WS:Message] Broadcast complete`);
+
+      // 4. @mentions become notifications. A failure here must not look like
+      //    the message failed — it is already saved and delivered.
+      publishMentions(payload, savedMessage, socket.user!).catch((e) =>
+        console.error('❌ [WS:Message] Publishing mentions failed:', e.message)
+      );
     } catch (error) {
       console.error('❌ [WS:Message] Error handling message:', error);
       socket.emit(SocketEvents.ERROR, { message: 'Failed to send message' });

@@ -1,40 +1,133 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Loader2, Paperclip, Send, Slash } from 'lucide-react';
+import { Loader2, Paperclip, Send, Slash, Users } from 'lucide-react';
 import { toast } from '../../components/Providers/ToastProvider';
-import { inboxService } from '../../services/inboxService';
+import { inboxService, type ChatNotice } from '../../services/inboxService';
 import { useInboxStore } from '../../stores/inbox.store';
-import { SLASH_COMMANDS, runSlashCommand } from './slashCommands';
+import { useAuthStore } from '../../stores/auth.store';
+import { SLASH_COMMANDS, findMentions, runSlashCommand } from './slashCommands';
 import { cn } from '../../utils/cn';
+
+export interface MentionableMember {
+  id: string;
+  name: string;
+  avatarUrl: string | null;
+}
 
 interface ComposerProps {
   channelId: string;
-  onLocalNotice: (content: string) => void;
-  onClear: () => void;
+  onLocalNotice: (notice: ChatNotice) => void;
+  /** People who can be @mentioned. Leave out to turn mentions off (direct messages). */
+  members?: MentionableMember[];
+}
+
+interface Suggestion {
+  key: string;
+  icon: React.ReactNode;
+  label: React.ReactNode;
+  hint: string;
+  /** Text that replaces what is being typed. */
+  insert: string;
 }
 
 const MAX_UPLOAD_BYTES = 25 * 1024 * 1024;
+const MAX_MENTION_SUGGESTIONS = 6;
 
-export const Composer: React.FC<ComposerProps> = ({ channelId, onLocalNotice, onClear }) => {
+/** "@sie" right before the caret, at the start or after a space. */
+function mentionQueryAt(text: string, caret: number): { query: string; start: number } | null {
+  const match = text.slice(0, caret).match(/(?:^|\s)@([^\s@]*)$/);
+  if (!match) return null;
+  return { query: match[1].toLowerCase(), start: caret - match[1].length - 1 };
+}
+
+const Avatar: React.FC<{ member: MentionableMember }> = ({ member }) =>
+  member.avatarUrl ? (
+    <img src={member.avatarUrl} alt="" className="w-6 h-6 rounded-full object-cover" />
+  ) : (
+    <span className="w-6 h-6 rounded-full bg-accent-soft text-accent text-xs font-semibold grid place-items-center">
+      {member.name.charAt(0).toUpperCase()}
+    </span>
+  );
+
+export const Composer: React.FC<ComposerProps> = ({ channelId, onLocalNotice, members }) => {
   const [value, setValue] = useState('');
+  const [caret, setCaret] = useState(0);
   const [uploading, setUploading] = useState(false);
   const [uploadPercent, setUploadPercent] = useState(0);
   const [running, setRunning] = useState(false);
-  const [commandIndex, setCommandIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(0);
+  const [dismissed, setDismissed] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const fileRef = useRef<HTMLInputElement>(null);
   const typingTimer = useRef<number>();
+  const pendingCaret = useRef<number | null>(null);
 
+  const { pathname } = useLocation();
+  const meId = useAuthStore((state) => state.user?.id);
   const sendMessage = useInboxStore((state) => state.sendMessage);
   const setTyping = useInboxStore((state) => state.setTyping);
 
-  // Suggestions appear while the first token is still being typed.
-  const commandQuery = value.startsWith('/') && !value.includes(' ') ? value.slice(1).toLowerCase() : null;
-  const suggestions =
-    commandQuery === null ? [] : SLASH_COMMANDS.filter((c) => c.name.startsWith(commandQuery));
+  const others = (members ?? []).filter((m) => m.id !== meId);
+  const mentionsOn = others.length > 0;
 
-  useEffect(() => setCommandIndex(0), [commandQuery]);
+  // Commands are suggested while the first word is still being typed.
+  const commandQuery = value.startsWith('/') && !value.includes(' ') ? value.slice(1).toLowerCase() : null;
+  const mention = mentionsOn && commandQuery === null ? mentionQueryAt(value, caret) : null;
+
+  let heading = '';
+  let suggestions: Suggestion[] = [];
+  if (commandQuery !== null) {
+    heading = 'Commands';
+    suggestions = SLASH_COMMANDS.filter((c) => c.name.startsWith(commandQuery)).map((c) => ({
+      key: c.name,
+      icon: <Slash className="w-4 h-4 text-accent" />,
+      label: (
+        <>
+          /{c.name}
+          {c.args && <span className="text-muted-foreground font-normal"> {c.args}</span>}
+        </>
+      ),
+      hint: c.description,
+      insert: `/${c.name} `,
+    }));
+  } else if (mention) {
+    heading = 'Mention someone';
+    const q = mention.query;
+    const people = others
+      .filter((m) => !q || m.name.toLowerCase().split(' ').some((word) => word.startsWith(q)) || m.name.toLowerCase().startsWith(q))
+      .slice(0, MAX_MENTION_SUGGESTIONS)
+      .map<Suggestion>((m) => ({
+        key: m.id,
+        icon: <Avatar member={m} />,
+        label: m.name,
+        hint: 'Gets a notification',
+        insert: `@${m.name} `,
+      }));
+    const everyone: Suggestion[] =
+      !q || 'all'.startsWith(q) || 'everyone'.startsWith(q)
+        ? [
+            {
+              key: '@all',
+              icon: (
+                <span className="w-6 h-6 rounded-full bg-muted grid place-items-center">
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                </span>
+              ),
+              label: '@all',
+              hint: `Notifies everyone here (${others.length})`,
+              insert: '@all ',
+            },
+          ]
+        : [];
+    suggestions = [...people, ...everyone];
+  }
+
+  // Escape hides the list until what is being typed changes.
+  const suggestionKey = `${commandQuery ?? ''}|${mention?.query ?? ''}|${mention?.start ?? ''}`;
+  if (dismissed === suggestionKey) suggestions = [];
+  useEffect(() => setActiveIndex(0), [suggestionKey]);
 
   // Grow the textarea with its content, up to a ceiling.
   useEffect(() => {
@@ -42,6 +135,11 @@ export const Composer: React.FC<ComposerProps> = ({ channelId, onLocalNotice, on
     if (!node) return;
     node.style.height = 'auto';
     node.style.height = `${Math.min(node.scrollHeight, 160)}px`;
+    if (pendingCaret.current !== null) {
+      node.setSelectionRange(pendingCaret.current, pendingCaret.current);
+      setCaret(pendingCaret.current);
+      pendingCaret.current = null;
+    }
   }, [value]);
 
   useEffect(() => {
@@ -57,6 +155,18 @@ export const Composer: React.FC<ComposerProps> = ({ channelId, onLocalNotice, on
     typingTimer.current = window.setTimeout(() => setTyping(false), 2200);
   };
 
+  const apply = (suggestion: Suggestion) => {
+    if (commandQuery !== null) {
+      setValue(suggestion.insert);
+      pendingCaret.current = suggestion.insert.length;
+    } else if (mention) {
+      const next = value.slice(0, mention.start) + suggestion.insert + value.slice(caret);
+      setValue(next);
+      pendingCaret.current = mention.start + suggestion.insert.length;
+    }
+    textareaRef.current?.focus();
+  };
+
   const submit = async () => {
     const text = value.trim();
     if (!text || running) return;
@@ -64,21 +174,22 @@ export const Composer: React.FC<ComposerProps> = ({ channelId, onLocalNotice, on
     if (text.startsWith('/')) {
       setRunning(true);
       try {
-        const result = await runSlashCommand(text);
-        if (result) {
+        const result = await runSlashCommand(text, pathname);
+        if (result?.kind === 'notice') {
           setValue('');
-          if (result.kind === 'send') sendMessage({ content: result.content, type: result.type });
-          else if (result.kind === 'notice') onLocalNotice(result.content);
-          else if (result.kind === 'clear') onClear();
-          else if (result.kind === 'error') toast.error(result.content);
-          return;
+          onLocalNotice(result.notice);
+        } else if (result?.kind === 'error') {
+          // Keep the text so it can be fixed rather than retyped.
+          toast.error(result.content);
         }
       } finally {
         setRunning(false);
       }
+      return;
     }
 
-    sendMessage({ content: text });
+    const { mentions, mentionsAll } = mentionsOn ? findMentions(text, others) : { mentions: [], mentionsAll: false };
+    sendMessage({ content: text, mentions, mentionsAll, link: pathname });
     setValue('');
     setTyping(false);
   };
@@ -87,26 +198,33 @@ export const Composer: React.FC<ComposerProps> = ({ channelId, onLocalNotice, on
     if (suggestions.length > 0) {
       if (event.key === 'ArrowDown') {
         event.preventDefault();
-        setCommandIndex((i) => Math.min(i + 1, suggestions.length - 1));
+        setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
         return;
       }
       if (event.key === 'ArrowUp') {
         event.preventDefault();
-        setCommandIndex((i) => Math.max(i - 1, 0));
+        setActiveIndex((i) => Math.max(i - 1, 0));
         return;
       }
       if (event.key === 'Tab') {
         event.preventDefault();
-        setValue(`/${suggestions[commandIndex].name} `);
+        apply(suggestions[activeIndex]);
+        return;
+      }
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setDismissed(suggestionKey);
         return;
       }
     }
 
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault();
-      // Enter picks the highlighted command rather than sending a partial one.
-      if (suggestions.length > 0 && commandQuery !== suggestions[commandIndex].name) {
-        setValue(`/${suggestions[commandIndex].name} `);
+      // Enter picks the highlighted suggestion rather than sending half a word,
+      // unless the command is already typed in full.
+      const typedInFull = commandQuery !== null && suggestions[activeIndex]?.key === commandQuery;
+      if (suggestions.length > 0 && !typedInFull) {
+        apply(suggestions[activeIndex]);
         return;
       }
       submit();
@@ -157,35 +275,28 @@ export const Composer: React.FC<ComposerProps> = ({ channelId, onLocalNotice, on
             initial={{ opacity: 0, y: 8 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 8 }}
-            className="absolute bottom-full left-3 right-3 md:left-4 md:right-4 mb-2 surface-elevated rounded-xl overflow-hidden max-h-64 overflow-y-auto"
+            className="absolute bottom-full left-3 right-3 md:left-4 md:right-4 mb-2 surface-elevated rounded-xl overflow-hidden max-h-72 overflow-y-auto"
+            role="listbox"
           >
-            <p className="px-3.5 pt-3 pb-1.5 text-2xs font-semibold uppercase tracking-widest text-subtle-foreground">
-              Commands
-            </p>
-            {suggestions.map((command, index) => (
+            <p className="px-3.5 pt-3 pb-1.5 text-xs font-medium text-subtle-foreground">{heading}</p>
+            {suggestions.map((suggestion, index) => (
               <button
-                key={command.name}
-                onMouseEnter={() => setCommandIndex(index)}
-                onClick={() => {
-                  setValue(`/${command.name} `);
-                  textareaRef.current?.focus();
-                }}
+                key={suggestion.key}
+                role="option"
+                aria-selected={index === activeIndex}
+                onMouseEnter={() => setActiveIndex(index)}
+                // Keep focus in the textarea so the caret position survives.
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => apply(suggestion)}
                 className={cn(
-                  'w-full text-left px-3.5 py-2.5 flex items-start gap-3 transition-colors cursor-pointer',
-                  index === commandIndex ? 'bg-muted' : 'hover:bg-muted/60'
+                  'w-full text-left px-3.5 py-2.5 flex items-center gap-3 transition-colors cursor-pointer',
+                  index === activeIndex ? 'bg-muted' : 'hover:bg-muted/60'
                 )}
               >
-                <Slash className="w-4 h-4 mt-0.5 text-accent shrink-0" />
+                <span className="shrink-0 grid place-items-center w-6">{suggestion.icon}</span>
                 <span className="min-w-0">
-                  <span className="block text-sm font-medium text-foreground">
-                    /{command.name}
-                    {command.args && (
-                      <span className="text-muted-foreground font-normal"> {command.args}</span>
-                    )}
-                  </span>
-                  <span className="block text-xs text-muted-foreground mt-0.5">
-                    {command.description}
-                  </span>
+                  <span className="block text-sm font-medium text-foreground truncate">{suggestion.label}</span>
+                  <span className="block text-xs text-muted-foreground mt-0.5 truncate">{suggestion.hint}</span>
                 </span>
               </button>
             ))}
@@ -244,12 +355,15 @@ export const Composer: React.FC<ComposerProps> = ({ channelId, onLocalNotice, on
           value={value}
           onChange={(e) => {
             setValue(e.target.value);
+            setCaret(e.target.selectionStart ?? e.target.value.length);
             signalTyping();
           }}
+          onSelect={(e) => setCaret(e.currentTarget.selectionStart ?? 0)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
           rows={1}
-          placeholder="Write a message, or type / for commands…"
+          placeholder="Write a message"
+          aria-autocomplete="list"
           className="flex-1 resize-none bg-muted border border-border rounded-2xl px-4 py-2.5 text-foreground placeholder:text-subtle-foreground focus:outline-none focus:border-accent focus:ring-2 focus:ring-accent-soft transition-all leading-relaxed max-h-40"
         />
 
@@ -265,7 +379,8 @@ export const Composer: React.FC<ComposerProps> = ({ channelId, onLocalNotice, on
       </div>
 
       <p className="mt-2 text-2xs text-subtle-foreground px-1">
-        Enter to send · Shift+Enter for a new line · /help lists every command
+        {mentionsOn ? 'Type / for commands or @ to mention someone.' : 'Type / for commands.'} Shift+Enter adds a new
+        line.
       </p>
     </div>
   );

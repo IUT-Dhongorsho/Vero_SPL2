@@ -5,6 +5,8 @@ import { subscriberService } from './services/subscriber.service.js';
 import { jobProcessorService } from './services/job-processor.service.js';
 import { initSocketServer } from './ws/socket-server.js';
 import notificationRoutes from './routes/notification.routes.js';
+import { metricsMiddleware } from './middleware/monitor.middleware.js';
+import { metricsController } from './controllers/metrics.controller.js';
 
 export const app = express();
 export const httpServer = createServer(app);
@@ -17,7 +19,9 @@ if (process.env.NODE_ENV !== 'test') {
 }
 
 app.use(express.json());
+app.use(metricsMiddleware);
 
+app.get('/metrics', metricsController.getMetrics);
 app.use('/notifications', notificationRoutes);
 
 // Placeholder for routes

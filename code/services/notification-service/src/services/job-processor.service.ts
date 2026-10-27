@@ -6,6 +6,7 @@ import { eq, and } from 'drizzle-orm';
 import { Redis } from 'ioredis';
 import { taskHandler } from './handlers/task.handler.js';
 import { meetHandler } from './handlers/meet.handler.js';
+import { notify } from './notify.service.js';
 
 const connection = new Redis(env.REDIS_URL, {
   maxRetriesPerRequest: null,
@@ -26,6 +27,17 @@ export class JobProcessorService {
             await taskHandler.handle({ type, data });
           } else if (type.startsWith('meet.')) {
             await meetHandler.handle({ type, data });
+          } else if (type === 'reminder.due') {
+            await notify({
+              userId,
+              type,
+              entityId,
+              entityType: 'reminder',
+              actorId: userId,
+              title: `Reminder: ${data.text}`,
+              body: 'You set this reminder with /remind.',
+              resourceUrl: data.link ?? undefined,
+            });
           }
 
           // 2. Mark job as fired in DB

@@ -4,6 +4,7 @@ import { QUEUES } from '@repo/shared';
 import { env } from '../config/env.js';
 import { geminiService, GeminiError } from './gemini.service.js';
 import { summarizeNote } from '../jobs/summarize.job.js';
+import { aiJobDuration, aiJobsTotal } from './metrics.service.js';
 
 /** Key other services read to know whether AI features can be offered. */
 export const STATUS_KEY = `${env.AI_NAMESPACE ? `${env.AI_NAMESPACE}:` : ''}ai-worker:status`;
@@ -11,6 +12,20 @@ const QUEUE_PREFIX = env.AI_NAMESPACE ? `bull:${env.AI_NAMESPACE}` : 'bull';
 const HEARTBEAT_MS = 10_000;
 
 export async function processAiJob(job: Pick<Job, 'name' | 'data'>) {
+  const end = aiJobDuration.startTimer({ job: job.name });
+  try {
+    const result = await runAiJob(job);
+    aiJobsTotal.inc({ job: job.name, outcome: result.ok ? 'ok' : 'rejected' });
+    return result;
+  } catch (error) {
+    aiJobsTotal.inc({ job: job.name, outcome: 'error' });
+    throw error;
+  } finally {
+    end();
+  }
+}
+
+async function runAiJob(job: Pick<Job, 'name' | 'data'>) {
   try {
     switch (job.name) {
       case 'note.digest':

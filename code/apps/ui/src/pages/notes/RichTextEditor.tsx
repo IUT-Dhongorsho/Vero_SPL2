@@ -1,4 +1,4 @@
-import React, { useCallback, useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useEditor, EditorContent, type Editor } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
 import Placeholder from '@tiptap/extension-placeholder';
@@ -6,6 +6,9 @@ import TaskList from '@tiptap/extension-task-list';
 import TaskItem from '@tiptap/extension-task-item';
 import Collaboration from '@tiptap/extension-collaboration';
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor';
+import Link from '@tiptap/extension-link';
+import Mention from '@tiptap/extension-mention';
+import { marked } from 'marked';
 import {
   Bold,
   CheckSquare,
@@ -17,12 +20,14 @@ import {
   List,
   ListOrdered,
   Loader2,
+  Pencil,
   Sparkles,
 } from 'lucide-react';
 import { useNotesStore } from '../../stores/notes.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { toast } from '../../components/Providers/ToastProvider';
-import { useYjs } from '../../hooks/useYjs';
+import { colorFor, useYjs } from '../../hooks/useYjs';
+import { mentionSuggestion, type MentionPerson } from '../../components/notes/mentionSuggestion';
 import { AwarenessCursors } from '../../components/notes/AwarenessCursors';
 import { SendToBoardModal, type DraftTask } from '../../components/notes/SendToBoardModal';
 import { NoteDigestPanel } from '../../components/notes/NoteDigestPanel';
@@ -37,7 +42,17 @@ interface RichTextEditorProps {
   moduleId: string;
   /** False for viewers of the module: they can read but not add to the board. */
   canWriteModule: boolean;
+  /** The module's people, who can be @mentioned. */
+  members?: MentionPerson[];
 }
+
+/** Text that reads as Markdown: headings, lists, quotes, fences, emphasis, links. */
+const MARKDOWN = /(^|\n)\s{0,3}(#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s?|```|- \[[ xX]\]\s)|\*\*[^*\n]+\*\*|__[^_\n]+__|`[^`\n]+`|\[[^\]\n]+\]\([^)\s]+\)|~~[^~\n]+~~/;
+/** Clipboard HTML that already carries structure (a web page, a doc), not just styled text (a code editor). */
+const STRUCTURED_HTML = /<(h[1-6]|ul|ol|li|strong|b|em|i|blockquote|table|pre|p)[\s>]/i;
+
+/** How long to wait for the live note before showing the editor anyway. */
+const SYNC_GRACE_MS = 5_000;
 
 /** One status request per session; the worker's state rarely changes. */
 let aiStatusPromise: Promise<AiStatus> | null = null;
@@ -46,14 +61,24 @@ const loadAiStatus = () => {
   return aiStatusPromise;
 };
 
-export const RichTextEditor: React.FC<RichTextEditorProps> = ({ note, moduleId, canWriteModule }) => {
+export const RichTextEditor: React.FC<RichTextEditorProps> = ({ note, moduleId, canWriteModule, members }) => {
   const canCollaborate = note.visibility === 'public' && note.editPermission === 'editable' && note.canEdit !== false;
-  const { ydoc, provider, status, awareness } = useYjs({
+  const { ydoc, provider, status, synced, awareness } = useYjs({
     documentId: note.id,
     enabled: canCollaborate,
   });
 
-  if (canCollaborate && (!ydoc || !provider)) {
+  // Show the note once it has synced: an editor shown earlier is empty for a
+  // moment, then fills — which read as text appearing and disappearing.
+  const [waitedLong, setWaitedLong] = useState(false);
+  useEffect(() => {
+    setWaitedLong(false);
+    if (!canCollaborate) return;
+    const timer = setTimeout(() => setWaitedLong(true), SYNC_GRACE_MS);
+    return () => clearTimeout(timer);
+  }, [note.id, canCollaborate]);
+
+  if (canCollaborate && (!ydoc || !provider || (!synced && !waitedLong))) {
     return (
       <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground">
         <Loader2 className="w-4 h-4 animate-spin" /> Joining the live note…
@@ -72,6 +97,7 @@ export const RichTextEditor: React.FC<RichTextEditorProps> = ({ note, moduleId, 
       status={status}
       awareness={awareness}
       canCollaborate={canCollaborate}
+      members={members}
     />
   );
 };
@@ -113,6 +139,7 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
   status,
   awareness,
   canCollaborate,
+  members,
 }) => {
   const { updateNoteMeta, updateNoteContent } = useNotesStore();
   const { user } = useAuthStore();
@@ -129,6 +156,39 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
   // The server decides; older responses without the flags fall back to authorship.
   const canManage = note.canManage ?? note.creatorId === user?.id;
   const isEditable = note.canEdit ?? (canCollaborate || canManage);
+
+  // In a live note the title is shared too, so a rename shows for everyone at once.
+  const shared = canCollaborate && ydoc ? ydoc.getMap('vero') : null;
+  useEffect(() => {
+    if (!shared) return;
+    const pull = () => {
+      const live = shared.get('title');
+      if (typeof live === 'string') setTitle(live);
+    };
+    pull();
+    shared.observe(pull);
+    return () => shared.unobserve(pull);
+  }, [shared]);
+
+  // @mentions: who can be picked, and who has been notified this session.
+  const peopleRef = useRef<MentionPerson[]>([]);
+  peopleRef.current = (members ?? []).filter((m) => m.id !== user?.id);
+  const notified = useRef(new Set<string>());
+  const notifyRef = useRef<(userId: string) => void>(() => {});
+  notifyRef.current = async (userId: string) => {
+    if (notified.current.has(userId)) return;
+    notified.current.add(userId);
+    try {
+      const { notified: count } = await notesService.mention(note.id, [userId]);
+      if (count === 0 && note.visibility !== 'public') {
+        toast('Only you can see this note, so nobody was notified. Share it with the module first.', { id: 'private-mention' });
+      }
+    } catch (error) {
+      notified.current.delete(userId);
+      toast.error(errorMessage(error, 'Could not notify the person you mentioned'));
+    }
+  };
+  const editorRef = useRef<Editor | null>(null);
 
   useEffect(() => {
     loadAiStatus().then(setAi);
@@ -149,7 +209,8 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
   const handleTitleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const next = e.target.value;
     setTitle(next);
-    if (!canManage) return;
+    if (!isEditable) return;
+    shared?.set('title', next);
     setSaveState('saving');
     clearTimeout(titleTimer.current);
     titleTimer.current = setTimeout(async () => {
@@ -172,10 +233,38 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
         Placeholder.configure({ placeholder: isEditable ? 'Start writing…' : 'This note is empty.' }),
         TaskList,
         TaskItem.configure({ nested: true }),
+        Link.configure({
+          autolink: true,
+          linkOnPaste: true,
+          openOnClick: !isEditable,
+          HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer nofollow' },
+        }),
+        Mention.configure({
+          HTMLAttributes: { class: 'rounded-md px-1 py-0.5 bg-accent-soft text-accent font-medium no-underline' },
+          renderText: ({ node }) => `@${node.attrs.label ?? node.attrs.id}`,
+          renderHTML: ({ options, node }) => ['span', options.HTMLAttributes, `@${node.attrs.label ?? node.attrs.id}`],
+          suggestion: {
+            ...mentionSuggestion(() => peopleRef.current),
+            command: ({ editor, range, props }) => {
+              editor
+                .chain()
+                .focus()
+                .insertContentAt(range, [
+                  { type: 'mention', attrs: props },
+                  { type: 'text', text: ' ' },
+                ])
+                .run();
+              notifyRef.current(String(props.id));
+            },
+          },
+        }),
         ...(canCollaborate && ydoc && provider
           ? [
               Collaboration.configure({ document: ydoc }),
-              CollaborationCursor.configure({ provider, user: { name: user?.name || 'Anonymous', color: '#4f46e5' } }),
+              CollaborationCursor.configure({
+                provider,
+                user: { id: user?.id, name: user?.name || 'Anonymous', color: colorFor(user?.id ?? 'anon') },
+              }),
             ]
           : []),
       ],
@@ -185,6 +274,17 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
         attributes: {
           class:
             'prose max-w-none focus:outline-none min-h-[420px] w-full text-foreground marker:text-foreground prose-p:text-foreground prose-headings:text-foreground prose-li:text-foreground prose-strong:text-foreground prose-a:text-accent',
+        },
+        // Pasted Markdown becomes formatting instead of literal ** and #.
+        handlePaste: (view, event) => {
+          const data = event.clipboardData;
+          const text = data?.getData('text/plain') ?? '';
+          if (!text || !MARKDOWN.test(text)) return false;
+          if (STRUCTURED_HTML.test(data?.getData('text/html') ?? '')) return false;
+          if (view.state.selection.$from.parent.type.name === 'codeBlock') return false;
+          const html = marked.parse(text, { gfm: true, breaks: false, async: false }) as string;
+          editorRef.current?.chain().focus().insertContent(html).run();
+          return true;
         },
       },
       onUpdate: ({ editor }) => {
@@ -204,6 +304,7 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
     },
     [note.id, canCollaborate, ydoc, provider, isEditable]
   );
+  editorRef.current = editor;
 
   // A note made shareable after it was written has saved HTML but an empty
   // live document. The first person in copies the HTML across; the flag lives
@@ -263,15 +364,28 @@ const RichTextEditorCore: React.FC<RichTextEditorCoreProps> = ({
     <div className="flex flex-col h-full min-h-0">
       <div className="px-6 md:px-10 pt-6 pb-3 border-b border-border flex flex-col gap-3">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
-          <input
-            type="text"
-            value={title}
-            onChange={handleTitleChange}
-            readOnly={!canManage}
-            aria-label="Note title"
-            className="text-2xl md:text-3xl font-semibold tracking-tight bg-transparent text-foreground focus:outline-none w-full min-w-0 placeholder:text-subtle-foreground"
-            placeholder="Untitled note"
-          />
+          <label className="group relative flex items-center min-w-0 flex-1 -mx-2">
+            <input
+              type="text"
+              value={title}
+              onChange={handleTitleChange}
+              onKeyDown={(e) => e.key === 'Enter' && e.currentTarget.blur()}
+              readOnly={!isEditable}
+              aria-label={isEditable ? 'Note title, click to rename' : 'Note title'}
+              title={isEditable ? 'Click to rename' : undefined}
+              className={cn(
+                'text-2xl md:text-3xl font-semibold tracking-tight bg-transparent text-foreground w-full min-w-0 rounded-lg px-2 py-1 pr-9 placeholder:text-subtle-foreground focus:outline-none transition-colors',
+                isEditable && 'hover:bg-muted/60 focus:bg-muted focus:ring-2 focus:ring-accent-soft cursor-text'
+              )}
+              placeholder="Untitled note"
+            />
+            {isEditable && (
+              <Pencil
+                aria-hidden
+                className="absolute right-2.5 w-4 h-4 text-subtle-foreground opacity-60 group-hover:opacity-100 group-focus-within:opacity-0 transition-opacity pointer-events-none"
+              />
+            )}
+          </label>
           <div className="flex items-center gap-2 shrink-0 flex-wrap">
             {canCollaborate && <AwarenessCursors awareness={awareness} />}
             {canCollaborate && (

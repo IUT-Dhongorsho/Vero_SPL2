@@ -1,0 +1,53 @@
+# Prometheus + Grafana for the services scripts/dev-stack.sh runs on the host.
+#
+#   docker compose -f infra/docker/monitoring.dev.yml up -d
+#   open http://localhost:3001        # Grafana, the Vero dashboard opens first
+#   open http://localhost:9090        # Prometheus (Status → Targets, Alerts)
+#
+# The full Docker stack uses the `monitoring` profile in docker-compose.yml instead.
+
+name: vero-monitoring
+
+services:
+  prometheus:
+    image: prom/prometheus:v2.54.1
+    restart: unless-stopped
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.retention.time=7d
+    volumes:
+      - ../prometheus/prometheus.dev.yml:/etc/prometheus/prometheus.yml:ro
+      - ../prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
+      - prometheus-data:/prometheus
+    # Docker Desktop provides host.docker.internal; Linux needs it mapped.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "9090:9090"
+
+  grafana:
+    image: grafana/grafana:11.2.0
+    restart: unless-stopped
+    depends_on: [prometheus]
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+      GF_USERS_DEFAULT_THEME: dark
+      GF_DASHBOARDS_DEFAULT_HOME_DASHBOARD_PATH: /var/lib/grafana/dashboards/vero-overview.json
+      GF_ANALYTICS_REPORTING_ENABLED: "false"
+      GF_NEWS_NEWS_FEED_ENABLED: "false"
+    # Single files, not folders: macOS writes ._* sidecar files on external
+    # drives, and Grafana refuses to start when it finds one among its dashboards.
+    volumes:
+      - ../grafana/provisioning/datasources/prometheus.yml:/etc/grafana/provisioning/datasources/prometheus.yml:ro
+      - ../grafana/provisioning/dashboards/vero.yml:/etc/grafana/provisioning/dashboards/vero.yml:ro
+      - ../grafana/dashboards/vero-overview.json:/var/lib/grafana/dashboards/vero-overview.json:ro
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+
+volumes:
+  prometheus-data:
+  grafana-data:

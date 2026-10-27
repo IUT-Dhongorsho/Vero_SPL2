@@ -38,6 +38,11 @@ interface InboxState {
     content: string;
     type?: ChatMessage['type'];
     attachment?: { url: string; name: string; mime: string; size: number };
+    /** Who to notify: member ids, or everyone in the channel. */
+    mentions?: string[];
+    mentionsAll?: boolean;
+    /** The page the chat is on; mention notifications open it. */
+    link?: string;
   }) => void;
   deleteMessage: (messageId: string) => Promise<void>;
   setTyping: (isTyping: boolean) => void;
@@ -120,6 +125,7 @@ export const useInboxStore = create<InboxState>((set, get) => ({
       set((state) => ({
         messagesByChannel: { ...state.messagesByChannel, [channelId]: messages },
       }));
+      inboxService.markRead(channelId).catch(() => {});
     } catch (error) {
       console.error('[inbox] failed to load history', error);
       throw error;
@@ -134,7 +140,7 @@ export const useInboxStore = create<InboxState>((set, get) => ({
     set({ activeChannelId: null, activePeerId: null });
   },
 
-  sendMessage({ content, type = 'text', attachment }) {
+  sendMessage({ content, type = 'text', attachment, mentions, mentionsAll, link }) {
     const { activeChannelId, socket } = get();
     const me = useAuthStore.getState().user;
     if (!activeChannelId || !me) return;
@@ -168,7 +174,14 @@ export const useInboxStore = create<InboxState>((set, get) => ({
       },
     }));
 
-    socket?.emit('message', { channelId: activeChannelId, content, type, attachment, clientId });
+    socket?.emit('message', {
+      channelId: activeChannelId,
+      content,
+      type,
+      attachment,
+      clientId,
+      ...(mentions?.length || mentionsAll ? { mentions, mentionsAll, link } : {}),
+    });
   },
 
   async deleteMessage(messageId) {
@@ -231,6 +244,8 @@ export const useInboxStore = create<InboxState>((set, get) => ({
 
         const isForeign = message.senderId !== me?.id;
         const isBackground = message.channelId !== activeChannelId;
+        // Seen as it arrives in the open conversation.
+        if (isForeign && !isBackground) inboxService.markRead(message.channelId).catch(() => {});
 
         return {
           messagesByChannel: { ...state.messagesByChannel, [message.channelId]: merged },

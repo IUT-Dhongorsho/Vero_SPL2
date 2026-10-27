@@ -14,7 +14,7 @@ import {
 import { PageContainer } from '../components/Layout/PageContainer';
 import { AnimatedButton } from '../components/ui/AnimatedButton';
 import { Badge, PriorityBadge } from '../components/ui/Badge';
-import { MailWidget } from '../components/dashboard/MailWidget';
+import { UnreadWidget } from '../components/dashboard/UnreadWidget';
 import { dueMeta } from '../components/board/KanbanBoard';
 import { useAuthStore } from '../stores/auth.store';
 import { useProjectStore } from '../stores/project.store';
@@ -186,9 +186,9 @@ export const DashboardPage: React.FC = () => {
             </button>
           </motion.section>
 
-          {/* Mail */}
+          {/* Unread messages */}
           <motion.div variants={fadeUp} className="lg:col-span-3">
-            <MailWidget />
+            <UnreadWidget />
           </motion.div>
         </div>
 

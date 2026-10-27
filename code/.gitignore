@@ -9,6 +9,7 @@
 .DS_Store
 Thumbs.db
 desktop.ini
+.fuse_hidden*
 
 # Common Logs and temporary files
 *.log

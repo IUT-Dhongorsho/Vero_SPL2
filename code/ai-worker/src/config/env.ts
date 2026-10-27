@@ -12,6 +12,8 @@ const envSchema = z.object({
   AI_CONCURRENCY: z.string().default('2').transform(Number),
   /** Separates AI queues sharing one Redis (tests, several checkouts). Must match notes-service. */
   AI_NAMESPACE: z.string().default(''),
+  /** Where Prometheus scrapes the worker. */
+  METRICS_PORT: z.string().default('8008').transform(Number),
 });
 
 const _env = envSchema.safeParse(process.env);
