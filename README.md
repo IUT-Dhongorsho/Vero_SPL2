@@ -318,3 +318,13 @@ Things we would tell a reviewer before they ask.
 - Running two notification instances processes each event twice (Redis pub/sub is broadcast, not a queue).
 - Recording in Meet is a placeholder; transcription is the v1 artifact of a call.
 </details>
+
+## Team
+
+| | Role |
+|---|---|
+| **Tabib Hassan** (230042131) | Interface, board service, Kanban, workspace redesign |
+| **Nafis Ahnaf Jamil** (230042150) | Architecture, chat and notifications, video calls |
+| **Sieam Shahriare** (230042153) | Permissions, notifications, AI worker, Docker and CI |
+
+Software Project Lab 2 · Islamic University of Technology · 2026
