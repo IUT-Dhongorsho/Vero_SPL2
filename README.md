@@ -153,3 +153,46 @@ flowchart LR
   B & P & C & A -- Redis events --> NO
   A -- user_events --> B & N & P & C & M & NO
 ```
+
+<details>
+<summary>What happens when a task is assigned</summary>
+
+```mermaid
+sequenceDiagram
+  participant UI
+  participant B as board-service
+  participant R as Redis task_events
+  participant N as notification-service
+  UI->>B: PATCH /tasks/:id {assigneeId}
+  B->>B: save
+  B->>R: publish task.assigned (fire and forget)
+  R->>N: handler → group → deliver
+  N-->>UI: bell (socket) · email · web push
+```
+
+Board never calls notification-service. If notifications are down, the task still saves.
+</details>
+
+<details>
+<summary>How a call is set up</summary>
+
+```mermaid
+sequenceDiagram
+  participant C as Client
+  participant S as meet-service
+  participant MS as mediasoup
+  C->>S: join-room
+  C->>S: get-rtp-capabilities
+  C->>S: create-send-transport / create-recv-transport
+  S->>MS: createWebRtcTransport
+  C->>S: connect-transport (DTLS)
+  C->>S: produce (audio / video / screen)
+  S-->>C: new-producer → consume → resume-consumer
+```
+</details>
+
+<details>
+<summary>How notes merge without a lock</summary>
+
+Each note is a Yjs document. Every edit becomes an update tagged with the client id and a clock, and inserts reference their left and right neighbours. Concurrent updates can be applied in any order and converge to the same text. The server (`y-websocket`) relays updates between clients and writes the merged state to Postgres when the last client leaves.
+</details>
