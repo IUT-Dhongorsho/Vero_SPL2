@@ -4,7 +4,7 @@ import { Avatar } from '../ui/Avatar';
 interface Person {
   id: string;
   name: string;
-  avatarUrl: string | null;
+  avatarUrl?: string | null;
 }
 
 /** Overlapping avatars with a +N for whoever does not fit. */
