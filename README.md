@@ -269,3 +269,27 @@ cd code && ./scripts/test-all.sh
 
 CI (`.github/workflows/ci.yml`) typechecks every package, runs the same script against Postgres and Redis service containers, and builds web and desktop on every push and pull request.
 </details>
+
+## Repository layout
+
+```
+code/
+├── apps/
+│   ├── ui/          shared React app: pages, components, features, stores, hooks, ws
+│   ├── web/         Vite shell
+│   └── desktop/     Electron shell
+├── services/
+│   ├── auth-service          Better Auth, JWT, OAuth, Gmail
+│   ├── board-service         boards, columns, tasks, My work
+│   ├── notes-service         documents, Yjs WebSocket, AI digest
+│   ├── project-service       projects, modules, members, provisioning
+│   ├── chat-service          channels, messages, presence, gRPC server
+│   ├── notification-service  event subscriber, grouping, bell / push / email
+│   └── meet-service          Mediasoup SFU, signalling, transcription
+│   (each: src/routes · controllers · services · models · middleware · ws)
+├── packages/shared/  types, Redis channel names, roles, gRPC proto
+├── ai-worker/        BullMQ worker for Gemini jobs
+├── infra/            docker, nginx, redis, prometheus, grafana, coturn
+└── scripts/          dev-stack.sh, test-all.sh
+doc/                  reports, diagrams, planning notes
+```
