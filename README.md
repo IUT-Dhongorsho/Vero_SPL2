@@ -196,3 +196,18 @@ sequenceDiagram
 
 Each note is a Yjs document. Every edit becomes an update tagged with the client id and a clock, and inserts reference their left and right neighbours. Concurrent updates can be applied in any order and converge to the same text. The server (`y-websocket`) relays updates between clients and writes the merged state to Postgres when the last client leaves.
 </details>
+
+## Tech stack
+
+| Layer | Choices |
+|---|---|
+| Interface | React, Vite, Tailwind, Radix UI, Tiptap, Zustand, framer-motion, dnd-kit |
+| Apps | Web (Vite) and desktop (Electron) from one shared UI package |
+| Services | Node.js, Express, TypeScript, Zod |
+| Data | PostgreSQL (one database per service), Drizzle ORM, Redis |
+| Real-time | Socket.IO (+ Redis adapter), Yjs, gRPC, BullMQ |
+| Video | Mediasoup SFU, coturn |
+| Auth | Better Auth, JWT, Google and GitHub OAuth |
+| AI and APIs | Whisper via Groq (OpenAI fallback), Gemini, Gmail API |
+| Delivery | Docker Compose, nginx, GitHub Actions |
+| Quality | Vitest (180 tests against real Postgres and Redis), Prometheus, Grafana |
