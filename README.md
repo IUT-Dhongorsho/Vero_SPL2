@@ -34,3 +34,11 @@
 </p>
 
 ---
+
+## Why
+
+A student team in 2026 runs one project across six tools: a task list, a Kanban board, a notes app, a chat app, a video app and a calendar. None of them know about each other. A decision made in a call never reaches the board. A deadline in the notes never reaches the calendar.
+
+Vero puts all of it in one window, and makes the pieces aware of each other.
+
+<p align="center"><img src="doc/readme/board-full.png" alt="Vero workspace with the board open" width="900"></p>
