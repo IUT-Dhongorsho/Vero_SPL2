@@ -42,3 +42,18 @@ A student team in 2026 runs one project across six tools: a task list, a Kanban 
 Vero puts all of it in one window, and makes the pieces aware of each other.
 
 <p align="center"><img src="doc/readme/board-full.png" alt="Vero workspace with the board open" width="900"></p>
+
+## The idea
+
+Everything hangs off one concept.
+
+```
+Project
+└── Module  (Frontend, Backend, DB schema, …)
+    ├── Board      Kanban: Backlog → In progress → In review → Done
+    ├── Notes      live collaborative documents
+    ├── Chat       one room, right people already in it
+    └── Meet       a call room, no links
+```
+
+When you create a module, its tools are provisioned for it. You never set anything up. Membership and roles (`admin`, `member`, `viewer`) are per project and flow down to every module.
