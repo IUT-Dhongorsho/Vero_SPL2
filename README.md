@@ -82,3 +82,25 @@ When you create a module, its tools are provisioned for it. You never set anythi
 - Ask AI for a digest of any note (Gemini, through the AI worker)
 - Meeting transcripts and minutes land here automatically
 </details>
+
+<details>
+<summary><b>Chat</b> — talk it through</summary>
+<br>
+<img src="doc/readme/chat-crop.png" alt="Module chat" width="800">
+
+- One group channel per module, created the moment the module exists (gRPC from project-service)
+- Direct messages between connected users (friend-request style connections)
+- Socket.IO rooms, typing indicators, presence, read receipts, optimistic bubbles reconciled by `clientId`
+- Redis adapter so two chat instances share the same rooms
+</details>
+
+<details>
+<summary><b>Meet</b> — right here</summary>
+<br>
+<img src="doc/readme/meet-left.png" alt="Video call" width="500">
+
+- Our own media server: a Mediasoup SFU. Each person uploads once, the server forwards to everyone else
+- Camera, mic, screen share; Opus / VP8 / VP9 / H264
+- Live transcription: one browser mixes the call audio, sends 6-second chunks, Whisper (Groq, OpenAI fallback) writes the transcript into a note
+- When the call ends, Gemini writes the meeting minutes into a second note
+</details>
