@@ -57,3 +57,28 @@ Project
 ```
 
 When you create a module, its tools are provisioned for it. You never set anything up. Membership and roles (`admin`, `member`, `viewer`) are per project and flow down to every module.
+
+## Features
+
+<details open>
+<summary><b>Board</b> — plan it</summary>
+<br>
+<img src="doc/readme/board-full.png" alt="Kanban board" width="800">
+
+- Four default columns, custom columns, drag-and-drop with keyboard support (`dnd-kit`)
+- Optimistic updates: the card moves instantly, rolls back with a toast if the server disagrees
+- Assignee, priority, due date with overdue badges, labels, description
+- Assigning a task publishes `task.assigned`; the assignee gets a bell, an email and a browser push
+</details>
+
+<details>
+<summary><b>Notes</b> — write it together</summary>
+<br>
+<img src="doc/readme/note-crop.png" alt="Collaborative note" width="800">
+
+- Tiptap editor on top of a Yjs CRDT: several people type at once, text converges without locks
+- Live cursors and names through Yjs awareness
+- Private notes save plain HTML over REST; public editable notes go through the WebSocket room
+- Ask AI for a digest of any note (Gemini, through the AI worker)
+- Meeting transcripts and minutes land here automatically
+</details>
