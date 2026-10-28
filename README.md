@@ -132,3 +132,24 @@ When you create a module, its tools are provisioned for it. You never set anythi
 - A JWT is minted per session so every service can verify a user locally
 - Gmail integration for the mail widget
 </details>
+
+## Architecture
+
+One app in front, seven services behind it, each with its own PostgreSQL database. Services never share tables. They talk in three ways:
+
+| Channel | Used for | Example |
+|---|---|---|
+| **Redis pub/sub** | "something happened" | board publishes `task.assigned`, notification-service reacts |
+| **gRPC** | "do this now, I need the answer" | project-service asks chat-service to create a module's channel |
+| **BullMQ** | background jobs that may retry | provisioning a module, summarising a note |
+
+```mermaid
+flowchart LR
+  UI[Web / Electron app] --> NG[nginx :3000]
+  NG --> A[auth 8001] & B[board 8002] & N[notes 8003] & P[project 8004] & C[chat 8005] & NO[notification 8006] & M[meet 8007]
+  P -- gRPC --> C
+  N -- BullMQ ai-jobs --> AI[ai-worker]
+  M -- Whisper / Gemini --> N
+  B & P & C & A -- Redis events --> NO
+  A -- user_events --> B & N & P & C & M & NO
+```
