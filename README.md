@@ -20,3 +20,17 @@
   <img alt="Docker" src="https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white">
   <img alt="CI" src="https://github.com/IUT-Dhongorsho/Vero_SPL2/actions/workflows/ci.yml/badge.svg">
 </p>
+
+<p align="center">
+  <a href="#why">Why</a> ·
+  <a href="#the-idea">The idea</a> ·
+  <a href="#features">Features</a> ·
+  <a href="#architecture">Architecture</a> ·
+  <a href="#tech-stack">Tech stack</a> ·
+  <a href="#run-it">Run it</a> ·
+  <a href="#repository-layout">Layout</a> ·
+  <a href="#engineering-notes">Engineering notes</a> ·
+  <a href="#team">Team</a>
+</p>
+
+---
