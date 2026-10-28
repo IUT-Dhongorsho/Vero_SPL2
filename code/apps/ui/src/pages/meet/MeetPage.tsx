@@ -13,11 +13,15 @@ import { AnimatedButton } from '../../components/ui/AnimatedButton';
 import { useModule } from '../../hooks/useModule';
 import { moduleCrumbs } from '../../lib/routes';
 import { toast } from '../../components/Providers/ToastProvider';
-import { useChatStore } from '../../stores/chat.store';
 import { useAuthStore } from '../../stores/auth.store';
 import { useMeetStore } from '../../stores/meet.store';
 import { meetService, RoomStatus } from '../../services/meetService';
 import { useMeetingAudioCapture } from '../../features/meet-module/hooks/useMeetingAudioCapture';
+import { MessageThread } from '../../components/chat/MessageThread';
+import { Composer } from '../inbox/Composer';
+import { inboxService } from '../../services/inboxService';
+import { useInboxStore } from '../../stores/inbox.store';
+import { useConversation } from '../../hooks/useConversation';
 
 // ─── Web Audio Activity Hook ──────────────────────────────────────────────────
 function useAudioActivity(track?: MediaStreamTrack | null): boolean {
@@ -427,10 +431,6 @@ export const MeetPage: React.FC = () => {
   const [scheduleDate, setScheduleDate] = useState('');
   const [showPanel, setShowPanel] = useState(false);
   const [activePanel, setActivePanel] = useState<'participants' | 'chat'>('participants');
-  const [isRecording, setIsRecording] = useState(false);
-  const [recordingTime, setRecordingTime] = useState(0);
-  const [messages, setMessages] = useState<any[]>([]);
-  const [newMessage, setNewMessage] = useState('');
   // True when user auto-joined without a gesture — audio needs unlock tap
   const [needsAudioUnlock, setNeedsAudioUnlock] = useState(false);
   const [roomStatus, setRoomStatus] = useState<RoomStatus | null>(null);
@@ -440,7 +440,58 @@ export const MeetPage: React.FC = () => {
   const [participantVolumes, setParticipantVolumes] = useState<Record<string, number>>({});
   const [speakingMap, setSpeakingMap] = useState<Record<string, boolean>>({});
   const [showSidebar, setShowSidebar] = useState(false);
-  const recordingInterval = useRef<any | null>(null);
+
+  // ── Module Chat Connection ─────────────────────────────────────────────────
+  const [chatChannelId, setChatChannelId] = useState<string | null>(null);
+  const [chatState, setChatState] = useState<'loading' | 'ready' | 'error'>('loading');
+  const { activeChannelId, messagesLoading, unreadByChannel, openChannel, closeConversation, deleteMessage } =
+    useInboxStore();
+  const channelId = chatState === 'ready' ? activeChannelId : null;
+  const { messages: chatMessages, addNotice, scrollRef: desktopScrollRef, typingNames } = useConversation(channelId);
+  const mobileScrollRef = useRef<HTMLDivElement>(null);
+  const people = useMemo(() => module?.members.map((m) => m.user) ?? [], [module]);
+
+  const initChat = useCallback(async () => {
+    if (!moduleId) return;
+    setChatState('loading');
+    try {
+      const channel = await inboxService.moduleChannel(moduleId);
+      setChatChannelId(channel.id);
+      await openChannel(channel.id);
+      setChatState('ready');
+    } catch (err) {
+      console.warn('[MeetChat] Failed to connect to module channel:', err);
+      setChatState('error');
+    }
+  }, [moduleId, openChannel]);
+
+  useEffect(() => {
+    initChat();
+    return () => {
+      closeConversation();
+    };
+  }, [initChat, closeConversation]);
+
+  // Mark read when chat panel is open
+  useEffect(() => {
+    if (chatChannelId && activePanel === 'chat' && (showSidebar || showPanel)) {
+      inboxService.markRead(chatChannelId).catch(() => {});
+    }
+  }, [chatChannelId, activePanel, showSidebar, showPanel, chatMessages.length]);
+
+  // Auto scroll to bottom when panel opens or messages change
+  useEffect(() => {
+    if (desktopScrollRef.current) {
+      desktopScrollRef.current.scrollTop = desktopScrollRef.current.scrollHeight;
+    }
+    if (mobileScrollRef.current) {
+      mobileScrollRef.current.scrollTop = mobileScrollRef.current.scrollHeight;
+    }
+  }, [chatMessages.length, channelId, activePanel, showSidebar, showPanel, desktopScrollRef]);
+
+  const isChatOpen = (showSidebar || showPanel) && activePanel === 'chat';
+  const unreadCount = chatChannelId ? unreadByChannel[chatChannelId] ?? 0 : 0;
+  const hasUnread = !isChatOpen && unreadCount > 0;
 
   const getVolume = useCallback(
     (id: string) => (participantVolumes[id] !== undefined ? participantVolumes[id] : 100),
@@ -457,7 +508,6 @@ export const MeetPage: React.FC = () => {
     });
   }, []);
 
-  const { sendMessage: sendChannelMessage, channels } = useChatStore();
   const user = useAuthStore((s) => s.user);
 
   const {
@@ -501,16 +551,6 @@ export const MeetPage: React.FC = () => {
     return () => window.removeEventListener('popstate', handler);
   }, [isInCall, disconnect]);
 
-  // ─── Recording timer ────────────────────────────────────────────
-  useEffect(() => {
-    if (isRecording) {
-      recordingInterval.current = setInterval(() => setRecordingTime((p) => p + 1), 1000);
-    } else {
-      if (recordingInterval.current) clearInterval(recordingInterval.current);
-    }
-    return () => { if (recordingInterval.current) clearInterval(recordingInterval.current); };
-  }, [isRecording]);
-
   // ─── Cleanup on unmount & duplicate device kick listener ───────
   useEffect(() => {
     useMeetStore.getState().setOnDisconnected((reason) => {
@@ -551,9 +591,6 @@ export const MeetPage: React.FC = () => {
   }, [moduleId]);
 
   // ─── Helpers ────────────────────────────────────────────────────
-  const formatTime = (s: number) =>
-    `${Math.floor(s / 60).toString().padStart(2, '0')}:${(s % 60).toString().padStart(2, '0')}`;
-
   const tryAutoPermissions = async (): Promise<boolean> => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
@@ -577,15 +614,21 @@ export const MeetPage: React.FC = () => {
   const handleStartInstant = async () => {
     const isAlreadyActive = roomStatus?.status === 'active' && (roomStatus?.livePeerCount ?? 0) > 0;
 
-    // Only broadcast chat notification if starting a brand new meeting
-    if (!isAlreadyActive) {
-      const activeChannel = channels.find((c) => c.moduleId === moduleId) || channels[0];
-      if (activeChannel) {
-        sendChannelMessage(
-          activeChannel.id,
-          `🎥 I'm starting an instant meeting! Join here: ${window.location.origin}/project/${projectId}/module/${moduleId}/meet`,
-          user?.id || 'u1'
-        );
+    // Broadcast chat notification to the module's real chat if starting a brand new meeting
+    if (!isAlreadyActive && moduleId) {
+      try {
+        const targetChannelId = chatChannelId || (await inboxService.moduleChannel(moduleId)).id;
+        if (targetChannelId) {
+          if (useInboxStore.getState().activeChannelId !== targetChannelId) {
+            await useInboxStore.getState().openChannel(targetChannelId);
+          }
+          useInboxStore.getState().sendMessage({
+            content: `🎥 I'm starting an instant meeting! Join here: ${window.location.origin}/project/${projectId}/module/${moduleId}/meet`,
+            link: `/project/${projectId}/module/${moduleId}/meet`,
+          });
+        }
+      } catch (err) {
+        console.warn('[Meet] Could not broadcast meeting start to module chat:', err);
       }
     }
 
@@ -628,15 +671,6 @@ export const MeetPage: React.FC = () => {
     disconnect();
     toast.success('Call ended');
     setMeetingMode('hub');
-  };
-
-  const sendMessage = () => {
-    if (!newMessage.trim()) return;
-    setMessages((prev) => [
-      ...prev,
-      { id: Date.now().toString(), userId: user?.id, userName: user?.name, message: newMessage, timestamp: new Date() },
-    ]);
-    setNewMessage('');
   };
 
   // ─── Assemble Participant Models & Dynamic Priority Sort ─────────
@@ -905,13 +939,6 @@ export const MeetPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-          {isRecording && (
-            <div className="flex items-center gap-1.5 bg-destructive/15 border border-destructive/30 px-3 py-1 rounded-full">
-              <div className="w-1.5 h-1.5 bg-destructive rounded-full animate-pulse" />
-              <span className="text-destructive text-xs font-mono">{formatTime(recordingTime)}</span>
-            </div>
-          )}
-
           {isTranscribing && (
             <div className="flex items-center gap-2 bg-accent-soft border border-accent/30 px-3 py-1 rounded-full">
               <span className="w-2 h-2 rounded-full bg-destructive animate-pulse" />
@@ -1210,7 +1237,7 @@ export const MeetPage: React.FC = () => {
           {showSidebar && (
             <motion.div
               initial={{ width: 0, opacity: 0 }}
-              animate={{ width: 320, opacity: 1 }}
+              animate={{ width: 350, opacity: 1 }}
               exit={{ width: 0, opacity: 0 }}
               transition={{ duration: 0.2 }}
               className="hidden md:flex flex-col bg-card/95 backdrop-blur-md border-l border-border shrink-0 overflow-hidden z-30 text-foreground"
@@ -1221,7 +1248,7 @@ export const MeetPage: React.FC = () => {
                   <button
                     key={tab}
                     onClick={() => setActivePanel(tab)}
-                    className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wider transition-colors ${
+                    className={`flex-1 py-3 text-xs font-semibold uppercase tracking-wider transition-colors relative ${
                       activePanel === tab
                         ? 'text-foreground border-b-2 border-accent'
                         : 'text-muted-foreground hover:text-foreground'
@@ -1236,6 +1263,11 @@ export const MeetPage: React.FC = () => {
                       <>
                         <MessageSquare className="w-3.5 h-3.5 inline mr-1" />
                         Chat
+                        {unreadCount > 0 && activePanel !== 'chat' && (
+                          <span className="ml-1 px-1.5 py-0.5 rounded-full text-[10px] bg-accent text-accent-foreground font-bold">
+                            {unreadCount}
+                          </span>
+                        )}
                       </>
                     )}
                   </button>
@@ -1250,9 +1282,9 @@ export const MeetPage: React.FC = () => {
               </div>
 
               {/* Sidebar Body */}
-              <div className="flex-1 overflow-y-auto">
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 {activePanel === 'participants' && (
-                  <div className="p-3 space-y-2">
+                  <div className="flex-1 overflow-y-auto p-3 space-y-2">
                     {participantList.map((p) => (
                       <div
                         key={p.id}
@@ -1292,48 +1324,47 @@ export const MeetPage: React.FC = () => {
                 )}
 
                 {activePanel === 'chat' && (
-                  <div className="flex flex-col h-full">
-                    <div className="flex-1 p-3 space-y-3 overflow-y-auto">
-                      {messages.length === 0 && (
-                        <p className="text-muted-foreground text-sm text-center mt-8">No messages yet.</p>
-                      )}
-                      {messages.map((m) => (
-                        <div
-                          key={m.id}
-                          className={`flex ${m.userId === user?.id ? 'justify-end' : 'justify-start'}`}
+                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-background">
+                    {chatState === 'loading' ? (
+                      <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                        <span>Connecting to module chat…</span>
+                      </div>
+                    ) : chatState === 'error' ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+                        <AlertTriangle className="w-8 h-8 text-destructive/80 mb-2" />
+                        <p className="text-sm text-foreground font-medium mb-1">Could not connect to chat</p>
+                        <p className="text-xs text-muted-foreground mb-4">Module chat service might be unreachable.</p>
+                        <button
+                          onClick={initChat}
+                          className="px-3 py-1.5 rounded-xl bg-accent text-accent-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
                         >
-                          <div
-                            className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ${
-                              m.userId === user?.id
-                                ? 'bg-accent text-accent-foreground rounded-tr-none'
-                                : 'bg-secondary text-secondary-foreground rounded-tl-none border border-border'
-                            }`}
-                          >
-                            {m.userId !== user?.id && (
-                              <p className="text-[11px] font-semibold mb-0.5 text-accent">
-                                {m.userName}
-                              </p>
-                            )}
-                            <p className="leading-snug">{m.message}</p>
-                          </div>
+                          Retry
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div ref={desktopScrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
+                          <MessageThread
+                            messages={chatMessages}
+                            loading={messagesLoading}
+                            meId={user?.id}
+                            meName={user?.name}
+                            fallbackName="A teammate"
+                            typingNames={typingNames}
+                            emptyTitle={`Chat in ${module?.name ?? 'Meeting'}`}
+                            emptyHint="Messages sent here sync with the module chat in real time."
+                            onDelete={(id) => deleteMessage(id)}
+                            members={people}
+                          />
                         </div>
-                      ))}
-                    </div>
-                    <div className="p-3 border-t border-border flex gap-2 bg-card/80">
-                      <input
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                        placeholder="Message everyone…"
-                        className="flex-1 bg-background border border-border rounded-xl px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                      />
-                      <button
-                        onClick={sendMessage}
-                        className="bg-accent hover:opacity-90 text-accent-foreground px-3.5 py-2 rounded-xl text-sm font-semibold transition-colors shadow-sm"
-                      >
-                        Send
-                      </button>
-                    </div>
+                        {chatChannelId && (
+                          <div className="shrink-0">
+                            <Composer channelId={chatChannelId} onLocalNotice={addNotice} members={people} />
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1369,19 +1400,6 @@ export const MeetPage: React.FC = () => {
             active={isScreenSharing}
             icon={<ScreenShare className="w-5 h-5" />}
             label="Share"
-            className="hidden sm:flex"
-          />
-
-          {/* Record */}
-          <ControlButton
-            onClick={() => {
-              setIsRecording((v) => !v);
-              if (!isRecording) setRecordingTime(0);
-            }}
-            active={isRecording}
-            icon={<StopCircle className="w-5 h-5" />}
-            label={isRecording ? formatTime(recordingTime) : 'Record'}
-            danger={isRecording}
             className="hidden sm:flex"
           />
 
@@ -1423,6 +1441,11 @@ export const MeetPage: React.FC = () => {
             active={(showPanel || showSidebar) && activePanel === 'chat'}
             icon={<MessageSquare className="w-5 h-5" />}
             label="Chat"
+            badge={
+              hasUnread ? (
+                <span className="absolute top-1.5 right-2 w-2 h-2 rounded-full bg-accent animate-pulse" />
+              ) : undefined
+            }
           />
 
           {/* Live Transcription Button */}
@@ -1483,14 +1506,14 @@ export const MeetPage: React.FC = () => {
               animate={{ y: 0 }}
               exit={{ y: '100%' }}
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
-              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border rounded-t-2xl overflow-hidden shadow-2xl text-foreground"
-              style={{ maxHeight: '75vh' }}
+              className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card border-t border-border rounded-t-2xl overflow-hidden shadow-2xl text-foreground flex flex-col"
+              style={{ maxHeight: '80vh', height: '80vh' }}
             >
-              <div className="flex justify-center pt-3 pb-2">
+              <div className="flex justify-center pt-3 pb-2 shrink-0">
                 <div className="w-10 h-1 bg-border rounded-full" />
               </div>
 
-              <div className="flex border-b border-border px-4">
+              <div className="flex border-b border-border px-4 shrink-0">
                 {(['participants', 'chat'] as const).map((tab) => (
                   <button
                     key={tab}
@@ -1499,7 +1522,18 @@ export const MeetPage: React.FC = () => {
                       activePanel === tab ? 'text-foreground border-b-2 border-accent' : 'text-muted-foreground'
                     }`}
                   >
-                    {tab === 'participants' ? `Participants (${participantList.length})` : 'Chat'}
+                    {tab === 'participants' ? (
+                      `Participants (${participantList.length})`
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5">
+                        Chat
+                        {unreadCount > 0 && activePanel !== 'chat' && (
+                          <span className="px-1.5 py-0.5 rounded-full text-[10px] bg-accent text-accent-foreground font-bold leading-none">
+                            {unreadCount}
+                          </span>
+                        )}
+                      </span>
+                    )}
                   </button>
                 ))}
                 <button onClick={() => setShowPanel(false)} className="p-2 text-muted-foreground hover:text-foreground">
@@ -1507,9 +1541,9 @@ export const MeetPage: React.FC = () => {
                 </button>
               </div>
 
-              <div className="overflow-y-auto" style={{ maxHeight: 'calc(75vh - 90px)' }}>
+              <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
                 {activePanel === 'participants' && (
-                  <div className="p-4 space-y-2">
+                  <div className="flex-1 overflow-y-auto p-4 space-y-2">
                     {participantList.map((p) => (
                       <div key={p.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/60">
                         <div className="w-9 h-9 rounded-full bg-accent text-accent-foreground flex items-center justify-center text-sm font-bold shrink-0">
@@ -1530,44 +1564,47 @@ export const MeetPage: React.FC = () => {
                   </div>
                 )}
                 {activePanel === 'chat' && (
-                  <div>
-                    <div className="p-4 space-y-3">
-                      {messages.length === 0 && (
-                        <p className="text-muted-foreground text-sm text-center mt-4">No messages yet.</p>
-                      )}
-                      {messages.map((m) => (
-                        <div
-                          key={m.id}
-                          className={`flex ${m.userId === user?.id ? 'justify-end' : 'justify-start'}`}
+                  <div className="flex-1 min-h-0 flex flex-col overflow-hidden bg-background">
+                    {chatState === 'loading' ? (
+                      <div className="flex-1 flex items-center justify-center gap-2 text-muted-foreground text-sm">
+                        <Loader2 className="w-4 h-4 animate-spin text-accent" />
+                        <span>Connecting to module chat…</span>
+                      </div>
+                    ) : chatState === 'error' ? (
+                      <div className="flex-1 flex flex-col items-center justify-center p-4 text-center">
+                        <AlertTriangle className="w-8 h-8 text-destructive/80 mb-2" />
+                        <p className="text-sm text-foreground font-medium mb-1">Could not connect to chat</p>
+                        <p className="text-xs text-muted-foreground mb-4">Module chat service might be unreachable.</p>
+                        <button
+                          onClick={initChat}
+                          className="px-3 py-1.5 rounded-xl bg-accent text-accent-foreground text-xs font-semibold hover:opacity-90 transition-opacity"
                         >
-                          <div
-                            className={`max-w-[80%] rounded-xl px-3 py-2 ${
-                              m.userId === user?.id ? 'bg-accent text-accent-foreground' : 'bg-secondary text-secondary-foreground border border-border'
-                            }`}
-                          >
-                            {m.userId !== user?.id && (
-                              <p className="text-xs font-semibold mb-1 text-accent">{m.userName}</p>
-                            )}
-                            <p className="text-sm">{m.message}</p>
-                          </div>
+                          Retry
+                        </button>
+                      </div>
+                    ) : (
+                      <>
+                        <div ref={mobileScrollRef} className="flex-1 min-h-0 overflow-y-auto px-3 py-3">
+                          <MessageThread
+                            messages={chatMessages}
+                            loading={messagesLoading}
+                            meId={user?.id}
+                            meName={user?.name}
+                            fallbackName="A teammate"
+                            typingNames={typingNames}
+                            emptyTitle={`Chat in ${module?.name ?? 'Meeting'}`}
+                            emptyHint="Messages sent here sync with the module chat in real time."
+                            onDelete={(id) => deleteMessage(id)}
+                            members={people}
+                          />
                         </div>
-                      ))}
-                    </div>
-                    <div className="sticky bottom-0 p-4 bg-card border-t border-border flex gap-2">
-                      <input
-                        value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-                        placeholder="Message…"
-                        className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent"
-                      />
-                      <button
-                        onClick={sendMessage}
-                        className="bg-accent hover:opacity-90 text-accent-foreground px-3 py-2 rounded-lg text-sm font-semibold transition-colors"
-                      >
-                        Send
-                      </button>
-                    </div>
+                        {chatChannelId && (
+                          <div className="shrink-0">
+                            <Composer channelId={chatChannelId} onLocalNotice={addNotice} members={people} />
+                          </div>
+                        )}
+                      </>
+                    )}
                   </div>
                 )}
               </div>
@@ -1587,10 +1624,11 @@ const ControlButton: React.FC<{
   label: string;
   danger?: boolean;
   className?: string;
-}> = ({ onClick, active, icon, label, danger, className = '' }) => (
+  badge?: React.ReactNode;
+}> = ({ onClick, active, icon, label, danger, className = '', badge }) => (
   <button
     onClick={onClick}
-    className={`flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all ${
+    className={`relative flex flex-col items-center gap-1 px-3 py-2 rounded-xl transition-all ${
       danger
         ? 'bg-destructive/15 text-destructive hover:bg-destructive/25 border border-destructive/20'
         : active
@@ -1599,6 +1637,7 @@ const ControlButton: React.FC<{
     } ${className}`}
   >
     {icon}
+    {badge}
     <span className="text-[10px] font-semibold">{label}</span>
   </button>
 );

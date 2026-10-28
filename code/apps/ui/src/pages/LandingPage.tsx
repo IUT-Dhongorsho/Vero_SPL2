@@ -24,7 +24,7 @@ export const LandingPage: React.FC = () => {
       <div className="fixed top-6 left-0 right-0 z-50 flex justify-center px-6 pointer-events-none">
         <nav className="w-full max-w-6xl flex items-center justify-between px-6 py-3 bg-white/5 backdrop-blur-2xl border border-white/10 rounded-full shadow-[0_8px_32px_rgba(0,0,0,0.3)] pointer-events-auto">
           <div className="flex items-center gap-3">
-            <VeroLogo variant="symbol-bg" size="md" className="rounded-2xl p-3 shadow-lg shadow-purple-500/20" />
+            <VeroLogo variant="symbol-bg" size="md" className="rounded-2xl shadow-lg shadow-purple-500/20" />
             <span className="text-xl font-bold tracking-tight">Vero</span>
           </div>
           <div className="flex items-center gap-6">
