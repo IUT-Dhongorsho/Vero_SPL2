@@ -104,3 +104,31 @@ When you create a module, its tools are provisioned for it. You never set anythi
 - Live transcription: one browser mixes the call audio, sends 6-second chunks, Whisper (Groq, OpenAI fallback) writes the transcript into a note
 - When the call ends, Gemini writes the meeting minutes into a second note
 </details>
+
+<details>
+<summary><b>Calendar and My work</b> — your week, every project</summary>
+<br>
+<img src="doc/readme/calendar-crop.png" alt="Calendar" width="800">
+<img src="doc/readme/mywork-crop.png" alt="My work" width="800">
+
+- Every deadline you own, across every project, in one month view with the next six coming up
+- My work: everything assigned to you anywhere, plus a private personal task list
+</details>
+
+<details>
+<summary><b>Notifications</b> — one action, everyone knows</summary>
+<br>
+
+- A service that only listens: it subscribes to every Redis event channel
+- Groups repeats (same user, type and entity within two minutes) into one notification
+- Delivers to the bell (Socket.IO room per user), web push (VAPID) and email
+</details>
+
+<details>
+<summary><b>Accounts</b></summary>
+<br>
+
+- Better Auth with email, Google and GitHub sign-in
+- A JWT is minted per session so every service can verify a user locally
+- Gmail integration for the mail widget
+</details>
