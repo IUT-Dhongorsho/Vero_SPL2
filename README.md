@@ -293,3 +293,28 @@ code/
 └── scripts/          dev-stack.sh, test-all.sh
 doc/                  reports, diagrams, planning notes
 ```
+
+## Engineering notes
+
+Things we would tell a reviewer before they ask.
+
+<details>
+<summary>Design decisions</summary>
+
+- **One database per service.** Each of us could migrate our own schema without coordinating. Joins across services happen in code; each service replicates the slice of users, sessions and modules it needs from Redis events.
+- **Events over calls.** Producers don't know who listens. That is why board-service has no dependency on notifications, and why notification-service can be rebuilt without touching anything else.
+- **gRPC only where an answer is needed now.** Module provisioning needs the chat channel id back; everything else is an event.
+- **An SFU, not mesh.** Mesh costs n−1 uploads per client and dies at five people. The SFU forwards packets without decoding, so one upload per person.
+- **CRDT, not operational transform.** Yjs converges without a central sequencer, which made the notes server a thin relay.
+</details>
+
+<details>
+<summary>Known limitations</summary>
+
+- The board is not pushed live to other viewers; it refreshes on open.
+- Notes persist when the last client disconnects, not on a timer; the notes WebSocket is single-instance.
+- Meet has no TURN configured yet, so calls across strict NATs can fail; room media state is per instance.
+- JWTs live seven days and the refresh endpoint is not wired, so logout does not revoke a token early.
+- Running two notification instances processes each event twice (Redis pub/sub is broadcast, not a queue).
+- Recording in Meet is a placeholder; transcription is the v1 artifact of a call.
+</details>
