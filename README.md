@@ -211,3 +211,61 @@ Each note is a Yjs document. Every edit becomes an update tagged with the client
 | AI and APIs | Whisper via Groq (OpenAI fallback), Gemini, Gmail API |
 | Delivery | Docker Compose, nginx, GitHub Actions |
 | Quality | Vitest (180 tests against real Postgres and Redis), Prometheus, Grafana |
+
+## Run it
+
+**Prerequisites:** Bun, Node 20+, PostgreSQL 16, Redis 7. nginx for the clustered stack; Docker for Compose.
+
+<details open>
+<summary><b>Clustered dev stack</b> (two instances of every service behind nginx)</summary>
+
+```bash
+cd code
+./scripts/dev-stack.sh            # http://localhost:3000
+```
+
+| Flag / subcommand | Does |
+|---|---|
+| `--lan` | expose on your Wi-Fi at `http://<lan-ip>:3000` |
+| `--tailnet` | expose on your Tailscale mesh with TLS |
+| `--tunnel` | public URL through zrok2 |
+| `--bg` | run detached |
+| `stop` · `status` · `restart` | manage the cluster |
+| `monitoring` | Prometheus `:9090` and Grafana `:3001` in Docker |
+
+Primary instances listen on 8001–8007 (gRPC 5005), secondaries on 8011–8017 (gRPC 5015).
+</details>
+
+<details>
+<summary><b>Docker Compose</b> (single instance of everything)</summary>
+
+```bash
+cd code/infra/docker
+cp .env.example .env            # fill in keys
+docker compose up --build
+```
+</details>
+
+<details>
+<summary><b>One service at a time</b></summary>
+
+```bash
+cd code/services/board-service
+cp .env.example .env
+bun install
+bun run migrate
+bun dev                         # tsx watch, port from .env
+```
+
+Every service and `apps/ui` has an `.env.example`. The web app runs with `cd code/apps/web && bun dev`.
+</details>
+
+<details>
+<summary><b>Tests</b></summary>
+
+```bash
+cd code && ./scripts/test-all.sh
+```
+
+CI (`.github/workflows/ci.yml`) typechecks every package, runs the same script against Postgres and Redis service containers, and builds web and desktop on every push and pull request.
+</details>
